@@ -47,8 +47,13 @@ public class SliderWidget extends AtmosphereWidget {
 
         UiRender.card(context, x, y, width, height, hover ? theme.panelAlt() : theme.panel(), theme.border());
 
-        UiRender.text(context, textRenderer, label, x + 12, y + 8, theme.text());
-        UiRender.text(context, textRenderer, format(value), x + width - 58, y + 8, theme.mutedText());
+        String valueText = format(value);
+        int valueWidth = textRenderer.getWidth(valueText);
+        int valueX = x + width - 12 - valueWidth;
+        int labelMaxWidth = Math.max(40, valueX - (x + 12) - 10);
+
+        UiRender.text(context, textRenderer, trim(textRenderer, label, labelMaxWidth), x + 12, y + 8, theme.text());
+        UiRender.text(context, textRenderer, valueText, valueX, y + 8, theme.mutedText());
 
         if (description != null && !description.isEmpty()) {
             UiRender.text(context, textRenderer, trim(textRenderer, description, width - 24), x + 12, y + 21, theme.mutedText());

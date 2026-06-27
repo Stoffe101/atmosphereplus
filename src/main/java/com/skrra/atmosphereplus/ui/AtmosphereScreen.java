@@ -7,6 +7,7 @@ import com.skrra.atmosphereplus.themes.Theme;
 import com.skrra.atmosphereplus.themes.ThemeManager;
 import com.skrra.atmosphereplus.ui.widgets.AtmosphereWidget;
 import com.skrra.atmosphereplus.ui.widgets.CategoryButton;
+import com.skrra.atmosphereplus.ui.widgets.ChoiceButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.PresetCardWidget;
 import com.skrra.atmosphereplus.ui.widgets.SliderWidget;
 import com.skrra.atmosphereplus.ui.widgets.TimePresetButtonWidget;
@@ -137,20 +138,46 @@ public class AtmosphereScreen extends Screen {
     private int addWeatherWidgets(int contentX, int contentY, int contentW) {
         widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override server weather visually", "Makes weather visuals client-side and independent from the server.", () -> ConfigManager.get().weatherOverride, v -> {
             ConfigManager.get().weatherOverride = v;
+            if (!v) {
+                ConfigManager.get().weatherMode = "SERVER";
+            } else if ("SERVER".equalsIgnoreCase(ConfigManager.get().weatherMode)) {
+                ConfigManager.get().weatherMode = "SUNNY";
+            }
             ConfigManager.save();
+            rebuildWidgets();
         }));
 
-        widgets.add(new SliderWidget(contentX, contentY + 54, contentW, "Rain intensity", "Adjusts how strong rain visuals should appear.", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
+        int modeW = (contentW - 20) / 3;
+        int row1Y = contentY + 54;
+        int row2Y = contentY + 104;
+
+        addWeatherChoice(contentX, row1Y, modeW, "Server", "Use normal server weather.", IconType.WEATHER, "SERVER");
+        addWeatherChoice(contentX + modeW + 10, row1Y, modeW, "Sunny", "Force clear visual weather.", IconType.SKY, "SUNNY");
+        addWeatherChoice(contentX + (modeW + 10) * 2, row1Y, modeW, "Rain", "Force rainy visual mood.", IconType.WEATHER, "RAIN");
+
+        addWeatherChoice(contentX, row2Y, modeW, "Thunder", "Force stormy visual mood.", IconType.LIGHTING, "THUNDER");
+        addWeatherChoice(contentX + modeW + 10, row2Y, modeW, "Snow", "Force snowy visual mood later.", IconType.FOG, "SNOW");
+
+        widgets.add(new SliderWidget(contentX, contentY + 158, contentW, "Rain intensity", "Adjusts how strong rain visuals should appear.", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
             ConfigManager.get().rainIntensity = v;
             ConfigManager.save();
         }, value -> Math.round(value * 100f) + "%"));
 
-        widgets.add(new ToggleWidget(contentX, contentY + 116, contentW, "Thunder sounds", "Controls whether thunder audio should be allowed by Atmosphere+.", () -> ConfigManager.get().thunderSounds, v -> {
+        widgets.add(new ToggleWidget(contentX, contentY + 220, contentW, "Thunder sounds", "Controls whether thunder audio should be allowed by Atmosphere+.", () -> ConfigManager.get().thunderSounds, v -> {
             ConfigManager.get().thunderSounds = v;
             ConfigManager.save();
         }));
 
-        return contentY + 168;
+        return contentY + 274;
+    }
+
+    private void addWeatherChoice(int x, int y, int width, String label, String description, IconType icon, String mode) {
+        widgets.add(new ChoiceButtonWidget(x, y, width, label, description, icon, () -> mode.equalsIgnoreCase(ConfigManager.get().weatherMode), () -> {
+            ConfigManager.get().weatherMode = mode;
+            ConfigManager.get().weatherOverride = !"SERVER".equalsIgnoreCase(mode);
+            ConfigManager.save();
+            rebuildWidgets();
+        }));
     }
 
     private int addTimeWidgets(int contentX, int contentY, int contentW) {
@@ -159,29 +186,33 @@ public class AtmosphereScreen extends Screen {
             ConfigManager.save();
         }));
 
-        int buttonW = (contentW - 30) / 4;
-        int presetY = contentY + 52;
+        int buttonW = (contentW - 20) / 3;
+        int row1Y = contentY + 54;
+        int row2Y = contentY + 98;
 
-        addTimePresetButton(contentX, presetY, buttonW, "Sunrise", "0", 0);
-        addTimePresetButton(contentX + buttonW + 10, presetY, buttonW, "Day", "6000", 6000);
-        addTimePresetButton(contentX + (buttonW + 10) * 2, presetY, buttonW, "Sunset", "12000", 12000);
-        addTimePresetButton(contentX + (buttonW + 10) * 3, presetY, buttonW, "Night", "18000", 18000);
+        addTimePresetButton(contentX, row1Y, buttonW, "Sunrise", "0", 0);
+        addTimePresetButton(contentX + buttonW + 10, row1Y, buttonW, "Morning", "1000", 1000);
+        addTimePresetButton(contentX + (buttonW + 10) * 2, row1Y, buttonW, "Day", "6000", 6000);
 
-        widgets.add(new SliderWidget(contentX, contentY + 96, contentW, "Visual time", "0 sunrise, 6000 day, 12000 sunset, 18000 night.", 0f, 24000f, () -> (float) ConfigManager.get().visualTime, v -> {
+        addTimePresetButton(contentX, row2Y, buttonW, "Sunset", "12000", 12000);
+        addTimePresetButton(contentX + buttonW + 10, row2Y, buttonW, "Night", "15000", 15000);
+        addTimePresetButton(contentX + (buttonW + 10) * 2, row2Y, buttonW, "Midnight", "18000", 18000);
+
+        widgets.add(new SliderWidget(contentX, contentY + 148, contentW, "Visual time", "0 sunrise, 6000 day, 12000 sunset, 18000 midnight.", 0f, 24000f, () -> (float) ConfigManager.get().visualTime, v -> {
             ConfigManager.get().visualTime = Math.round(v);
             ConfigManager.save();
         }, this::formatMinecraftTime));
 
-        widgets.add(new ToggleWidget(contentX, contentY + 158, contentW, "Freeze visual time", "Reserved for future smooth time animation modes.", () -> ConfigManager.get().freezeVisualTime, v -> {
+        widgets.add(new ToggleWidget(contentX, contentY + 210, contentW, "Freeze visual time", "Reserved for future smooth time animation modes.", () -> ConfigManager.get().freezeVisualTime, v -> {
             ConfigManager.get().freezeVisualTime = v;
             ConfigManager.save();
         }));
 
-        return contentY + 210;
+        return contentY + 264;
     }
 
     private void addTimePresetButton(int x, int y, int width, String label, String timeLabel, int time) {
-        widgets.add(new TimePresetButtonWidget(x, y, width, label, timeLabel, () -> {
+        widgets.add(new TimePresetButtonWidget(x, y, width, label, timeLabel, () -> ConfigManager.get().timeOverride && ConfigManager.get().visualTime == time, () -> {
             ConfigManager.get().timeOverride = true;
             ConfigManager.get().visualTime = time;
             ConfigManager.save();
@@ -234,6 +265,7 @@ public class AtmosphereScreen extends Screen {
             ConfigManager.get().timeOverride = true;
             ConfigManager.get().visualTime = 6000;
             ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().weatherMode = "SUNNY";
             ConfigManager.get().rainIntensity = 0f;
             ConfigManager.save();
         }));
@@ -242,6 +274,7 @@ public class AtmosphereScreen extends Screen {
             ConfigManager.get().timeOverride = true;
             ConfigManager.get().visualTime = 18000;
             ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().weatherMode = "SUNNY";
             ConfigManager.get().rainIntensity = 0f;
             ConfigManager.save();
         }));
@@ -252,18 +285,30 @@ public class AtmosphereScreen extends Screen {
             ConfigManager.get().timeOverride = true;
             ConfigManager.get().visualTime = 9000;
             ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().weatherMode = "RAIN";
             ConfigManager.get().rainIntensity = 0.35f;
             ConfigManager.save();
         }));
 
-        widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Deep Fog", "Prepares a foggy atmospheric profile.", IconType.FOG, () -> {
-            ConfigManager.get().fogDistance = 0.35f;
+        widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Thunder Night", "Dark night with thunderstorm mood.", IconType.LIGHTING, () -> {
+            ConfigManager.get().timeOverride = true;
+            ConfigManager.get().visualTime = 18000;
+            ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().weatherMode = "THUNDER";
+            ConfigManager.get().rainIntensity = 0.85f;
             ConfigManager.save();
         }));
 
         y += 84;
 
-        widgets.add(new PresetCardWidget(contentX, y, cardW, "Performance Clear", "Reduces visual intensity settings.", IconType.ADVANCED, () -> {
+        widgets.add(new PresetCardWidget(contentX, y, cardW, "Deep Fog", "Prepares a foggy atmospheric profile.", IconType.FOG, () -> {
+            ConfigManager.get().fogDistance = 0.35f;
+            ConfigManager.save();
+        }));
+
+        widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Performance Clear", "Reduces visual intensity settings.", IconType.ADVANCED, () -> {
+            ConfigManager.get().weatherMode = "SUNNY";
+            ConfigManager.get().weatherOverride = true;
             ConfigManager.get().rainIntensity = 0f;
             ConfigManager.get().particleAmount = 0.35f;
             ConfigManager.get().fogDistance = 1.5f;
@@ -278,8 +323,15 @@ public class AtmosphereScreen extends Screen {
 
         y = addSearchToggle(y, contentX, contentW, "Weather · Override server weather visually", "weather override server visual rain sunny thunder atmosphere", () -> ConfigManager.get().weatherOverride, v -> {
             ConfigManager.get().weatherOverride = v;
+            if (!v) ConfigManager.get().weatherMode = "SERVER";
             ConfigManager.save();
         });
+
+        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Server", "weather mode server normal", IconType.WEATHER, "SERVER");
+        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Sunny", "weather mode sunny clear sun", IconType.SKY, "SUNNY");
+        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Rain", "weather mode rain rainy water", IconType.WEATHER, "RAIN");
+        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Thunder", "weather mode thunder storm lightning", IconType.LIGHTING, "THUNDER");
+        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Snow", "weather mode snow snowy winter", IconType.FOG, "SNOW");
 
         y = addSearchSlider(y, contentX, contentW, "Weather · Rain intensity", "weather rain intensity strength opacity storm water", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
             ConfigManager.get().rainIntensity = v;
@@ -336,6 +388,21 @@ public class AtmosphereScreen extends Screen {
         }
 
         return y;
+    }
+
+    private int addSearchWeatherChoice(int y, int x, int width, String label, String keywords, IconType icon, String mode) {
+        if (!matchesSearch(label, keywords)) {
+            return y;
+        }
+
+        widgets.add(new ChoiceButtonWidget(x, y, width, label, "Search result: set weather mode to " + mode.toLowerCase(Locale.ROOT), icon, () -> mode.equalsIgnoreCase(ConfigManager.get().weatherMode), () -> {
+            ConfigManager.get().weatherMode = mode;
+            ConfigManager.get().weatherOverride = !"SERVER".equalsIgnoreCase(mode);
+            ConfigManager.save();
+            rebuildWidgets();
+        }));
+        searchResultCount++;
+        return y + 52;
     }
 
     private int addSearchToggle(int y, int x, int width, String label, String keywords,
@@ -502,19 +569,26 @@ public class AtmosphereScreen extends Screen {
     }
 
     private void drawSearchBar(DrawContext context, Theme theme) {
-        int border = searchFocused ? theme.accent() : theme.border();
-        UiRender.borderedRect(context, searchX, searchY, searchW, searchH, theme.panelAlt(), border);
+        int border = searchFocused ? theme.accent() : isSearching() ? theme.accentSoft() : theme.border();
+        int fill = isSearching() ? theme.accentSoft() : theme.panelAlt();
+
+        UiRender.borderedRect(context, searchX, searchY, searchW, searchH, fill, border);
 
         String displayed = searchQuery.isEmpty() ? "Search settings..." : searchQuery;
         int textColor = searchQuery.isEmpty() ? theme.mutedText() : theme.text();
 
-        UiRender.text(context, textRenderer, displayed, searchX + 9, searchY + 6, textColor);
+        drawSearchIcon(context, searchX + 9, searchY + 5, searchFocused || isSearching() ? theme.accent() : theme.mutedText());
+        UiRender.text(context, textRenderer, displayed, searchX + 28, searchY + 6, textColor);
 
         if (!searchQuery.isEmpty()) {
-            UiRender.text(context, textRenderer, "×", searchX + searchW - 14, searchY + 6, theme.mutedText());
-        } else {
-            UiRender.text(context, textRenderer, "⌕", searchX + searchW - 16, searchY + 6, theme.mutedText());
+            UiRender.text(context, textRenderer, "×", searchX + searchW - 14, searchY + 6, theme.text());
         }
+    }
+
+    private void drawSearchIcon(DrawContext context, int x, int y, int color) {
+        UiRender.border(context, x, y, 9, 9, color);
+        context.fill(x + 8, y + 8, x + 11, y + 11, color);
+        context.fill(x + 10, y + 10, x + 13, y + 13, color);
     }
 
     private void drawTopButtons(DrawContext context, Theme theme, int mouseX, int mouseY) {
@@ -555,8 +629,13 @@ public class AtmosphereScreen extends Screen {
         if (isSearching()) {
             UiRender.borderedRect(context, x + 10, y + 8, 22, 22, theme.accentSoft(), theme.accent());
             IconRenderer.drawCentered(context, IconType.ADVANCED, x + 21, y + 19, 18);
-            UiRender.text(context, textRenderer, "Search Results", x + 42, y + 8, theme.text());
-            UiRender.text(context, textRenderer, searchResultCount + " direct setting result" + (searchResultCount == 1 ? "" : "s") + " for \"" + searchQuery + "\"", x + 42, y + 22, theme.mutedText());
+
+            UiRender.text(context, textRenderer, "SEARCH MODE", x + 42, y + 7, theme.accent());
+            UiRender.text(context, textRenderer, searchResultCount + " direct setting result" + (searchResultCount == 1 ? "" : "s") + " for \"" + searchQuery + "\"", x + 42, y + 22, theme.text());
+
+            int chipW = 82;
+            UiRender.borderedRect(context, x + w - chipW - 10, y + 9, chipW, 18, theme.accentSoft(), theme.accent());
+            UiRender.centeredText(context, textRenderer, "DIRECT EDIT", x + w - chipW / 2 - 10, y + 14, theme.text());
             return;
         }
 
@@ -578,7 +657,9 @@ public class AtmosphereScreen extends Screen {
         if (isSearching()) {
             if (searchResultCount == 0) {
                 UiRender.centeredText(context, textRenderer, "No direct settings found", x + w / 2, y + 112, theme.text());
-                UiRender.centeredText(context, textRenderer, "Try weather, fog distance, gamma, fullbright, particles, visual time, or a theme name.", x + w / 2, y + 134, theme.mutedText());
+                UiRender.centeredText(context, textRenderer, "Try weather, sunny, thunder, fog distance, gamma, particles, visual time, or a theme name.", x + w / 2, y + 134, theme.mutedText());
+            } else {
+                UiRender.centeredText(context, textRenderer, "Search mode: edit matching controls directly here.", x + w / 2, y + h - 26, theme.mutedText());
             }
             return;
         }
@@ -602,7 +683,7 @@ public class AtmosphereScreen extends Screen {
         drawMiniCard(context, theme, x + 38 + cardW * 2, cardY, cardW, "Presets", "One-click moods", IconType.PRESETS);
 
         UiRender.centeredText(context, textRenderer, "Tip: search for a setting like fog distance and edit it instantly.", x + w / 2, y + h - 58, theme.mutedText());
-        UiRender.centeredText(context, textRenderer, "Time override is now active when enabled.", x + w / 2, y + h - 40, theme.accent());
+        UiRender.centeredText(context, textRenderer, "Weather, time, particles and thunder-sound controls are now hooked.", x + w / 2, y + h - 40, theme.accent());
     }
 
     private void drawMiniCard(DrawContext context, Theme theme, int x, int y, int w, String title, String description, IconType icon) {

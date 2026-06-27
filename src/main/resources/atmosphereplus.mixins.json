@@ -3,7 +3,10 @@
   "package": "com.skrra.atmosphereplus.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ClientWorldPropertiesMixin"
+    "ClientWorldPropertiesMixin",
+    "WorldWeatherMixin",
+    "ParticleManagerMixin",
+    "SoundManagerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

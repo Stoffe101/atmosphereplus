@@ -2,27 +2,27 @@ package com.skrra.atmosphereplus.ui.widgets;
 
 import com.skrra.atmosphereplus.themes.Theme;
 import com.skrra.atmosphereplus.themes.ThemeManager;
+import com.skrra.atmosphereplus.ui.IconRenderer;
+import com.skrra.atmosphereplus.ui.IconType;
 import com.skrra.atmosphereplus.ui.UiRender;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 
 import java.util.function.Supplier;
 
-public class TimePresetButtonWidget extends AtmosphereWidget {
+public class ChoiceButtonWidget extends AtmosphereWidget {
     private final String label;
-    private final String timeLabel;
+    private final String description;
+    private final IconType icon;
     private final Supplier<Boolean> activeSupplier;
     private final Runnable action;
 
-    public TimePresetButtonWidget(int x, int y, int width, String label, String timeLabel, Runnable action) {
-        this(x, y, width, label, timeLabel, () -> false, action);
-    }
-
-    public TimePresetButtonWidget(int x, int y, int width, String label, String timeLabel, Supplier<Boolean> activeSupplier, Runnable action) {
-        super(x, y, width, 36);
+    public ChoiceButtonWidget(int x, int y, int width, String label, String description, IconType icon, Supplier<Boolean> activeSupplier, Runnable action) {
+        super(x, y, width, 42);
         this.label = label;
-        this.timeLabel = timeLabel;
-        this.tooltip = "Set visual time to " + label + ".";
+        this.description = description;
+        this.icon = icon;
+        this.tooltip = description;
         this.activeSupplier = activeSupplier;
         this.action = action;
     }
@@ -30,8 +30,8 @@ public class TimePresetButtonWidget extends AtmosphereWidget {
     @Override
     public void render(DrawContext context, TextRenderer textRenderer, int mouseX, int mouseY, float delta) {
         Theme theme = ThemeManager.current();
-        boolean hover = isHovered(mouseX, mouseY);
         boolean active = activeSupplier.get();
+        boolean hover = isHovered(mouseX, mouseY);
 
         int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
         int border = active ? theme.accent() : hover ? theme.accent() : theme.border();
@@ -42,18 +42,24 @@ public class TimePresetButtonWidget extends AtmosphereWidget {
             context.fill(x, y, x + 3, y + height, theme.accent());
         }
 
-        UiRender.text(context, textRenderer, label, x + 10, y + 8, active ? theme.text() : theme.text());
-        UiRender.text(context, textRenderer, timeLabel, x + 10, y + 22, active ? theme.accent() : theme.mutedText());
+        UiRender.borderedRect(context, x + 9, y + 10, 22, 22, active ? theme.accentSoft() : theme.panelAlt(), border);
+        IconRenderer.drawCentered(context, icon, x + 20, y + 21, 17);
 
-        int dotX = x + width - 17;
-        int dotY = y + 13;
+        UiRender.text(context, textRenderer, label, x + 40, y + 9, theme.text());
+        UiRender.text(context, textRenderer, trim(textRenderer, description, width - 54), x + 40, y + 24, active ? theme.accent() : theme.mutedText());
+    }
 
-        if (active) {
-            context.fill(dotX - 2, dotY - 2, dotX + 8, dotY + 8, theme.accentSoft());
-            context.fill(dotX, dotY, dotX + 6, dotY + 6, theme.accent());
-        } else {
-            context.fill(dotX, dotY, dotX + 6, dotY + 6, hover ? theme.accent() : theme.accentSoft());
+    private String trim(TextRenderer renderer, String text, int maxWidth) {
+        if (renderer.getWidth(text) <= maxWidth) {
+            return text;
         }
+
+        String result = text;
+        while (result.length() > 3 && renderer.getWidth(result + "...") > maxWidth) {
+            result = result.substring(0, result.length() - 1);
+        }
+
+        return result + "...";
     }
 
     @Override
