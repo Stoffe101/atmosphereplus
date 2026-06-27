@@ -84,15 +84,17 @@ public class AtmosphereScreen extends Screen {
         int sidebarY = windowY + 106;
         int sidebarW = 174;
 
-        int i = 0;
-        for (UiCategory category : visibleCategories()) {
-            widgets.add(new CategoryButton(sidebarX, sidebarY + i * 29, sidebarW, category, () -> selected, c -> {
-                selected = c;
-                searchFocused = false;
-                scrollOffset = 0;
-                rebuildWidgets();
-            }));
-            i++;
+        if (!isSearching()) {
+            int i = 0;
+            for (UiCategory category : visibleCategories()) {
+                widgets.add(new CategoryButton(sidebarX, sidebarY + i * 29, sidebarW, category, () -> selected, c -> {
+                    selected = c;
+                    searchFocused = false;
+                    scrollOffset = 0;
+                    rebuildWidgets();
+                }));
+                i++;
+            }
         }
 
         int contentX = windowX + 224;
@@ -321,6 +323,17 @@ public class AtmosphereScreen extends Screen {
     private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         int y = contentY;
 
+        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Sunrise", "sunrise dawn morning day night time preset 0", "Sunrise", "0", 0);
+        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Morning", "morning sunrise day time preset 1000", "Morning", "1000", 1000);
+        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Day", "day noon morning time preset 6000", "Day", "6000", 6000);
+        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Sunset", "sunset evening dusk day night time preset 12000", "Sunset", "12000", 12000);
+        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Night", "night dark midnight sunset time preset 15000", "Night", "15000", 15000);
+        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Midnight", "midnight night dark time preset 18000", "Midnight", "18000", 18000);
+
+        for (UiCategory category : UiCategory.values()) {
+            y = addSearchCategoryJump(y, contentX, contentW, category);
+        }
+
         y = addSearchToggle(y, contentX, contentW, "Weather · Override server weather visually", "weather override server visual rain sunny thunder atmosphere", () -> ConfigManager.get().weatherOverride, v -> {
             ConfigManager.get().weatherOverride = v;
             if (!v) ConfigManager.get().weatherMode = "SERVER";
@@ -378,6 +391,56 @@ public class AtmosphereScreen extends Screen {
             ConfigManager.save();
         }, value -> Math.round(value * 100f) + "%");
 
+        y = addSearchPresetCard(y, contentX, contentW, "Preset · Golden Hour", "preset golden hour sunny warm noon lighting atmosphere", "Golden Hour", "Sunny, warm noon lighting and soft atmosphere.", IconType.SKY, () -> {
+            ConfigManager.get().timeOverride = true;
+            ConfigManager.get().visualTime = 6000;
+            ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().weatherMode = "SUNNY";
+            ConfigManager.get().rainIntensity = 0f;
+            ConfigManager.save();
+        });
+
+        y = addSearchPresetCard(y, contentX, contentW, "Preset · Midnight Calm", "preset midnight calm night clear quiet", "Midnight Calm", "Permanent midnight visuals with calm weather.", IconType.TIME, () -> {
+            ConfigManager.get().timeOverride = true;
+            ConfigManager.get().visualTime = 18000;
+            ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().weatherMode = "SUNNY";
+            ConfigManager.get().rainIntensity = 0f;
+            ConfigManager.save();
+        });
+
+        y = addSearchPresetCard(y, contentX, contentW, "Preset · Cozy Rain", "preset cozy rain rainy afternoon", "Cozy Rain", "Light rain mood with afternoon lighting.", IconType.WEATHER, () -> {
+            ConfigManager.get().timeOverride = true;
+            ConfigManager.get().visualTime = 9000;
+            ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().weatherMode = "RAIN";
+            ConfigManager.get().rainIntensity = 0.35f;
+            ConfigManager.save();
+        });
+
+        y = addSearchPresetCard(y, contentX, contentW, "Preset · Thunder Night", "preset thunder night storm lightning dark", "Thunder Night", "Dark night with thunderstorm mood.", IconType.LIGHTING, () -> {
+            ConfigManager.get().timeOverride = true;
+            ConfigManager.get().visualTime = 18000;
+            ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().weatherMode = "THUNDER";
+            ConfigManager.get().rainIntensity = 0.85f;
+            ConfigManager.save();
+        });
+
+        y = addSearchPresetCard(y, contentX, contentW, "Preset · Deep Fog", "preset deep fog foggy mist haze", "Deep Fog", "Prepares a foggy atmospheric profile.", IconType.FOG, () -> {
+            ConfigManager.get().fogDistance = 0.35f;
+            ConfigManager.save();
+        });
+
+        y = addSearchPresetCard(y, contentX, contentW, "Preset · Performance Clear", "preset performance clear particles low sunny", "Performance Clear", "Reduces visual intensity settings.", IconType.ADVANCED, () -> {
+            ConfigManager.get().weatherMode = "SUNNY";
+            ConfigManager.get().weatherOverride = true;
+            ConfigManager.get().rainIntensity = 0f;
+            ConfigManager.get().particleAmount = 0.35f;
+            ConfigManager.get().fogDistance = 1.5f;
+            ConfigManager.save();
+        });
+
         for (String themeId : ThemeManager.all().keySet()) {
             String name = ThemeManager.all().get(themeId).displayName();
             y = addSearchToggle(y, contentX, contentW, "Theme · " + name, "theme ui color accent dark black purple " + name + " " + themeId, () -> ConfigManager.get().theme.equals(themeId), v -> {
@@ -388,6 +451,50 @@ public class AtmosphereScreen extends Screen {
         }
 
         return y;
+    }
+
+    private int addSearchCategoryJump(int y, int x, int width, UiCategory category) {
+        if (!matchesSearch("Category · " + category.title, category.title, category.description)) {
+            return y;
+        }
+
+        widgets.add(new ChoiceButtonWidget(x, y, width, "Category · " + category.title, "Open the " + category.title + " category.", category.icon, () -> selected == category, () -> {
+            selected = category;
+            searchQuery = "";
+            searchFocused = false;
+            scrollOffset = 0;
+            rebuildWidgets();
+        }));
+        searchResultCount++;
+        return y + 52;
+    }
+
+    private int addSearchTimePreset(int y, int x, int width, String searchLabel, String keywords, String label, String timeLabel, int time) {
+        if (!matchesSearch(searchLabel, keywords)) {
+            return y;
+        }
+
+        widgets.add(new TimePresetButtonWidget(x, y, width, label, timeLabel, () -> ConfigManager.get().timeOverride && ConfigManager.get().visualTime == time, () -> {
+            ConfigManager.get().timeOverride = true;
+            ConfigManager.get().visualTime = time;
+            ConfigManager.save();
+            rebuildWidgets();
+        }));
+        searchResultCount++;
+        return y + 46;
+    }
+
+    private int addSearchPresetCard(int y, int x, int width, String searchLabel, String keywords, String title, String description, IconType icon, Runnable action) {
+        if (!matchesSearch(searchLabel, keywords, title, description)) {
+            return y;
+        }
+
+        widgets.add(new PresetCardWidget(x, y, width, title, description, icon, () -> {
+            action.run();
+            rebuildWidgets();
+        }));
+        searchResultCount++;
+        return y + 84;
     }
 
     private int addSearchWeatherChoice(int y, int x, int width, String label, String keywords, IconType icon, String mode) {
@@ -448,6 +555,9 @@ public class AtmosphereScreen extends Screen {
         }
 
         String haystack = builder.toString().toLowerCase(Locale.ROOT);
+        if (haystack.contains(query)) {
+            return true;
+        }
 
         for (String word : query.split("\\s+")) {
             if (!haystack.contains(word)) {
@@ -577,18 +687,27 @@ public class AtmosphereScreen extends Screen {
         String displayed = searchQuery.isEmpty() ? "Search settings..." : searchQuery;
         int textColor = searchQuery.isEmpty() ? theme.mutedText() : theme.text();
 
-        drawSearchIcon(context, searchX + 9, searchY + 5, searchFocused || isSearching() ? theme.accent() : theme.mutedText());
-        UiRender.text(context, textRenderer, displayed, searchX + 28, searchY + 6, textColor);
+        drawSearchIcon(context, searchX + 8, searchY + 4, searchFocused || isSearching() ? theme.accent() : theme.mutedText());
+        UiRender.text(context, textRenderer, displayed, searchX + 31, searchY + 6, textColor);
+
+        if (searchFocused && shouldShowCaret() && !searchQuery.isEmpty()) {
+            int caretX = Math.min(searchX + searchW - 28, searchX + 31 + textRenderer.getWidth(searchQuery));
+            context.fill(caretX + 2, searchY + 5, caretX + 3, searchY + searchH - 5, theme.accent());
+        }
 
         if (!searchQuery.isEmpty()) {
             UiRender.text(context, textRenderer, "×", searchX + searchW - 14, searchY + 6, theme.text());
         }
     }
 
+    private boolean shouldShowCaret() {
+        return (System.currentTimeMillis() / 500L) % 2L == 0L;
+    }
+
     private void drawSearchIcon(DrawContext context, int x, int y, int color) {
-        UiRender.border(context, x, y, 9, 9, color);
-        context.fill(x + 8, y + 8, x + 11, y + 11, color);
+        UiRender.border(context, x, y, 11, 11, color);
         context.fill(x + 10, y + 10, x + 13, y + 13, color);
+        context.fill(x + 12, y + 12, x + 15, y + 15, color);
     }
 
     private void drawTopButtons(DrawContext context, Theme theme, int mouseX, int mouseY) {
@@ -611,8 +730,18 @@ public class AtmosphereScreen extends Screen {
 
         UiRender.panel(context, x, y, w, h, theme.panel(), theme.border(), theme.accent());
 
-        UiRender.text(context, textRenderer, isSearching() ? "Categories" : "Navigation", x + 14, y + 12, theme.mutedText());
+        UiRender.text(context, textRenderer, isSearching() ? "Search Mode" : "Navigation", x + 14, y + 12, theme.mutedText());
         UiRender.rect(context, x + 14, y + 29, w - 28, 1, theme.border());
+
+        if (isSearching()) {
+            UiRender.centeredText(context, textRenderer, "Direct results", x + w / 2, y + 62, theme.accent());
+            UiRender.centeredText(context, textRenderer, "Categories hidden", x + w / 2, y + 84, theme.mutedText());
+            UiRender.centeredText(context, textRenderer, "Clear search to browse", x + w / 2, y + 104, theme.mutedText());
+
+            UiRender.borderedRect(context, x + 20, y + 138, w - 40, 24, theme.accentSoft(), theme.border());
+            UiRender.centeredText(context, textRenderer, searchResultCount + " result" + (searchResultCount == 1 ? "" : "s"), x + w / 2, y + 146, theme.text());
+            return;
+        }
 
         if (visibleCategories().isEmpty()) {
             UiRender.centeredText(context, textRenderer, "No category matches", x + w / 2, y + 64, theme.mutedText());
@@ -657,7 +786,7 @@ public class AtmosphereScreen extends Screen {
         if (isSearching()) {
             if (searchResultCount == 0) {
                 UiRender.centeredText(context, textRenderer, "No direct settings found", x + w / 2, y + 112, theme.text());
-                UiRender.centeredText(context, textRenderer, "Try weather, sunny, thunder, fog distance, gamma, particles, visual time, or a theme name.", x + w / 2, y + 134, theme.mutedText());
+                UiRender.centeredText(context, textRenderer, "Try sunrise, morning, day, sunset, night, midnight, rain, thunder, golden hour, fog distance, or particles.", x + w / 2, y + 134, theme.mutedText());
             } else {
                 UiRender.centeredText(context, textRenderer, "Search mode: edit matching controls directly here.", x + w / 2, y + h - 26, theme.mutedText());
             }
@@ -682,7 +811,7 @@ public class AtmosphereScreen extends Screen {
         drawMiniCard(context, theme, x + 27 + cardW, cardY, cardW, "Time", "Control day/night", IconType.TIME);
         drawMiniCard(context, theme, x + 38 + cardW * 2, cardY, cardW, "Presets", "One-click moods", IconType.PRESETS);
 
-        UiRender.centeredText(context, textRenderer, "Tip: search for a setting like fog distance and edit it instantly.", x + w / 2, y + h - 58, theme.mutedText());
+        UiRender.centeredText(context, textRenderer, "Tip: search for sunrise, rain, golden hour, fog distance, or a theme.", x + w / 2, y + h - 58, theme.mutedText());
         UiRender.centeredText(context, textRenderer, "Weather, time, particles and thunder-sound controls are now hooked.", x + w / 2, y + h - 40, theme.accent());
     }
 
