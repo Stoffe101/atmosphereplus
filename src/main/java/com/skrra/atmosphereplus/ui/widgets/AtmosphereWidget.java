@@ -8,6 +8,7 @@ public abstract class AtmosphereWidget {
     protected int y;
     protected int width;
     protected int height;
+    protected String tooltip;
 
     protected AtmosphereWidget(int x, int y, int width, int height) {
         this.x = x;
@@ -28,6 +29,14 @@ public abstract class AtmosphereWidget {
 
     public boolean mouseReleased(double mouseX, double mouseY, int button) {
         return false;
+    }
+
+    public boolean isHoveredPublic(double mouseX, double mouseY) {
+        return isHovered(mouseX, mouseY);
+    }
+
+    public String getTooltip() {
+        return tooltip;
     }
 
     protected boolean isHovered(double mouseX, double mouseY) {

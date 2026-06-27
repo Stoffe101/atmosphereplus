@@ -11,12 +11,19 @@ import java.util.function.Supplier;
 
 public class ToggleWidget extends AtmosphereWidget {
     private final String label;
+    private final String description;
     private final Supplier<Boolean> getter;
     private final Consumer<Boolean> setter;
 
     public ToggleWidget(int x, int y, int width, String label, Supplier<Boolean> getter, Consumer<Boolean> setter) {
-        super(x, y, width, 38);
+        this(x, y, width, label, null, getter, setter);
+    }
+
+    public ToggleWidget(int x, int y, int width, String label, String description, Supplier<Boolean> getter, Consumer<Boolean> setter) {
+        super(x, y, width, 42);
         this.label = label;
+        this.description = description;
+        this.tooltip = description;
         this.getter = getter;
         this.setter = setter;
     }
@@ -30,13 +37,18 @@ public class ToggleWidget extends AtmosphereWidget {
         int cardFill = hover ? theme.panelAlt() : theme.panel();
         UiRender.card(context, x, y, width, height, cardFill, theme.border());
 
-        UiRender.text(context, textRenderer, label, x + 12, y + 10, theme.text());
-        UiRender.text(context, textRenderer, enabled ? "Enabled" : "Disabled", x + 12, y + 23, enabled ? theme.accent() : theme.mutedText());
+        UiRender.text(context, textRenderer, label, x + 12, y + 8, theme.text());
+
+        if (description != null && !description.isEmpty()) {
+            UiRender.text(context, textRenderer, trim(textRenderer, description, width - 96), x + 12, y + 21, theme.mutedText());
+        }
+
+        UiRender.text(context, textRenderer, enabled ? "Enabled" : "Disabled", x + 12, y + 32, enabled ? theme.accent() : theme.mutedText());
 
         int switchW = 44;
         int switchH = 16;
         int sx = x + width - switchW - 12;
-        int sy = y + 11;
+        int sy = y + 13;
 
         int fill = enabled ? theme.accent() : theme.panelAlt();
         UiRender.borderedRect(context, sx, sy, switchW, switchH, fill, theme.border());
@@ -44,6 +56,19 @@ public class ToggleWidget extends AtmosphereWidget {
         int knobX = enabled ? sx + switchW - 14 : sx + 3;
         context.fill(knobX, sy + 3, knobX + 10, sy + 13, 0xFFFFFFFF);
         context.fill(knobX + 1, sy + 4, knobX + 9, sy + 12, enabled ? theme.accentSoft() : 0x22000000);
+    }
+
+    private String trim(TextRenderer renderer, String text, int maxWidth) {
+        if (renderer.getWidth(text) <= maxWidth) {
+            return text;
+        }
+
+        String result = text;
+        while (result.length() > 3 && renderer.getWidth(result + "...") > maxWidth) {
+            result = result.substring(0, result.length() - 1);
+        }
+
+        return result + "...";
     }
 
     @Override
