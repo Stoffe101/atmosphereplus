@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "atmosphereplus",
+  "version": "${version}",
+  "name": "Atmosphere+",
+  "description": "A client-side visual customization suite for Minecraft.",
+  "authors": [
+    "Skrra"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.skrra.atmosphereplus.client.AtmospherePlusClient"
+    ]
+  },
+  "mixins": [
+    "atmosphereplus.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
