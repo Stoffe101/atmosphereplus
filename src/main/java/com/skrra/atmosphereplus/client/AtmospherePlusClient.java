@@ -8,7 +8,7 @@ import net.fabricmc.api.ClientModInitializer;
 public class AtmospherePlusClient implements ClientModInitializer {
     public static final String MOD_ID = "atmosphereplus";
     public static final String MOD_NAME = "Atmosphere+";
-    public static final String VERSION = "0.1.0-alpha.8.3";
+    public static final String VERSION = "0.1.0-alpha.9";
 
     @Override
     public void onInitializeClient() {

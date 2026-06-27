@@ -265,9 +265,26 @@ private void addCloudChoice(int x, int y, int width, String label, String descri
 }
 
 private int addProfilesWidgets(int contentX, int contentY, int contentW) {
+    int toolbarW = (contentW - 20) / 3;
+
+    widgets.add(new ActionButtonWidget(contentX, contentY, toolbarW, "Export", "Export all profiles to config/atmosphereplus-profiles-backup.json.", IconType.PRESETS, () -> {
+        ProfileManager.exportProfiles();
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + toolbarW + 10, contentY, toolbarW, "Import", "Import profiles from the backup file if it exists.", IconType.PRESETS, () -> {
+        ProfileManager.importProfiles();
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + (toolbarW + 10) * 2, contentY, toolbarW, "Clear All", "Clear all profile slots.", IconType.ADVANCED, () -> {
+        ProfileManager.clearAll();
+        rebuildWidgets();
+    }));
+
     int cardW = (contentW - 12) / 2;
-    int y = contentY;
-    int rowStep = 116;
+    int y = contentY + 52;
+    int rowStep = 120;
 
     AtmosphereProfile[] profiles = ProfileManager.profiles();
     for (int i = 0; i < profiles.length; i++) {
@@ -289,14 +306,19 @@ private int addProfilesWidgets(int contentX, int contentY, int contentW) {
             rebuildWidgets();
         }));
 
-        int buttonW = (cardW - 8) / 2;
-        widgets.add(new ActionButtonWidget(x, slotY + 76, buttonW, "Save Current", "Overwrite this slot with current Atmosphere+ settings.", IconType.PRESETS, () -> {
+        int buttonW = (cardW - 12) / 3;
+        widgets.add(new ActionButtonWidget(x, slotY + 76, buttonW, "Save", "Overwrite this slot with current settings.", IconType.PRESETS, () -> {
             ProfileManager.saveCurrentTo(slot);
             rebuildWidgets();
         }));
 
-        widgets.add(new ActionButtonWidget(x + buttonW + 8, slotY + 76, buttonW, "Rename", "Rename this profile slot.", IconType.PRESETS, () -> {
+        widgets.add(new ActionButtonWidget(x + buttonW + 6, slotY + 76, buttonW, "Rename", "Rename this profile slot.", IconType.PRESETS, () -> {
             startRenamingProfile(slot);
+        }));
+
+        widgets.add(new ActionButtonWidget(x + (buttonW + 6) * 2, slotY + 76, buttonW, "Clear", "Clear this profile slot.", IconType.ADVANCED, () -> {
+            ProfileManager.clear(slot);
+            rebuildWidgets();
         }));
     }
 
@@ -932,13 +954,29 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         return y + 52;
     }
 
-    private int addSearchProfiles(int y, int x, int width) {
+
+private int addSearchProfiles(int y, int x, int width) {
+        y = addSearchAction(y, x, width, "Profiles · Export", "profile profiles export backup save file", "Export Profiles", "Export all profile slots to a backup file.", IconType.PRESETS, () -> {
+            ProfileManager.exportProfiles();
+            rebuildWidgets();
+        });
+
+        y = addSearchAction(y, x, width, "Profiles · Import", "profile profiles import backup load file", "Import Profiles", "Import profile slots from backup file.", IconType.PRESETS, () -> {
+            ProfileManager.importProfiles();
+            rebuildWidgets();
+        });
+
+        y = addSearchAction(y, x, width, "Profiles · Clear All", "profile profiles clear all delete reset", "Clear All Profiles", "Clear every profile slot.", IconType.ADVANCED, () -> {
+            ProfileManager.clearAll();
+            rebuildWidgets();
+        });
+
         AtmosphereProfile[] profiles = ProfileManager.profiles();
         for (int i = 0; i < profiles.length; i++) {
             int slot = i;
             AtmosphereProfile profile = profiles[i];
             String title = profile.saved ? profile.name : "Profile " + (i + 1);
-            String keywords = "profile profiles save load slot " + (i + 1) + " " + title;
+            String keywords = "profile profiles save load clear rename delete slot " + (i + 1) + " " + title;
             if (!matchesSearch("Profile · " + title, keywords)) {
                 continue;
             }
@@ -954,8 +992,18 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
             searchResultCount++;
             y += 84;
 
-            widgets.add(new ActionButtonWidget(x, y, width, "Save Current to " + title, "Overwrite this profile slot with current settings.", IconType.PRESETS, () -> {
+            int buttonW = (width - 12) / 3;
+            widgets.add(new ActionButtonWidget(x, y, buttonW, "Save", "Overwrite this profile slot with current settings.", IconType.PRESETS, () -> {
                 ProfileManager.saveCurrentTo(slot);
+                rebuildWidgets();
+            }));
+            searchResultCount++;
+
+            widgets.add(new ActionButtonWidget(x + buttonW + 6, y, buttonW, "Rename", "Rename this profile slot.", IconType.PRESETS, () -> startRenamingProfile(slot)));
+            searchResultCount++;
+
+            widgets.add(new ActionButtonWidget(x + (buttonW + 6) * 2, y, buttonW, "Clear", "Clear this profile slot.", IconType.ADVANCED, () -> {
+                ProfileManager.clear(slot);
                 rebuildWidgets();
             }));
             searchResultCount++;
