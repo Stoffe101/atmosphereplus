@@ -16,6 +16,17 @@ public class AtmosphereConfig {
 
     public boolean fullbright = false;
     public float gamma = 1.0f;
+
+    public boolean fogOverride = false;
     public float fogDistance = 1.0f;
+    public float fogDensity = 1.0f;
+
     public float particleAmount = 1.0f;
+
+    public boolean cloudOverride = false;
+    public String cloudMode = "SERVER";
+    public int cloudDistance = 12;
+
+    public String activePreset = "";
+    public AtmosphereProfile[] profiles = AtmosphereProfile.defaults();
 }

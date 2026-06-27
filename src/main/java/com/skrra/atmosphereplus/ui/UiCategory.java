@@ -4,13 +4,14 @@ public enum UiCategory {
     HOME("Home", "Overview and quick status", IconType.HOME),
     WEATHER("Weather", "Visual weather controls", IconType.WEATHER),
     TIME("Time", "Day and night cycle", IconType.TIME),
-    SKY("Sky", "Sky, stars, sun and moon", IconType.SKY),
+    SKY("Sky", "Clouds and sky atmosphere", IconType.SKY),
     FOG("Fog", "Fog distance and density", IconType.FOG),
     LIGHTING("Lighting", "Brightness and atmosphere", IconType.LIGHTING),
     PARTICLES("Particles", "Particle visibility", IconType.PARTICLES),
     THEMES("Themes", "Customize the Atmosphere+ interface", IconType.THEMES),
     PRESETS("Presets", "Quick visual moods", IconType.PRESETS),
-    ADVANCED("Advanced", "Extra settings", IconType.ADVANCED);
+    PROFILES("Profiles", "Save and load custom atmospheres", IconType.PRESETS),
+    ADVANCED("Advanced", "Extra settings and reset tools", IconType.ADVANCED);
 
     public final String title;
     public final String description;

@@ -17,7 +17,7 @@ public class CategoryButton extends AtmosphereWidget {
     private final Consumer<UiCategory> onClick;
 
     public CategoryButton(int x, int y, int width, UiCategory category, Supplier<UiCategory> current, Consumer<UiCategory> onClick) {
-        super(x, y, width, 28);
+        super(x, y, width, 24);
         this.category = category;
         this.current = current;
         this.onClick = onClick;
@@ -42,14 +42,14 @@ public class CategoryButton extends AtmosphereWidget {
         }
 
         int tileX = buttonX + 8;
-        int tileY = y + 4;
-        int tileSize = 20;
+        int tileY = y + 3;
+        int tileSize = 18;
         int tileFill = active ? theme.accentSoft() : hover ? theme.panel() : theme.panelAlt();
 
         UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, tileFill, active ? theme.accent() : theme.border());
-        IconRenderer.drawCentered(context, category.icon, tileX + tileSize / 2, tileY + tileSize / 2, 18);
+        IconRenderer.drawCentered(context, category.icon, tileX + tileSize / 2, tileY + tileSize / 2, 16);
 
-        UiRender.text(context, textRenderer, category.title, buttonX + 38, y + 10, textColor);
+        UiRender.text(context, textRenderer, category.title, buttonX + 34, y + 8, textColor);
     }
 
     @Override

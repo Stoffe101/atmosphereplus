@@ -6,7 +6,11 @@
     "ClientWorldPropertiesMixin",
     "WorldWeatherMixin",
     "ParticleManagerMixin",
-    "SoundManagerMixin"
+    "SoundManagerMixin",
+    "FogRendererMixin",
+    "LightmapTextureManagerMixin",
+    "SimpleOptionMixin",
+    "GameOptionsMixin"
   ],
   "injectors": {
     "defaultRequire": 1

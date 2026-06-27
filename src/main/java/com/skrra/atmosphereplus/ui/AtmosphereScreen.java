@@ -1,10 +1,13 @@
 package com.skrra.atmosphereplus.ui;
 
 import com.skrra.atmosphereplus.client.AtmospherePlusClient;
+import com.skrra.atmosphereplus.config.AtmosphereProfile;
 import com.skrra.atmosphereplus.config.ConfigManager;
+import com.skrra.atmosphereplus.config.ProfileManager;
 import com.skrra.atmosphereplus.keybind.AtmosphereKeybinds;
 import com.skrra.atmosphereplus.themes.Theme;
 import com.skrra.atmosphereplus.themes.ThemeManager;
+import com.skrra.atmosphereplus.ui.widgets.ActionButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.AtmosphereWidget;
 import com.skrra.atmosphereplus.ui.widgets.CategoryButton;
 import com.skrra.atmosphereplus.ui.widgets.ChoiceButtonWidget;
@@ -12,6 +15,7 @@ import com.skrra.atmosphereplus.ui.widgets.PresetCardWidget;
 import com.skrra.atmosphereplus.ui.widgets.SliderWidget;
 import com.skrra.atmosphereplus.ui.widgets.TimePresetButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.ToggleWidget;
+import com.skrra.atmosphereplus.util.NotificationUtil;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -31,6 +35,8 @@ public class AtmosphereScreen extends Screen {
     private UiCategory selected = UiCategory.HOME;
     private String searchQuery = "";
     private boolean searchFocused = false;
+    private int renamingProfileIndex = -1;
+    private String renameProfileText = "";
 
     private int scrollOffset = 0;
     private int maxScroll = 0;
@@ -81,13 +87,13 @@ public class AtmosphereScreen extends Screen {
         closeY = windowY + 14;
 
         int sidebarX = windowX + 12;
-        int sidebarY = windowY + 106;
+        int sidebarY = windowY + 98;
         int sidebarW = 174;
 
         if (!isSearching()) {
             int i = 0;
             for (UiCategory category : visibleCategories()) {
-                widgets.add(new CategoryButton(sidebarX, sidebarY + i * 29, sidebarW, category, () -> selected, c -> {
+                widgets.add(new CategoryButton(sidebarX, sidebarY + i * 25, sidebarW, category, () -> selected, c -> {
                     selected = c;
                     searchFocused = false;
                     scrollOffset = 0;
@@ -104,7 +110,7 @@ public class AtmosphereScreen extends Screen {
 
         if (isSearching()) {
             finalY = addSearchResultWidgets(contentX, contentY, contentW);
-            maxScroll = Math.max(0, finalY - contentBottom);
+            maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
             scrollOffset = Math.min(scrollOffset, maxScroll);
             return;
         }
@@ -112,106 +118,108 @@ public class AtmosphereScreen extends Screen {
         switch (selected) {
             case WEATHER -> finalY = addWeatherWidgets(contentX, contentY, contentW);
             case TIME -> finalY = addTimeWidgets(contentX, contentY, contentW);
+            case SKY -> finalY = addSkyWidgets(contentX, contentY, contentW);
             case LIGHTING -> finalY = addLightingWidgets(contentX, contentY, contentW);
-            case FOG -> {
-                widgets.add(new SliderWidget(contentX, contentY, contentW, "Fog distance", "Controls how far away visual fog starts and fades.", 0f, 2f, () -> ConfigManager.get().fogDistance, v -> {
-                    ConfigManager.get().fogDistance = v;
-                    ConfigManager.save();
-                }, value -> Math.round(value * 100f) + "%"));
-                finalY = contentY + 60;
-            }
-            case PARTICLES -> {
-                widgets.add(new SliderWidget(contentX, contentY, contentW, "Particle amount", "Controls the visual amount of particles Atmosphere+ will allow.", 0f, 2f, () -> ConfigManager.get().particleAmount, v -> {
-                    ConfigManager.get().particleAmount = v;
-                    ConfigManager.save();
-                }, value -> Math.round(value * 100f) + "%"));
-                finalY = contentY + 60;
-            }
+            case FOG -> finalY = addFogWidgets(contentX, contentY, contentW);
+            case PARTICLES -> finalY = addParticlesWidgets(contentX, contentY, contentW);
             case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
             case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
+            case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
+            case ADVANCED -> finalY = addAdvancedWidgets(contentX, contentY, contentW);
             default -> {
             }
         }
 
-        maxScroll = Math.max(0, finalY - contentBottom);
+        maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
         scrollOffset = Math.min(scrollOffset, maxScroll);
     }
 
-    private int addWeatherWidgets(int contentX, int contentY, int contentW) {
-        widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override server weather visually", "Makes weather visuals client-side and independent from the server.", () -> ConfigManager.get().weatherOverride, v -> {
-            ConfigManager.get().weatherOverride = v;
-            if (!v) {
-                ConfigManager.get().weatherMode = "SERVER";
-            } else if ("SERVER".equalsIgnoreCase(ConfigManager.get().weatherMode)) {
-                ConfigManager.get().weatherMode = "SUNNY";
-            }
-            ConfigManager.save();
-            rebuildWidgets();
-        }));
+private int addWeatherWidgets(int contentX, int contentY, int contentW) {
+    widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override server weather visually", "Makes weather visuals client-side and independent from the server.", () -> ConfigManager.get().weatherOverride, v -> {
+        ConfigManager.get().weatherOverride = v;
+            clearActivePreset();
+        if (!v) {
+            ConfigManager.get().weatherMode = "SERVER";
+        } else if ("SERVER".equalsIgnoreCase(ConfigManager.get().weatherMode)) {
+            ConfigManager.get().weatherMode = "SUNNY";
+        }
+        ConfigManager.save();
+        rebuildWidgets();
+    }));
 
-        int modeW = (contentW - 20) / 3;
-        int row1Y = contentY + 54;
-        int row2Y = contentY + 104;
+    int modeW = (contentW - 20) / 3;
+    int row1Y = contentY + 54;
+    int row2Y = contentY + 104;
 
-        addWeatherChoice(contentX, row1Y, modeW, "Server", "Use normal server weather.", IconType.WEATHER, "SERVER");
-        addWeatherChoice(contentX + modeW + 10, row1Y, modeW, "Sunny", "Force clear visual weather.", IconType.SKY, "SUNNY");
-        addWeatherChoice(contentX + (modeW + 10) * 2, row1Y, modeW, "Rain", "Force rainy visual mood.", IconType.WEATHER, "RAIN");
+    addWeatherChoice(contentX, row1Y, modeW, "Server", "Use normal server weather.", IconType.WEATHER, "SERVER");
+    addWeatherChoice(contentX + modeW + 10, row1Y, modeW, "Sunny", "Force clear visual weather.", IconType.SKY, "SUNNY");
+    addWeatherChoice(contentX + (modeW + 10) * 2, row1Y, modeW, "Rain", "Force rainy visual mood.", IconType.WEATHER, "RAIN");
 
-        addWeatherChoice(contentX, row2Y, modeW, "Thunder", "Force stormy visual mood.", IconType.LIGHTING, "THUNDER");
-        addWeatherChoice(contentX + modeW + 10, row2Y, modeW, "Snow", "Force snowy visual mood later.", IconType.FOG, "SNOW");
+    addWeatherChoice(contentX, row2Y, modeW, "Thunder", "Force stormy visual mood.", IconType.LIGHTING, "THUNDER");
+    addWeatherChoice(contentX + modeW + 10, row2Y, modeW, "Snow", "Force snowy visual mood later.", IconType.FOG, "SNOW");
 
-        widgets.add(new SliderWidget(contentX, contentY + 158, contentW, "Rain intensity", "Adjusts how strong rain visuals should appear.", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
-            ConfigManager.get().rainIntensity = v;
-            ConfigManager.save();
-        }, value -> Math.round(value * 100f) + "%"));
+    widgets.add(new SliderWidget(contentX, contentY + 158, contentW, "Rain intensity", "Adjusts how strong rain visuals should appear.", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
+        ConfigManager.get().rainIntensity = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
 
-        widgets.add(new ToggleWidget(contentX, contentY + 220, contentW, "Thunder sounds", "Controls whether thunder audio should be allowed by Atmosphere+.", () -> ConfigManager.get().thunderSounds, v -> {
-            ConfigManager.get().thunderSounds = v;
-            ConfigManager.save();
-        }));
+    widgets.add(new ToggleWidget(contentX, contentY + 220, contentW, "Thunder sounds", "Controls whether thunder audio should be allowed by Atmosphere+.", () -> ConfigManager.get().thunderSounds, v -> {
+        ConfigManager.get().thunderSounds = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }));
 
-        return contentY + 274;
-    }
+    addResetButton(contentX, contentY + 274, contentW, "Reset Weather", "Server weather, full rain intensity, thunder sounds on.", IconType.WEATHER, this::resetWeather);
+
+    return contentY + 320;
+}
 
     private void addWeatherChoice(int x, int y, int width, String label, String description, IconType icon, String mode) {
         widgets.add(new ChoiceButtonWidget(x, y, width, label, description, icon, () -> mode.equalsIgnoreCase(ConfigManager.get().weatherMode), () -> {
             ConfigManager.get().weatherMode = mode;
+            clearActivePreset();
             ConfigManager.get().weatherOverride = !"SERVER".equalsIgnoreCase(mode);
             ConfigManager.save();
             rebuildWidgets();
         }));
     }
 
-    private int addTimeWidgets(int contentX, int contentY, int contentW) {
-        widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override visual time", "Changes the client-side visual day/night cycle without touching the server.", () -> ConfigManager.get().timeOverride, v -> {
-            ConfigManager.get().timeOverride = v;
-            ConfigManager.save();
-        }));
+private int addTimeWidgets(int contentX, int contentY, int contentW) {
+    widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override visual time", "Changes the client-side visual day/night cycle without touching the server.", () -> ConfigManager.get().timeOverride, v -> {
+        ConfigManager.get().timeOverride = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }));
 
-        int buttonW = (contentW - 20) / 3;
-        int row1Y = contentY + 54;
-        int row2Y = contentY + 98;
+    int buttonW = (contentW - 20) / 3;
+    int row1Y = contentY + 54;
+    int row2Y = contentY + 98;
 
-        addTimePresetButton(contentX, row1Y, buttonW, "Sunrise", "0", 0);
-        addTimePresetButton(contentX + buttonW + 10, row1Y, buttonW, "Morning", "1000", 1000);
-        addTimePresetButton(contentX + (buttonW + 10) * 2, row1Y, buttonW, "Day", "6000", 6000);
+    addTimePresetButton(contentX, row1Y, buttonW, "Sunrise", "0", 0);
+    addTimePresetButton(contentX + buttonW + 10, row1Y, buttonW, "Morning", "1000", 1000);
+    addTimePresetButton(contentX + (buttonW + 10) * 2, row1Y, buttonW, "Day", "6000", 6000);
 
-        addTimePresetButton(contentX, row2Y, buttonW, "Sunset", "12000", 12000);
-        addTimePresetButton(contentX + buttonW + 10, row2Y, buttonW, "Night", "15000", 15000);
-        addTimePresetButton(contentX + (buttonW + 10) * 2, row2Y, buttonW, "Midnight", "18000", 18000);
+    addTimePresetButton(contentX, row2Y, buttonW, "Sunset", "12000", 12000);
+    addTimePresetButton(contentX + buttonW + 10, row2Y, buttonW, "Night", "15000", 15000);
+    addTimePresetButton(contentX + (buttonW + 10) * 2, row2Y, buttonW, "Midnight", "18000", 18000);
 
-        widgets.add(new SliderWidget(contentX, contentY + 148, contentW, "Visual time", "0 sunrise, 6000 day, 12000 sunset, 18000 midnight.", 0f, 24000f, () -> (float) ConfigManager.get().visualTime, v -> {
-            ConfigManager.get().visualTime = Math.round(v);
-            ConfigManager.save();
-        }, this::formatMinecraftTime));
+    widgets.add(new SliderWidget(contentX, contentY + 148, contentW, "Visual time", "0 sunrise, 6000 day, 12000 sunset, 18000 midnight.", 0f, 24000f, () -> (float) ConfigManager.get().visualTime, v -> {
+        ConfigManager.get().visualTime = Math.round(v);
+            clearActivePreset();
+        ConfigManager.save();
+    }, this::formatMinecraftTime));
 
-        widgets.add(new ToggleWidget(contentX, contentY + 210, contentW, "Freeze visual time", "Reserved for future smooth time animation modes.", () -> ConfigManager.get().freezeVisualTime, v -> {
-            ConfigManager.get().freezeVisualTime = v;
-            ConfigManager.save();
-        }));
+    widgets.add(new ToggleWidget(contentX, contentY + 210, contentW, "Freeze visual time", "Reserved for future smooth time animation modes.", () -> ConfigManager.get().freezeVisualTime, v -> {
+        ConfigManager.get().freezeVisualTime = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }));
 
-        return contentY + 264;
-    }
+    addResetButton(contentX, contentY + 264, contentW, "Reset Time", "Return to server time and default visual time.", IconType.TIME, this::resetTime);
+
+    return contentY + 310;
+}
 
     private void addTimePresetButton(int x, int y, int width, String label, String timeLabel, int time) {
         widgets.add(new TimePresetButtonWidget(x, y, width, label, timeLabel, () -> ConfigManager.get().timeOverride && ConfigManager.get().visualTime == time, () -> {
@@ -222,19 +230,151 @@ public class AtmosphereScreen extends Screen {
         }));
     }
 
-    private int addLightingWidgets(int contentX, int contentY, int contentW) {
-        widgets.add(new ToggleWidget(contentX, contentY, contentW, "Fullbright", "Planned lighting override for caves and dark areas.", () -> ConfigManager.get().fullbright, v -> {
-            ConfigManager.get().fullbright = v;
-            ConfigManager.save();
+
+private int addSkyWidgets(int contentX, int contentY, int contentW) {
+    widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override clouds visually", "Uses client-only cloud mode settings without changing server state.", () -> ConfigManager.get().cloudOverride, v -> {
+        ConfigManager.get().cloudOverride = v;
+        clearActivePreset();
+        ConfigManager.save();
+    }));
+
+    int modeW = (contentW - 20) / 3;
+    int rowY = contentY + 54;
+    addCloudChoice(contentX, rowY, modeW, "Server", "Use normal Minecraft cloud settings.", "SERVER");
+    addCloudChoice(contentX + modeW + 10, rowY, modeW, "Off", "Hide clouds visually.", "OFF");
+    addCloudChoice(contentX + (modeW + 10) * 2, rowY, modeW, "Fast", "Force fast clouds visually.", "FAST");
+    addCloudChoice(contentX, rowY + 50, modeW, "Fancy", "Force fancy clouds visually.", "FANCY");
+
+    widgets.add(new ActionButtonWidget(contentX + modeW + 10, rowY + 50, modeW * 2 + 10, "Cloud Distance Disabled", "Distance override was unstable in 1.21.11, so this build keeps vanilla distance.", IconType.SKY, () -> {
+        NotificationUtil.show("Cloud distance override is disabled for now");
+    }));
+
+    addResetButton(contentX, contentY + 158, contentW, "Reset Sky / Clouds", "Return cloud visuals to server/default settings.", IconType.SKY, this::resetSky);
+
+    return contentY + 204;
+}
+
+private void addCloudChoice(int x, int y, int width, String label, String description, String mode) {
+    widgets.add(new ChoiceButtonWidget(x, y, width, label, description, IconType.SKY, () -> mode.equalsIgnoreCase(ConfigManager.get().cloudMode), () -> {
+        ConfigManager.get().cloudMode = mode;
+        ConfigManager.get().cloudOverride = !"SERVER".equalsIgnoreCase(mode);
+        clearActivePreset();
+        ConfigManager.save();
+        rebuildWidgets();
+    }));
+}
+
+private int addProfilesWidgets(int contentX, int contentY, int contentW) {
+    int cardW = (contentW - 12) / 2;
+    int y = contentY;
+    int rowStep = 116;
+
+    AtmosphereProfile[] profiles = ProfileManager.profiles();
+    for (int i = 0; i < profiles.length; i++) {
+        int col = i % 2;
+        int row = i / 2;
+        int x = contentX + col * (cardW + 12);
+        int slotY = y + row * rowStep;
+        int slot = i;
+        AtmosphereProfile profile = profiles[i];
+        String title = profile.saved ? profile.name : "Profile " + (i + 1);
+        String description = profile.saved ? "Click to load this saved atmosphere." : "Empty slot. Save current settings below.";
+
+        widgets.add(new PresetCardWidget(x, slotY, cardW, title, description, IconType.PRESETS, () -> ProfileManager.isActive(slot), () -> {
+            if (ProfileManager.profile(slot).saved) {
+                ProfileManager.load(slot);
+            } else {
+                ProfileManager.saveCurrentTo(slot);
+            }
+            rebuildWidgets();
         }));
 
-        widgets.add(new SliderWidget(contentX, contentY + 54, contentW, "Gamma", "Planned gamma-style brightness control.", 0f, 2f, () -> ConfigManager.get().gamma, v -> {
-            ConfigManager.get().gamma = v;
-            ConfigManager.save();
-        }, value -> Math.round(value * 100f) + "%"));
+        int buttonW = (cardW - 8) / 2;
+        widgets.add(new ActionButtonWidget(x, slotY + 76, buttonW, "Save Current", "Overwrite this slot with current Atmosphere+ settings.", IconType.PRESETS, () -> {
+            ProfileManager.saveCurrentTo(slot);
+            rebuildWidgets();
+        }));
 
-        return contentY + 116;
+        widgets.add(new ActionButtonWidget(x + buttonW + 8, slotY + 76, buttonW, "Rename", "Rename this profile slot.", IconType.PRESETS, () -> {
+            startRenamingProfile(slot);
+        }));
     }
+
+    int rows = (profiles.length + 1) / 2;
+    return y + rows * rowStep + 2;
+}
+
+private int addLightingWidgets(int contentX, int contentY, int contentW) {
+    widgets.add(new ToggleWidget(contentX, contentY, contentW, "Fullbright", "Attempts to force maximum client-side lightmap brightness.", () -> ConfigManager.get().fullbright, v -> {
+        ConfigManager.get().fullbright = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }));
+
+    widgets.add(new SliderWidget(contentX, contentY + 54, contentW, "Gamma", "Adjusts client-side lightmap brightness curve.", 0f, 2f, () -> ConfigManager.get().gamma, v -> {
+        ConfigManager.get().gamma = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    addResetButton(contentX, contentY + 116, contentW, "Reset Lighting", "Disable fullbright and restore gamma to 100%.", IconType.LIGHTING, this::resetLighting);
+
+    return contentY + 162;
+}
+
+private int addFogWidgets(int contentX, int contentY, int contentW) {
+    widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override fog visually", "Enables client-side fog distance and density controls.", () -> ConfigManager.get().fogOverride, v -> {
+        ConfigManager.get().fogOverride = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }));
+
+    widgets.add(new SliderWidget(contentX, contentY + 54, contentW, "Fog distance", "Lower means closer fog. Higher pushes fog farther away.", 0f, 2f, () -> ConfigManager.get().fogDistance, v -> {
+        ConfigManager.get().fogDistance = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    widgets.add(new SliderWidget(contentX, contentY + 116, contentW, "Fog density", "Higher values make fog feel thicker and closer.", 0f, 2f, () -> ConfigManager.get().fogDensity, v -> {
+        ConfigManager.get().fogDensity = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    addResetButton(contentX, contentY + 178, contentW, "Reset Fog", "Disable fog override and restore normal fog values.", IconType.FOG, this::resetFog);
+
+    return contentY + 224;
+}
+
+private int addParticlesWidgets(int contentX, int contentY, int contentW) {
+    widgets.add(new SliderWidget(contentX, contentY, contentW, "Particle amount", "Controls the visual amount of new client particles Atmosphere+ will allow.", 0f, 2f, () -> ConfigManager.get().particleAmount, v -> {
+        ConfigManager.get().particleAmount = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    addResetButton(contentX, contentY + 62, contentW, "Reset Particles", "Restore normal particle amount.", IconType.PARTICLES, this::resetParticles);
+
+    return contentY + 108;
+}
+
+private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
+    addResetButton(contentX, contentY, contentW, "Reset All Visuals", "Reset weather, time, sky, fog, lighting and particles.", IconType.ADVANCED, this::resetAllVisuals);
+
+    widgets.add(new ActionButtonWidget(contentX, contentY + 48, contentW, "Go to Profiles", "Save or load your own custom atmosphere slots.", IconType.PRESETS, () -> {
+        selected = UiCategory.PROFILES;
+        scrollOffset = 0;
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX, contentY + 96, contentW, "Performance Clear", "Apply a low-visual-intensity profile.", IconType.PRESETS, () -> {
+        applyPerformanceClear();
+        NotificationUtil.show("Applied Performance Clear");
+        rebuildWidgets();
+    }));
+
+    return contentY + 144;
+}
 
     private int addThemeWidgets(int contentX, int contentY, int contentW) {
         int themeW = (contentW - 10) / 2;
@@ -259,199 +399,216 @@ public class AtmosphereScreen extends Screen {
         return contentY + ((index + 1) / 2) * 48;
     }
 
-    private int addPresetWidgets(int contentX, int contentY, int contentW) {
-        int cardW = (contentW - 12) / 2;
-        int y = contentY;
+private int addPresetWidgets(int contentX, int contentY, int contentW) {
+    int cardW = (contentW - 12) / 2;
+    int y = contentY;
 
-        widgets.add(new PresetCardWidget(contentX, y, cardW, "Golden Hour", "Sunny, warm noon lighting and soft atmosphere.", IconType.SKY, () -> {
-            ConfigManager.get().timeOverride = true;
-            ConfigManager.get().visualTime = 6000;
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().weatherMode = "SUNNY";
-            ConfigManager.get().rainIntensity = 0f;
-            ConfigManager.save();
-        }));
+    widgets.add(new PresetCardWidget(contentX, y, cardW, "Golden Hour", "Sunny, warm noon lighting and soft atmosphere.", IconType.SKY, this::isGoldenHourActive, () -> {
+        applyGoldenHour();
+        NotificationUtil.show("Applied Golden Hour");
+        rebuildWidgets();
+    }));
 
-        widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Midnight Calm", "Permanent midnight visuals with calm weather.", IconType.TIME, () -> {
-            ConfigManager.get().timeOverride = true;
-            ConfigManager.get().visualTime = 18000;
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().weatherMode = "SUNNY";
-            ConfigManager.get().rainIntensity = 0f;
-            ConfigManager.save();
-        }));
+    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Midnight Calm", "Permanent midnight visuals with calm weather.", IconType.TIME, this::isMidnightCalmActive, () -> {
+        applyMidnightCalm();
+        NotificationUtil.show("Applied Midnight Calm");
+        rebuildWidgets();
+    }));
 
-        y += 84;
+    y += 84;
 
-        widgets.add(new PresetCardWidget(contentX, y, cardW, "Cozy Rain", "Light rain mood with afternoon lighting.", IconType.WEATHER, () -> {
-            ConfigManager.get().timeOverride = true;
-            ConfigManager.get().visualTime = 9000;
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().weatherMode = "RAIN";
-            ConfigManager.get().rainIntensity = 0.35f;
-            ConfigManager.save();
-        }));
+    widgets.add(new PresetCardWidget(contentX, y, cardW, "Cozy Rain", "Light rain mood with afternoon lighting.", IconType.WEATHER, this::isCozyRainActive, () -> {
+        applyCozyRain();
+        NotificationUtil.show("Applied Cozy Rain");
+        rebuildWidgets();
+    }));
 
-        widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Thunder Night", "Dark night with thunderstorm mood.", IconType.LIGHTING, () -> {
-            ConfigManager.get().timeOverride = true;
-            ConfigManager.get().visualTime = 18000;
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().weatherMode = "THUNDER";
-            ConfigManager.get().rainIntensity = 0.85f;
-            ConfigManager.save();
-        }));
+    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Thunder Night", "Dark night with thunderstorm mood.", IconType.LIGHTING, this::isThunderNightActive, () -> {
+        applyThunderNight();
+        NotificationUtil.show("Applied Thunder Night");
+        rebuildWidgets();
+    }));
 
-        y += 84;
+    y += 84;
 
-        widgets.add(new PresetCardWidget(contentX, y, cardW, "Deep Fog", "Prepares a foggy atmospheric profile.", IconType.FOG, () -> {
-            ConfigManager.get().fogDistance = 0.35f;
-            ConfigManager.save();
-        }));
+    widgets.add(new PresetCardWidget(contentX, y, cardW, "Deep Fog", "Thick custom fog for atmospheric screenshots.", IconType.FOG, this::isDeepFogActive, () -> {
+        applyDeepFog();
+        NotificationUtil.show("Applied Deep Fog");
+        rebuildWidgets();
+    }));
 
-        widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Performance Clear", "Reduces visual intensity settings.", IconType.ADVANCED, () -> {
-            ConfigManager.get().weatherMode = "SUNNY";
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().rainIntensity = 0f;
-            ConfigManager.get().particleAmount = 0.35f;
-            ConfigManager.get().fogDistance = 1.5f;
-            ConfigManager.save();
-        }));
+    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Bright Caves", "Fullbright and boosted gamma for dark areas.", IconType.LIGHTING, this::isBrightCavesActive, () -> {
+        applyBrightCaves();
+        NotificationUtil.show("Applied Bright Caves");
+        rebuildWidgets();
+    }));
 
-        return y + 84;
+    y += 84;
+
+    widgets.add(new PresetCardWidget(contentX, y, cardW, "Performance Clear", "Reduces rain, fog and particles.", IconType.ADVANCED, this::isPerformanceClearActive, () -> {
+        applyPerformanceClear();
+        NotificationUtil.show("Applied Performance Clear");
+        rebuildWidgets();
+    }));
+
+    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Soft Mist", "Light custom fog with calm weather.", IconType.FOG, this::isSoftMistActive, () -> {
+        applySoftMist();
+        NotificationUtil.show("Applied Soft Mist");
+        rebuildWidgets();
+    }));
+
+    y += 84;
+
+    widgets.add(new PresetCardWidget(contentX, y, cardW, "Cloudless Clear", "Clear weather with clouds hidden.", IconType.SKY, this::isCloudlessClearActive, () -> {
+        applyCloudlessClear();
+        NotificationUtil.show("Applied Cloudless Clear");
+        rebuildWidgets();
+    }));
+
+    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Fancy Clouds", "Force fancy cloud rendering mode.", IconType.SKY, this::isFancyCloudsActive, () -> {
+        applyFancyClouds();
+        NotificationUtil.show("Applied Fancy Clouds");
+        rebuildWidgets();
+    }));
+
+    return y + 84;
+}
+
+private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
+    int y = contentY;
+
+    y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Sunrise", "sunrise dawn morning day night time preset 0", "Sunrise", "0", 0);
+    y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Morning", "morning sunrise day time preset 1000", "Morning", "1000", 1000);
+    y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Day", "day noon morning time preset 6000", "Day", "6000", 6000);
+    y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Sunset", "sunset evening dusk day night time preset 12000", "Sunset", "12000", 12000);
+    y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Night", "night dark midnight sunset time preset 15000", "Night", "15000", 15000);
+    y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Midnight", "midnight night dark time preset 18000", "Midnight", "18000", 18000);
+
+    for (UiCategory category : UiCategory.values()) {
+        y = addSearchCategoryJump(y, contentX, contentW, category);
     }
 
-    private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
-        int y = contentY;
+    y = addSearchAction(y, contentX, contentW, "Reset · All Visuals", "reset all visuals default restore", "Reset All Visuals", "Reset weather, time, fog, lighting and particles.", IconType.ADVANCED, this::resetAllVisuals);
+    y = addSearchAction(y, contentX, contentW, "Reset · Weather", "reset weather server rain thunder", "Reset Weather", "Restore server weather mode.", IconType.WEATHER, this::resetWeather);
+    y = addSearchAction(y, contentX, contentW, "Reset · Time", "reset time server day night", "Reset Time", "Return to server time.", IconType.TIME, this::resetTime);
+    y = addSearchAction(y, contentX, contentW, "Reset · Fog", "reset fog distance density", "Reset Fog", "Disable custom fog.", IconType.FOG, this::resetFog);
+    y = addSearchAction(y, contentX, contentW, "Reset · Lighting", "reset lighting fullbright gamma brightness", "Reset Lighting", "Disable fullbright and restore gamma.", IconType.LIGHTING, this::resetLighting);
+    y = addSearchAction(y, contentX, contentW, "Reset · Particles", "reset particles particle amount", "Reset Particles", "Restore normal particles.", IconType.PARTICLES, this::resetParticles);
+    y = addSearchAction(y, contentX, contentW, "Reset · Sky Clouds", "reset sky clouds cloud", "Reset Sky / Clouds", "Restore default cloud visuals.", IconType.SKY, this::resetSky);
 
-        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Sunrise", "sunrise dawn morning day night time preset 0", "Sunrise", "0", 0);
-        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Morning", "morning sunrise day time preset 1000", "Morning", "1000", 1000);
-        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Day", "day noon morning time preset 6000", "Day", "6000", 6000);
-        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Sunset", "sunset evening dusk day night time preset 12000", "Sunset", "12000", 12000);
-        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Night", "night dark midnight sunset time preset 15000", "Night", "15000", 15000);
-        y = addSearchTimePreset(y, contentX, contentW, "Time Preset · Midnight", "midnight night dark time preset 18000", "Midnight", "18000", 18000);
+    y = addSearchProfiles(y, contentX, contentW);
 
-        for (UiCategory category : UiCategory.values()) {
-            y = addSearchCategoryJump(y, contentX, contentW, category);
-        }
+    y = addSearchToggle(y, contentX, contentW, "Weather · Override server weather visually", "weather override server visual rain sunny thunder atmosphere", () -> ConfigManager.get().weatherOverride, v -> {
+        ConfigManager.get().weatherOverride = v;
+            clearActivePreset();
+        if (!v) ConfigManager.get().weatherMode = "SERVER";
+        ConfigManager.save();
+    });
 
-        y = addSearchToggle(y, contentX, contentW, "Weather · Override server weather visually", "weather override server visual rain sunny thunder atmosphere", () -> ConfigManager.get().weatherOverride, v -> {
-            ConfigManager.get().weatherOverride = v;
-            if (!v) ConfigManager.get().weatherMode = "SERVER";
-            ConfigManager.save();
+    y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Server", "weather mode server normal", IconType.WEATHER, "SERVER");
+    y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Sunny", "weather mode sunny clear sun", IconType.SKY, "SUNNY");
+    y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Rain", "weather mode rain rainy water", IconType.WEATHER, "RAIN");
+    y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Thunder", "weather mode thunder storm lightning", IconType.LIGHTING, "THUNDER");
+    y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Snow", "weather mode snow snowy winter", IconType.FOG, "SNOW");
+
+    y = addSearchSlider(y, contentX, contentW, "Weather · Rain intensity", "weather rain intensity strength opacity storm water", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
+        ConfigManager.get().rainIntensity = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchToggle(y, contentX, contentW, "Weather · Thunder sounds", "weather thunder sound lightning storm audio", () -> ConfigManager.get().thunderSounds, v -> {
+        ConfigManager.get().thunderSounds = v;
+            clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchToggle(y, contentX, contentW, "Time · Override visual time", "time day night visual override sunrise sunset noon midnight", () -> ConfigManager.get().timeOverride, v -> {
+        ConfigManager.get().timeOverride = v;
+            clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchSlider(y, contentX, contentW, "Time · Visual time", "time day night slider sunrise sunset noon midnight visual", 0f, 24000f, () -> (float) ConfigManager.get().visualTime, v -> {
+        ConfigManager.get().visualTime = Math.round(v);
+            clearActivePreset();
+        ConfigManager.save();
+    }, this::formatMinecraftTime);
+
+    y = addSearchToggle(y, contentX, contentW, "Time · Freeze visual time", "time freeze pause stop day night cycle visual", () -> ConfigManager.get().freezeVisualTime, v -> {
+        ConfigManager.get().freezeVisualTime = v;
+            clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchToggle(y, contentX, contentW, "Sky · Override clouds visually", "sky cloud clouds override visual off fast fancy", () -> ConfigManager.get().cloudOverride, v -> {
+        ConfigManager.get().cloudOverride = v;
+        clearActivePreset();
+        ConfigManager.save();
+    });
+    y = addSearchCloudChoice(y, contentX, contentW, "Cloud Mode · Server", "cloud mode server normal", "SERVER");
+    y = addSearchCloudChoice(y, contentX, contentW, "Cloud Mode · Off", "cloud mode off hidden hide clouds", "OFF");
+    y = addSearchCloudChoice(y, contentX, contentW, "Cloud Mode · Fast", "cloud mode fast clouds", "FAST");
+    y = addSearchCloudChoice(y, contentX, contentW, "Cloud Mode · Fancy", "cloud mode fancy clouds", "FANCY");
+
+    y = addSearchToggle(y, contentX, contentW, "Lighting · Fullbright", "lighting fullbright brightness cave dark gamma light", () -> ConfigManager.get().fullbright, v -> {
+        ConfigManager.get().fullbright = v;
+            clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchSlider(y, contentX, contentW, "Lighting · Gamma", "lighting gamma brightness exposure cave dark light", 0f, 2f, () -> ConfigManager.get().gamma, v -> {
+        ConfigManager.get().gamma = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchToggle(y, contentX, contentW, "Fog · Override fog visually", "fog override custom mode on off server", () -> ConfigManager.get().fogOverride, v -> {
+        ConfigManager.get().fogOverride = v;
+            clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchSlider(y, contentX, contentW, "Fog · Fog distance", "fog distance density view mist haze nether end water lava", 0f, 2f, () -> ConfigManager.get().fogDistance, v -> {
+        ConfigManager.get().fogDistance = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchSlider(y, contentX, contentW, "Fog · Fog density", "fog density strength thickness mist haze", 0f, 2f, () -> ConfigManager.get().fogDensity, v -> {
+        ConfigManager.get().fogDensity = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchSlider(y, contentX, contentW, "Particles · Particle amount", "particles particle amount rain snow smoke explosion fire bubbles", 0f, 2f, () -> ConfigManager.get().particleAmount, v -> {
+        ConfigManager.get().particleAmount = v;
+            clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Golden Hour", "preset golden hour sunny warm noon lighting atmosphere", "Golden Hour", "Sunny, warm noon lighting and soft atmosphere.", IconType.SKY, this::isGoldenHourActive, this::applyGoldenHour);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Midnight Calm", "preset midnight calm night clear quiet", "Midnight Calm", "Permanent midnight visuals with calm weather.", IconType.TIME, this::isMidnightCalmActive, this::applyMidnightCalm);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Cozy Rain", "preset cozy rain rainy afternoon", "Cozy Rain", "Light rain mood with afternoon lighting.", IconType.WEATHER, this::isCozyRainActive, this::applyCozyRain);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Thunder Night", "preset thunder night storm lightning dark", "Thunder Night", "Dark night with thunderstorm mood.", IconType.LIGHTING, this::isThunderNightActive, this::applyThunderNight);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Deep Fog", "preset deep fog foggy mist haze", "Deep Fog", "Thick custom fog for atmospheric screenshots.", IconType.FOG, this::isDeepFogActive, this::applyDeepFog);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Bright Caves", "preset bright caves fullbright gamma lighting", "Bright Caves", "Fullbright and boosted gamma for dark areas.", IconType.LIGHTING, this::isBrightCavesActive, this::applyBrightCaves);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Soft Mist", "preset soft mist fog light haze", "Soft Mist", "Light custom fog with calm weather.", IconType.FOG, this::isSoftMistActive, this::applySoftMist);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Performance Clear", "preset performance clear particles low sunny", "Performance Clear", "Reduces visual intensity settings.", IconType.ADVANCED, this::isPerformanceClearActive, this::applyPerformanceClear);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Cloudless Clear", "preset cloudless clear clouds off sky sunny", "Cloudless Clear", "Clear weather with clouds hidden.", IconType.SKY, this::isCloudlessClearActive, this::applyCloudlessClear);
+    y = addSearchPresetCard(y, contentX, contentW, "Preset · Fancy Clouds", "preset fancy clouds cloud distance sky", "Fancy Clouds", "Force fancy cloud rendering mode.", IconType.SKY, this::isFancyCloudsActive, this::applyFancyClouds);
+
+    for (String themeId : ThemeManager.all().keySet()) {
+        String name = ThemeManager.all().get(themeId).displayName();
+        y = addSearchToggle(y, contentX, contentW, "Theme · " + name, "theme ui color accent dark black purple " + name + " " + themeId, () -> ConfigManager.get().theme.equals(themeId), v -> {
+            if (v) {
+                ThemeManager.setTheme(themeId);
+            }
         });
-
-        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Server", "weather mode server normal", IconType.WEATHER, "SERVER");
-        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Sunny", "weather mode sunny clear sun", IconType.SKY, "SUNNY");
-        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Rain", "weather mode rain rainy water", IconType.WEATHER, "RAIN");
-        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Thunder", "weather mode thunder storm lightning", IconType.LIGHTING, "THUNDER");
-        y = addSearchWeatherChoice(y, contentX, contentW, "Weather Mode · Snow", "weather mode snow snowy winter", IconType.FOG, "SNOW");
-
-        y = addSearchSlider(y, contentX, contentW, "Weather · Rain intensity", "weather rain intensity strength opacity storm water", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
-            ConfigManager.get().rainIntensity = v;
-            ConfigManager.save();
-        }, value -> Math.round(value * 100f) + "%");
-
-        y = addSearchToggle(y, contentX, contentW, "Weather · Thunder sounds", "weather thunder sound lightning storm audio", () -> ConfigManager.get().thunderSounds, v -> {
-            ConfigManager.get().thunderSounds = v;
-            ConfigManager.save();
-        });
-
-        y = addSearchToggle(y, contentX, contentW, "Time · Override visual time", "time day night visual override sunrise sunset noon midnight", () -> ConfigManager.get().timeOverride, v -> {
-            ConfigManager.get().timeOverride = v;
-            ConfigManager.save();
-        });
-
-        y = addSearchSlider(y, contentX, contentW, "Time · Visual time", "time day night slider sunrise sunset noon midnight visual", 0f, 24000f, () -> (float) ConfigManager.get().visualTime, v -> {
-            ConfigManager.get().visualTime = Math.round(v);
-            ConfigManager.save();
-        }, this::formatMinecraftTime);
-
-        y = addSearchToggle(y, contentX, contentW, "Time · Freeze visual time", "time freeze pause stop day night cycle visual", () -> ConfigManager.get().freezeVisualTime, v -> {
-            ConfigManager.get().freezeVisualTime = v;
-            ConfigManager.save();
-        });
-
-        y = addSearchToggle(y, contentX, contentW, "Lighting · Fullbright", "lighting fullbright brightness cave dark gamma light", () -> ConfigManager.get().fullbright, v -> {
-            ConfigManager.get().fullbright = v;
-            ConfigManager.save();
-        });
-
-        y = addSearchSlider(y, contentX, contentW, "Lighting · Gamma", "lighting gamma brightness exposure cave dark light", 0f, 2f, () -> ConfigManager.get().gamma, v -> {
-            ConfigManager.get().gamma = v;
-            ConfigManager.save();
-        }, value -> Math.round(value * 100f) + "%");
-
-        y = addSearchSlider(y, contentX, contentW, "Fog · Fog distance", "fog distance density view mist haze nether end water lava", 0f, 2f, () -> ConfigManager.get().fogDistance, v -> {
-            ConfigManager.get().fogDistance = v;
-            ConfigManager.save();
-        }, value -> Math.round(value * 100f) + "%");
-
-        y = addSearchSlider(y, contentX, contentW, "Particles · Particle amount", "particles particle amount rain snow smoke explosion fire bubbles", 0f, 2f, () -> ConfigManager.get().particleAmount, v -> {
-            ConfigManager.get().particleAmount = v;
-            ConfigManager.save();
-        }, value -> Math.round(value * 100f) + "%");
-
-        y = addSearchPresetCard(y, contentX, contentW, "Preset · Golden Hour", "preset golden hour sunny warm noon lighting atmosphere", "Golden Hour", "Sunny, warm noon lighting and soft atmosphere.", IconType.SKY, () -> {
-            ConfigManager.get().timeOverride = true;
-            ConfigManager.get().visualTime = 6000;
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().weatherMode = "SUNNY";
-            ConfigManager.get().rainIntensity = 0f;
-            ConfigManager.save();
-        });
-
-        y = addSearchPresetCard(y, contentX, contentW, "Preset · Midnight Calm", "preset midnight calm night clear quiet", "Midnight Calm", "Permanent midnight visuals with calm weather.", IconType.TIME, () -> {
-            ConfigManager.get().timeOverride = true;
-            ConfigManager.get().visualTime = 18000;
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().weatherMode = "SUNNY";
-            ConfigManager.get().rainIntensity = 0f;
-            ConfigManager.save();
-        });
-
-        y = addSearchPresetCard(y, contentX, contentW, "Preset · Cozy Rain", "preset cozy rain rainy afternoon", "Cozy Rain", "Light rain mood with afternoon lighting.", IconType.WEATHER, () -> {
-            ConfigManager.get().timeOverride = true;
-            ConfigManager.get().visualTime = 9000;
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().weatherMode = "RAIN";
-            ConfigManager.get().rainIntensity = 0.35f;
-            ConfigManager.save();
-        });
-
-        y = addSearchPresetCard(y, contentX, contentW, "Preset · Thunder Night", "preset thunder night storm lightning dark", "Thunder Night", "Dark night with thunderstorm mood.", IconType.LIGHTING, () -> {
-            ConfigManager.get().timeOverride = true;
-            ConfigManager.get().visualTime = 18000;
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().weatherMode = "THUNDER";
-            ConfigManager.get().rainIntensity = 0.85f;
-            ConfigManager.save();
-        });
-
-        y = addSearchPresetCard(y, contentX, contentW, "Preset · Deep Fog", "preset deep fog foggy mist haze", "Deep Fog", "Prepares a foggy atmospheric profile.", IconType.FOG, () -> {
-            ConfigManager.get().fogDistance = 0.35f;
-            ConfigManager.save();
-        });
-
-        y = addSearchPresetCard(y, contentX, contentW, "Preset · Performance Clear", "preset performance clear particles low sunny", "Performance Clear", "Reduces visual intensity settings.", IconType.ADVANCED, () -> {
-            ConfigManager.get().weatherMode = "SUNNY";
-            ConfigManager.get().weatherOverride = true;
-            ConfigManager.get().rainIntensity = 0f;
-            ConfigManager.get().particleAmount = 0.35f;
-            ConfigManager.get().fogDistance = 1.5f;
-            ConfigManager.save();
-        });
-
-        for (String themeId : ThemeManager.all().keySet()) {
-            String name = ThemeManager.all().get(themeId).displayName();
-            y = addSearchToggle(y, contentX, contentW, "Theme · " + name, "theme ui color accent dark black purple " + name + " " + themeId, () -> ConfigManager.get().theme.equals(themeId), v -> {
-                if (v) {
-                    ThemeManager.setTheme(themeId);
-                }
-            });
-        }
-
-        return y;
     }
+
+    return y;
+}
 
     private int addSearchCategoryJump(int y, int x, int width, UiCategory category) {
         if (!matchesSearch("Category · " + category.title, category.title, category.description)) {
@@ -497,6 +654,317 @@ public class AtmosphereScreen extends Screen {
         return y + 84;
     }
 
+
+    private int addSearchAction(int y, int x, int width, String searchLabel, String keywords, String label, String description, IconType icon, Runnable action) {
+        if (!matchesSearch(searchLabel, keywords, label, description)) {
+            return y;
+        }
+
+        widgets.add(new ActionButtonWidget(x, y, width, label, description, icon, () -> {
+            action.run();
+            rebuildWidgets();
+        }));
+        searchResultCount++;
+        return y + 48;
+    }
+
+    private int addSearchPresetCard(int y, int x, int width, String searchLabel, String keywords, String title, String description, IconType icon, java.util.function.Supplier<Boolean> activeSupplier, Runnable action) {
+        if (!matchesSearch(searchLabel, keywords, title, description)) {
+            return y;
+        }
+
+        widgets.add(new PresetCardWidget(x, y, width, title, description, icon, activeSupplier, () -> {
+            action.run();
+            NotificationUtil.show("Applied " + title);
+            rebuildWidgets();
+        }));
+        searchResultCount++;
+        return y + 84;
+    }
+
+    private void addResetButton(int x, int y, int width, String label, String description, IconType icon, Runnable action) {
+        widgets.add(new ActionButtonWidget(x, y, width, label, description, icon, () -> {
+            action.run();
+            rebuildWidgets();
+        }));
+    }
+
+
+    private void setActivePreset(String presetId) {
+        ConfigManager.get().activePreset = presetId;
+    }
+
+    private void clearActivePreset() {
+        ConfigManager.get().activePreset = "";
+    }
+
+    private boolean isPresetActive(String presetId) {
+        return presetId.equals(ConfigManager.get().activePreset);
+    }
+
+    private void resetSky() {
+        ConfigManager.get().cloudOverride = false;
+        ConfigManager.get().cloudMode = "SERVER";
+        ConfigManager.get().cloudDistance = 12;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.show("Reset Sky / Clouds");
+    }
+
+    private void resetWeather() {
+        ConfigManager.get().weatherOverride = false;
+        ConfigManager.get().weatherMode = "SERVER";
+        ConfigManager.get().rainIntensity = 1.0f;
+        ConfigManager.get().thunderSounds = true;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.show("Reset Weather");
+    }
+
+    private void resetTime() {
+        ConfigManager.get().timeOverride = false;
+        ConfigManager.get().visualTime = 6000;
+        ConfigManager.get().freezeVisualTime = false;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.show("Reset Time");
+    }
+
+    private void resetFog() {
+        ConfigManager.get().fogOverride = false;
+        ConfigManager.get().fogDistance = 1.0f;
+        ConfigManager.get().fogDensity = 1.0f;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.show("Reset Fog");
+    }
+
+    private void resetLighting() {
+        ConfigManager.get().fullbright = false;
+        ConfigManager.get().gamma = 1.0f;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.show("Reset Lighting");
+    }
+
+    private void resetParticles() {
+        ConfigManager.get().particleAmount = 1.0f;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.show("Reset Particles");
+    }
+
+    private void resetAllVisuals() {
+        resetWeather();
+        ConfigManager.get().timeOverride = false;
+        ConfigManager.get().visualTime = 6000;
+        ConfigManager.get().freezeVisualTime = false;
+        ConfigManager.get().fogOverride = false;
+        ConfigManager.get().fogDistance = 1.0f;
+        ConfigManager.get().fogDensity = 1.0f;
+        ConfigManager.get().fullbright = false;
+        ConfigManager.get().gamma = 1.0f;
+        ConfigManager.get().particleAmount = 1.0f;
+        ConfigManager.get().cloudOverride = false;
+        ConfigManager.get().cloudMode = "SERVER";
+        ConfigManager.get().cloudDistance = 12;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.show("Reset All Visuals");
+    }
+
+    private void applyGoldenHour() {
+        ConfigManager.get().timeOverride = true;
+        ConfigManager.get().visualTime = 6000;
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().weatherMode = "SUNNY";
+        ConfigManager.get().rainIntensity = 0f;
+        ConfigManager.get().fogOverride = false;
+        ConfigManager.get().fullbright = false;
+        ConfigManager.get().gamma = 1.1f;
+        setActivePreset("golden_hour");
+        ConfigManager.save();
+    }
+
+    private boolean isGoldenHourActive() {
+        return isPresetActive("golden_hour");
+    }
+
+    private void applyMidnightCalm() {
+        ConfigManager.get().timeOverride = true;
+        ConfigManager.get().visualTime = 18000;
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().weatherMode = "SUNNY";
+        ConfigManager.get().rainIntensity = 0f;
+        setActivePreset("midnight_calm");
+        ConfigManager.save();
+    }
+
+    private boolean isMidnightCalmActive() {
+        return isPresetActive("midnight_calm");
+    }
+
+    private void applyCozyRain() {
+        ConfigManager.get().timeOverride = true;
+        ConfigManager.get().visualTime = 9000;
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().weatherMode = "RAIN";
+        ConfigManager.get().rainIntensity = 0.35f;
+        ConfigManager.get().fogOverride = false;
+        setActivePreset("cozy_rain");
+        ConfigManager.save();
+    }
+
+    private boolean isCozyRainActive() {
+        return isPresetActive("cozy_rain");
+    }
+
+    private void applyThunderNight() {
+        ConfigManager.get().timeOverride = true;
+        ConfigManager.get().visualTime = 18000;
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().weatherMode = "THUNDER";
+        ConfigManager.get().rainIntensity = 0.85f;
+        ConfigManager.get().fogOverride = true;
+        ConfigManager.get().fogDistance = 0.65f;
+        ConfigManager.get().fogDensity = 1.35f;
+        setActivePreset("thunder_night");
+        ConfigManager.save();
+    }
+
+    private boolean isThunderNightActive() {
+        return isPresetActive("thunder_night");
+    }
+
+    private void applyDeepFog() {
+        ConfigManager.get().fogOverride = true;
+        ConfigManager.get().fogDistance = 0.35f;
+        ConfigManager.get().fogDensity = 1.75f;
+        setActivePreset("deep_fog");
+        ConfigManager.save();
+    }
+
+    private boolean isDeepFogActive() {
+        return isPresetActive("deep_fog");
+    }
+
+    private void applySoftMist() {
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().weatherMode = "SUNNY";
+        ConfigManager.get().fogOverride = true;
+        ConfigManager.get().fogDistance = 0.85f;
+        ConfigManager.get().fogDensity = 1.2f;
+        setActivePreset("soft_mist");
+        ConfigManager.save();
+    }
+
+    private boolean isSoftMistActive() {
+        return isPresetActive("soft_mist");
+    }
+
+    private void applyBrightCaves() {
+        ConfigManager.get().fullbright = true;
+        ConfigManager.get().gamma = 2.0f;
+        setActivePreset("bright_caves");
+        ConfigManager.save();
+    }
+
+    private boolean isBrightCavesActive() {
+        return isPresetActive("bright_caves");
+    }
+
+    private void applyPerformanceClear() {
+        ConfigManager.get().weatherMode = "SUNNY";
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().rainIntensity = 0f;
+        ConfigManager.get().particleAmount = 0.35f;
+        ConfigManager.get().fogOverride = true;
+        ConfigManager.get().fogDistance = 1.5f;
+        ConfigManager.get().fogDensity = 0.5f;
+        setActivePreset("performance_clear");
+        ConfigManager.save();
+    }
+
+    private boolean isPerformanceClearActive() {
+        return isPresetActive("performance_clear");
+    }
+
+    private void applyCloudlessClear() {
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().weatherMode = "SUNNY";
+        ConfigManager.get().rainIntensity = 0f;
+        ConfigManager.get().cloudOverride = true;
+        ConfigManager.get().cloudMode = "OFF";
+        ConfigManager.get().cloudDistance = 12;
+        setActivePreset("cloudless_clear");
+        ConfigManager.save();
+    }
+
+    private boolean isCloudlessClearActive() {
+        return isPresetActive("cloudless_clear");
+    }
+
+    private void applyFancyClouds() {
+        ConfigManager.get().cloudOverride = true;
+        ConfigManager.get().cloudMode = "FANCY";
+        ConfigManager.get().cloudDistance = 12;
+        setActivePreset("fancy_clouds");
+        ConfigManager.save();
+    }
+
+    private boolean isFancyCloudsActive() {
+        return isPresetActive("fancy_clouds");
+    }
+
+    private int addSearchCloudChoice(int y, int x, int width, String label, String keywords, String mode) {
+        if (!matchesSearch(label, keywords)) {
+            return y;
+        }
+
+        widgets.add(new ChoiceButtonWidget(x, y, width, label, "Search result: set cloud mode to " + mode.toLowerCase(Locale.ROOT), IconType.SKY, () -> mode.equalsIgnoreCase(ConfigManager.get().cloudMode), () -> {
+            ConfigManager.get().cloudMode = mode;
+            ConfigManager.get().cloudOverride = !"SERVER".equalsIgnoreCase(mode);
+            clearActivePreset();
+            ConfigManager.save();
+            rebuildWidgets();
+        }));
+        searchResultCount++;
+        return y + 52;
+    }
+
+    private int addSearchProfiles(int y, int x, int width) {
+        AtmosphereProfile[] profiles = ProfileManager.profiles();
+        for (int i = 0; i < profiles.length; i++) {
+            int slot = i;
+            AtmosphereProfile profile = profiles[i];
+            String title = profile.saved ? profile.name : "Profile " + (i + 1);
+            String keywords = "profile profiles save load slot " + (i + 1) + " " + title;
+            if (!matchesSearch("Profile · " + title, keywords)) {
+                continue;
+            }
+
+            widgets.add(new PresetCardWidget(x, y, width, title, profile.saved ? "Click to load this profile." : "Empty slot. Click to save current settings.", IconType.PRESETS, () -> ProfileManager.isActive(slot), () -> {
+                if (ProfileManager.profile(slot).saved) {
+                    ProfileManager.load(slot);
+                } else {
+                    ProfileManager.saveCurrentTo(slot);
+                }
+                rebuildWidgets();
+            }));
+            searchResultCount++;
+            y += 84;
+
+            widgets.add(new ActionButtonWidget(x, y, width, "Save Current to " + title, "Overwrite this profile slot with current settings.", IconType.PRESETS, () -> {
+                ProfileManager.saveCurrentTo(slot);
+                rebuildWidgets();
+            }));
+            searchResultCount++;
+            y += 48;
+        }
+
+        return y;
+    }
+
     private int addSearchWeatherChoice(int y, int x, int width, String label, String keywords, IconType icon, String mode) {
         if (!matchesSearch(label, keywords)) {
             return y;
@@ -504,6 +972,7 @@ public class AtmosphereScreen extends Screen {
 
         widgets.add(new ChoiceButtonWidget(x, y, width, label, "Search result: set weather mode to " + mode.toLowerCase(Locale.ROOT), icon, () -> mode.equalsIgnoreCase(ConfigManager.get().weatherMode), () -> {
             ConfigManager.get().weatherMode = mode;
+            clearActivePreset();
             ConfigManager.get().weatherOverride = !"SERVER".equalsIgnoreCase(mode);
             ConfigManager.save();
             rebuildWidgets();
@@ -629,6 +1098,7 @@ public class AtmosphereScreen extends Screen {
         context.disableScissor();
 
         renderScrollIndicator(context, theme);
+        renderProfileRenameOverlay(context, theme);
         renderTooltip(context, mouseX, mouseY);
     }
 
@@ -786,7 +1256,7 @@ public class AtmosphereScreen extends Screen {
         if (isSearching()) {
             if (searchResultCount == 0) {
                 UiRender.centeredText(context, textRenderer, "No direct settings found", x + w / 2, y + 112, theme.text());
-                UiRender.centeredText(context, textRenderer, "Try sunrise, morning, day, sunset, night, midnight, rain, thunder, golden hour, fog distance, or particles.", x + w / 2, y + 134, theme.mutedText());
+                UiRender.centeredText(context, textRenderer, "Try clouds, cloudless, profile, sunrise, rain, deep fog, bright caves, reset, fullbright, or gamma.", x + w / 2, y + 134, theme.mutedText());
             } else {
                 UiRender.centeredText(context, textRenderer, "Search mode: edit matching controls directly here.", x + w / 2, y + h - 26, theme.mutedText());
             }
@@ -795,8 +1265,6 @@ public class AtmosphereScreen extends Screen {
 
         if (selected == UiCategory.HOME) {
             renderHome(context, theme, x, y, w, h);
-        } else if (selected == UiCategory.SKY || selected == UiCategory.ADVANCED) {
-            renderComingSoon(context, theme, x, y, w, h);
         }
     }
 
@@ -812,7 +1280,7 @@ public class AtmosphereScreen extends Screen {
         drawMiniCard(context, theme, x + 38 + cardW * 2, cardY, cardW, "Presets", "One-click moods", IconType.PRESETS);
 
         UiRender.centeredText(context, textRenderer, "Tip: search for sunrise, rain, golden hour, fog distance, or a theme.", x + w / 2, y + h - 58, theme.mutedText());
-        UiRender.centeredText(context, textRenderer, "Weather, time, particles and thunder-sound controls are now hooked.", x + w / 2, y + h - 40, theme.accent());
+        UiRender.centeredText(context, textRenderer, "Weather, time, clouds, fog, lighting, particles and profiles are now hooked.", x + w / 2, y + h - 40, theme.accent());
     }
 
     private void drawMiniCard(DrawContext context, Theme theme, int x, int y, int w, String title, String description, IconType icon) {
@@ -832,6 +1300,74 @@ public class AtmosphereScreen extends Screen {
         UiRender.centeredText(context, textRenderer, "This category is ready for the next milestone.", x + w / 2, y + 132, theme.mutedText());
     }
 
+
+    private void startRenamingProfile(int slot) {
+        AtmosphereProfile profile = ProfileManager.profile(slot);
+        renamingProfileIndex = slot;
+        renameProfileText = profile.name == null || profile.name.isBlank() ? "Profile " + (slot + 1) : profile.name;
+        searchFocused = false;
+        NotificationUtil.show("Type a new name, Enter to save, Esc to cancel");
+    }
+
+    private void finishRenamingProfile() {
+        if (renamingProfileIndex < 0) {
+            return;
+        }
+
+        ProfileManager.rename(renamingProfileIndex, renameProfileText);
+        renamingProfileIndex = -1;
+        renameProfileText = "";
+        rebuildWidgets();
+    }
+
+    private void cancelRenamingProfile() {
+        renamingProfileIndex = -1;
+        renameProfileText = "";
+        NotificationUtil.show("Rename cancelled");
+        rebuildWidgets();
+    }
+
+    private boolean isRenamingProfile() {
+        return renamingProfileIndex >= 0;
+    }
+
+    private void renderProfileRenameOverlay(DrawContext context, Theme theme) {
+        if (!isRenamingProfile()) {
+            return;
+        }
+
+        int modalW = Math.min(360, windowW - 80);
+        int modalH = 116;
+        int x = windowX + windowW / 2 - modalW / 2;
+        int y = windowY + windowH / 2 - modalH / 2;
+
+        context.fill(0, 0, width, height, 0xAA000000);
+        UiRender.borderedRect(context, x, y, modalW, modalH, theme.panel(), theme.accent());
+
+        UiRender.text(context, textRenderer, "Rename Profile " + (renamingProfileIndex + 1), x + 16, y + 14, theme.text());
+        UiRender.text(context, textRenderer, "Enter saves · Esc cancels · Backspace deletes", x + 16, y + 29, theme.mutedText());
+        UiRender.rect(context, x + 16, y + 42, modalW - 32, 1, theme.border());
+
+        int fieldX = x + 16;
+        int fieldY = y + 56;
+        int fieldW = modalW - 32;
+        UiRender.borderedRect(context, fieldX, fieldY, fieldW, 24, theme.panelAlt(), theme.accent());
+
+        String visible = renameProfileText;
+        while (textRenderer.getWidth(visible) > fieldW - 24 && visible.length() > 0) {
+            visible = visible.substring(1);
+        }
+
+        UiRender.text(context, textRenderer, visible, fieldX + 8, fieldY + 8, theme.text());
+
+        if (shouldShowCaret()) {
+            int caretX = Math.min(fieldX + fieldW - 12, fieldX + 8 + textRenderer.getWidth(visible));
+            context.fill(caretX + 2, fieldY + 6, caretX + 3, fieldY + 19, theme.accent());
+        }
+
+        UiRender.centeredText(context, textRenderer, "New name: " + renameProfileText.length() + "/24", x + modalW / 2, y + 92, theme.mutedText());
+    }
+
     private void renderScrollIndicator(DrawContext context, Theme theme) {
         if (maxScroll <= 0) {
             return;
@@ -848,6 +1384,10 @@ public class AtmosphereScreen extends Screen {
     }
 
     private void renderTooltip(DrawContext context, int mouseX, int mouseY) {
+        if (isRenamingProfile()) {
+            return;
+        }
+
         for (AtmosphereWidget widget : widgets) {
             if (widget.isHoveredPublic(mouseX, mouseY) && widget.getTooltip() != null && !widget.getTooltip().isEmpty()) {
                 context.drawTooltip(textRenderer, List.of(Text.literal(widget.getTooltip())), mouseX, mouseY);
@@ -865,6 +1405,10 @@ public class AtmosphereScreen extends Screen {
 
         if (UiRender.hovered(click.x(), click.y(), closeX, closeY, closeSize, closeSize)) {
             MinecraftClient.getInstance().setScreen(null);
+            return true;
+        }
+
+        if (isRenamingProfile()) {
             return true;
         }
 
@@ -915,19 +1459,44 @@ public class AtmosphereScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (maxScroll > 0 && UiRender.hovered(mouseX, mouseY, windowX + 204, windowY + 104, windowW - 218, windowH - 116)) {
-            scrollOffset = (int) Math.max(0, Math.min(maxScroll, scrollOffset - verticalAmount * 18));
+    if (maxScroll > 0 && UiRender.hovered(mouseX, mouseY, windowX + 204, windowY + 104, windowW - 218, windowH - 116)) {
+        int oldOffset = scrollOffset;
+        int newOffset = (int) Math.max(0, Math.min(maxScroll, scrollOffset - verticalAmount * 18));
+
+        if (newOffset != oldOffset) {
+            scrollOffset = newOffset;
             rebuildWidgets();
-            return true;
         }
 
-        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        return true;
     }
+
+    return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+}
 
     @Override
     public boolean keyPressed(KeyInput input) {
         if (AtmosphereKeybinds.matchesOpenMenu(input)) {
             MinecraftClient.getInstance().setScreen(null);
+            return true;
+        }
+
+        if (isRenamingProfile()) {
+            if (input.isEscape()) {
+                cancelRenamingProfile();
+                return true;
+            }
+
+            if (input.getKeycode() == GLFW.GLFW_KEY_ENTER) {
+                finishRenamingProfile();
+                return true;
+            }
+
+            if (input.getKeycode() == GLFW.GLFW_KEY_BACKSPACE && !renameProfileText.isEmpty()) {
+                renameProfileText = renameProfileText.substring(0, renameProfileText.length() - 1);
+                return true;
+            }
+
             return true;
         }
 
@@ -955,6 +1524,14 @@ public class AtmosphereScreen extends Screen {
 
     @Override
     public boolean charTyped(CharInput input) {
+        if (isRenamingProfile() && input.isValidChar() && renameProfileText.length() < 24) {
+            String typed = input.asString();
+            if (!typed.equals("\n") && !typed.equals("\r")) {
+                renameProfileText += typed;
+            }
+            return true;
+        }
+
         if (searchFocused && input.isValidChar() && searchQuery.length() < 32) {
             searchQuery += input.asString();
             scrollOffset = 0;
