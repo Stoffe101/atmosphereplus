@@ -2,6 +2,7 @@ package com.skrra.atmosphereplus.ui;
 
 public enum UiCategory {
     HOME("Home", "Overview and quick status", IconType.HOME),
+    QUICK("Quick", "Fast access to profiles, presets and common toggles", IconType.PRESETS),
     WEATHER("Weather", "Visual weather controls", IconType.WEATHER),
     TIME("Time", "Day and night cycle", IconType.TIME),
     SKY("Sky", "Clouds and sky atmosphere", IconType.SKY),

@@ -1,6 +1,7 @@
 package com.skrra.atmosphereplus.ui;
 
 import com.skrra.atmosphereplus.client.AtmospherePlusClient;
+import com.skrra.atmosphereplus.compat.CompatibilityUtil;
 import com.skrra.atmosphereplus.config.AtmosphereProfile;
 import com.skrra.atmosphereplus.config.ConfigManager;
 import com.skrra.atmosphereplus.config.ProfileManager;
@@ -12,6 +13,7 @@ import com.skrra.atmosphereplus.ui.widgets.AtmosphereWidget;
 import com.skrra.atmosphereplus.ui.widgets.CategoryButton;
 import com.skrra.atmosphereplus.ui.widgets.ChoiceButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.PresetCardWidget;
+import com.skrra.atmosphereplus.ui.widgets.SectionLabelWidget;
 import com.skrra.atmosphereplus.ui.widgets.SliderWidget;
 import com.skrra.atmosphereplus.ui.widgets.TimePresetButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.ToggleWidget;
@@ -26,23 +28,34 @@ import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
 public class AtmosphereScreen extends Screen {
     private final List<AtmosphereWidget> widgets = new ArrayList<>();
 
-    private UiCategory selected = UiCategory.HOME;
+    private UiCategory selected = UiCategory.QUICK;
     private String searchQuery = "";
     private boolean searchFocused = false;
     private int renamingProfileIndex = -1;
     private String renameProfileText = "";
+    private int selectedProfileIndex = 0;
+
+    private String confirmTitle = "";
+    private String confirmMessage = "";
+    private Runnable confirmAction = null;
 
     private int scrollOffset = 0;
     private int maxScroll = 0;
     private int contentBottom = 0;
 
     private int searchResultCount = 0;
+
+    private int lastScreenWidth = -1;
+    private int lastScreenHeight = -1;
+    private String lastLayoutKey = "";
+    private LayoutProfile layoutProfile = null;
 
     private int windowX;
     private int windowY;
@@ -64,75 +77,427 @@ public class AtmosphereScreen extends Screen {
 
     @Override
     protected void init() {
+        loadLastSelectedTab();
         rebuildWidgets();
     }
 
+
+private void loadLastSelectedTab() {
+    try {
+        String saved = ConfigManager.get().lastUiCategory;
+        if (saved != null && !saved.isBlank()) {
+            selected = UiCategory.valueOf(saved.toUpperCase(Locale.ROOT));
+        }
+    } catch (Exception ignored) {
+        selected = UiCategory.QUICK;
+        ConfigManager.get().lastUiCategory = selected.name();
+        ConfigManager.save();
+    }
+}
+
+private void selectCategory(UiCategory category) {
+    selected = category;
+    ConfigManager.get().lastUiCategory = category.name();
+    ConfigManager.save();
+}
+
+
+
+private LayoutProfile layout() {
+    if (layoutProfile == null) {
+        layoutProfile = LayoutProfile.create(width, height);
+    }
+    return layoutProfile;
+}
+
+private int sidebarPanelTop() {
+    return windowY + layout().topBarHeight() + 10;
+}
+
+private int sidebarPanelBottom() {
+    return windowY + windowH - layout().outerMargin();
+}
+
+private int sidebarLeft() {
+    return windowX + layout().outerMargin();
+}
+
+private int sidebarWidth() {
+    return layout().sidebarWidth();
+}
+
+private int sidebarRight() {
+    return sidebarLeft() + sidebarWidth();
+}
+
+private int sidebarListTop() {
+    return sidebarPanelTop() + layout().sidebarHeaderHeight();
+}
+
+private int sidebarStep() {
+    int count = Math.max(1, visibleCategories().size());
+    int available = Math.max(24, sidebarPanelBottom() - sidebarListTop() - 4);
+    return layout().sidebarStep(count, available);
+}
+
+private int contentGap() {
+    return layout().contentGap();
+}
+
+private int contentLeft() {
+    return sidebarRight() + contentGap();
+}
+
+private int contentRight() {
+    return windowX + windowW - layout().outerMargin();
+}
+
+private int contentWidth() {
+    return Math.max(120, contentRight() - contentLeft());
+}
+
+private int contentPadding() {
+    return layout().contentPadding();
+}
+
+private int contentWidgetLeft() {
+    return contentLeft() + contentPadding();
+}
+
+private int contentWidgetWidth() {
+    return Math.max(100, contentWidth() - contentPadding() * 2);
+}
+
+
+
+
+
     private void rebuildWidgets() {
-        widgets.clear();
-        searchResultCount = 0;
+    layoutProfile = LayoutProfile.create(width, height);
+    lastLayoutKey = layoutProfile.key();
+    lastScreenWidth = width;
+    lastScreenHeight = height;
+    widgets.clear();
+    searchResultCount = 0;
 
-        windowW = Math.min(920, width - 24);
-        windowH = Math.min(520, height - 24);
-        windowX = (width - windowW) / 2;
-        windowY = (height - windowH) / 2;
-        contentBottom = windowY + windowH - 18;
+    windowW = Math.max(1, layoutProfile.maxWindowWidth());
+    windowH = Math.max(1, layoutProfile.maxWindowHeight());
+    windowX = (width - windowW) / 2;
+    windowY = (height - windowH) / 2;
+    contentBottom = windowY + windowH - layout().outerMargin();
 
-        searchW = Math.min(260, windowW / 3);
-        searchH = 20;
-        searchX = windowX + windowW / 2 - searchW / 2;
-        searchY = windowY + 14;
+    searchW = Math.min(260, Math.max(120, windowW / 3));
+    searchH = 20;
+    searchX = windowX + windowW / 2 - searchW / 2;
+    searchY = windowY + 14;
 
-        closeSize = 20;
-        closeX = windowX + windowW - 36;
-        closeY = windowY + 14;
+    closeSize = 20;
+    closeX = windowX + windowW - 36;
+    closeY = windowY + 14;
 
-        int sidebarX = windowX + 12;
-        int sidebarY = windowY + 98;
-        int sidebarW = 174;
+    int sidebarX = sidebarLeft();
+    int sidebarY = sidebarListTop();
+    int sidebarW = sidebarWidth();
+    int sidebarStep = sidebarStep();
 
-        if (!isSearching()) {
-            int i = 0;
-            for (UiCategory category : visibleCategories()) {
-                widgets.add(new CategoryButton(sidebarX, sidebarY + i * 25, sidebarW, category, () -> selected, c -> {
-                    selected = c;
-                    searchFocused = false;
-                    scrollOffset = 0;
-                    rebuildWidgets();
-                }));
-                i++;
-            }
+    if (!isSearching()) {
+        int i = 0;
+        for (UiCategory category : visibleCategories()) {
+            widgets.add(new CategoryButton(sidebarX, sidebarY + i * sidebarStep, sidebarW, category, () -> selected, c -> {
+                selectCategory(c);
+                searchFocused = false;
+                scrollOffset = 0;
+                rebuildWidgets();
+            }));
+            i++;
         }
+    }
 
-        int contentX = windowX + 224;
-        int contentY = windowY + 116 - scrollOffset;
-        int contentW = windowW - 260;
-        int finalY = contentY;
+    int contentX = contentWidgetLeft();
+    int contentY = windowY + layout().contentTopOffset() - scrollOffset;
+    int contentW = contentWidgetWidth();
+    int finalY = contentY;
 
-        if (isSearching()) {
-            finalY = addSearchResultWidgets(contentX, contentY, contentW);
-            maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
-            scrollOffset = Math.min(scrollOffset, maxScroll);
-            return;
-        }
-
-        switch (selected) {
-            case WEATHER -> finalY = addWeatherWidgets(contentX, contentY, contentW);
-            case TIME -> finalY = addTimeWidgets(contentX, contentY, contentW);
-            case SKY -> finalY = addSkyWidgets(contentX, contentY, contentW);
-            case LIGHTING -> finalY = addLightingWidgets(contentX, contentY, contentW);
-            case FOG -> finalY = addFogWidgets(contentX, contentY, contentW);
-            case PARTICLES -> finalY = addParticlesWidgets(contentX, contentY, contentW);
-            case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
-            case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
-            case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
-            case ADVANCED -> finalY = addAdvancedWidgets(contentX, contentY, contentW);
-            default -> {
-            }
-        }
-
+    if (isSearching()) {
+        finalY = addSearchResultWidgets(contentX, contentY, contentW);
         maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
         scrollOffset = Math.min(scrollOffset, maxScroll);
+        return;
     }
+
+    switch (selected) {
+        case QUICK -> finalY = addQuickWidgets(contentX, contentY, contentW);
+        case WEATHER -> finalY = addWeatherWidgets(contentX, contentY, contentW);
+        case TIME -> finalY = addTimeWidgets(contentX, contentY, contentW);
+        case SKY -> finalY = addSkyWidgets(contentX, contentY, contentW);
+        case LIGHTING -> finalY = addLightingWidgets(contentX, contentY, contentW);
+        case FOG -> finalY = addFogWidgets(contentX, contentY, contentW);
+        case PARTICLES -> finalY = addParticlesWidgets(contentX, contentY, contentW);
+        case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
+        case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
+        case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
+        case ADVANCED -> finalY = addAdvancedWidgets(contentX, contentY, contentW);
+        default -> {
+        }
+    }
+
+    maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
+    scrollOffset = Math.min(scrollOffset, maxScroll);
+}
+
+
+
+private List<Integer> quickProfileOrder() {
+    List<Integer> order = new ArrayList<>();
+    for (int i = 0; i < ProfileManager.PROFILE_COUNT; i++) {
+        order.add(i);
+    }
+
+    order.sort(
+            Comparator
+                    .comparing((Integer i) -> !ProfileManager.profile(i).pinned)
+                    .thenComparing((Integer i) -> !ProfileManager.profile(i).favorite)
+                    .thenComparing((Integer i) -> !ProfileManager.profile(i).saved)
+                    .thenComparingInt(Integer::intValue)
+    );
+
+    return order;
+}
+
+private String quickProfileLabel(int slot) {
+    AtmosphereProfile profile = ProfileManager.profile(slot);
+    String base = (profile.name == null || profile.name.isBlank()) ? "Profile " + (slot + 1) : profile.name;
+    String prefix = "";
+    if (profile.pinned) prefix += "[P] ";
+    if (profile.favorite) prefix += "[F] ";
+    return prefix + base;
+}
+
+private String quickProfileDescription(int slot) {
+    AtmosphereProfile profile = ProfileManager.profile(slot);
+    if (!profile.saved) {
+        return "Empty slot · open manager";
+    }
+
+    StringBuilder builder = new StringBuilder("Load saved profile");
+    if (profile.pinned || profile.favorite) {
+        builder.append(" · ");
+        if (profile.pinned) builder.append("Pinned");
+        if (profile.pinned && profile.favorite) builder.append(" · ");
+        if (profile.favorite) builder.append("Favorite");
+    }
+    return builder.toString();
+}
+
+private boolean isPresetFavorite(String presetId) {
+    return switch (presetId) {
+        case "golden_hour" -> ConfigManager.get().favoritePresetGoldenHour;
+        case "midnight" -> ConfigManager.get().favoritePresetMidnight;
+        case "cozy_rain" -> ConfigManager.get().favoritePresetCozyRain;
+        case "deep_fog" -> ConfigManager.get().favoritePresetDeepFog;
+        case "bright_caves" -> ConfigManager.get().favoritePresetBrightCaves;
+        case "clouds_off" -> ConfigManager.get().favoritePresetCloudsOff;
+        default -> false;
+    };
+}
+
+private void setPresetFavorite(String presetId, boolean value) {
+    switch (presetId) {
+        case "golden_hour" -> ConfigManager.get().favoritePresetGoldenHour = value;
+        case "midnight" -> ConfigManager.get().favoritePresetMidnight = value;
+        case "cozy_rain" -> ConfigManager.get().favoritePresetCozyRain = value;
+        case "deep_fog" -> ConfigManager.get().favoritePresetDeepFog = value;
+        case "bright_caves" -> ConfigManager.get().favoritePresetBrightCaves = value;
+        case "clouds_off" -> ConfigManager.get().favoritePresetCloudsOff = value;
+        default -> {
+        }
+    }
+    ConfigManager.save();
+}
+
+private void togglePresetFavorite(String presetId, String label) {
+    boolean newValue = !isPresetFavorite(presetId);
+    setPresetFavorite(presetId, newValue);
+    NotificationUtil.toggled(label + " favorite", newValue);
+    rebuildWidgets();
+}
+
+private void applyQuickPreset(String presetId, String label, Runnable action) {
+    ConfigManager.get().lastQuickPreset = presetId;
+    action.run();
+    ConfigManager.save();
+    NotificationUtil.applied(label);
+    rebuildWidgets();
+}
+
+private void runLastQuickPreset() {
+    String preset = ConfigManager.get().lastQuickPreset;
+    switch (preset) {
+        case "golden_hour" -> applyQuickPreset("golden_hour", "Golden Hour", this::applyGoldenHour);
+        case "midnight" -> applyQuickPreset("midnight", "Midnight Calm", this::applyMidnightCalm);
+        case "cozy_rain" -> applyQuickPreset("cozy_rain", "Cozy Rain", this::applyCozyRain);
+        case "deep_fog" -> applyQuickPreset("deep_fog", "Deep Fog", this::applyDeepFog);
+        case "bright_caves" -> applyQuickPreset("bright_caves", "Bright Caves", this::applyBrightCaves);
+        case "clouds_off" -> applyQuickPreset("clouds_off", "Clouds Off", () -> {
+            ConfigManager.get().cloudOverride = true;
+            ConfigManager.get().cloudMode = "OFF";
+            clearActivePreset();
+        });
+        default -> NotificationUtil.show("No last preset yet");
+    }
+}
+
+private void runLastQuickProfile() {
+    int slot = ConfigManager.get().lastQuickProfile;
+    if (ProfileManager.profile(slot).saved) {
+        ProfileManager.load(slot);
+        NotificationUtil.show("Loaded last profile: " + quickProfileLabel(slot));
+        rebuildWidgets();
+    } else {
+        NotificationUtil.show("Last profile slot is empty");
+    }
+}
+
+
+
+
+private String quickProfileDisplayName(int slot) {
+    AtmosphereProfile profile = ProfileManager.profile(slot);
+    String base = (profile.name == null || profile.name.isBlank()) ? "Profile " + (slot + 1) : profile.name;
+    return base;
+}
+
+private int responsiveColumns(int contentW, int preferred, int minCardWidth) {
+    int count = Math.max(1, contentW / minCardWidth);
+    return Math.max(1, Math.min(preferred, count));
+}
+
+private int responsiveCardWidth(int contentW, int cols, int gap) {
+    return (contentW - gap * (cols - 1)) / cols;
+}
+
+private int addQuickWidgets(int contentX, int contentY, int contentW) {
+    int y = contentY;
+    int gap = layout().sectionGap();
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Quick", "Fast access"));
+    y += 28;
+
+    int actionCols = layout().quickActionColumns(contentW);
+    int actionW = responsiveCardWidth(contentW, actionCols, gap);
+    int actionIndex = 0;
+
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Last Profile", "Load last profile.", IconType.PRESETS, this::runLastQuickProfile));
+    actionIndex++;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Last Preset", "Apply last preset.", IconType.SKY, this::runLastQuickPreset));
+    actionIndex++;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, ConfigManager.get().fullbright ? "Fullbright: On" : "Fullbright: Off", "Click to toggle fullbright.", IconType.LIGHTING, () -> {
+        ConfigManager.get().fullbright = !ConfigManager.get().fullbright;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.toggled("Fullbright", ConfigManager.get().fullbright);
+        rebuildWidgets();
+    }));
+    actionIndex++;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Clear Weather", "Set clear weather.", IconType.WEATHER, () -> {
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().weatherMode = "SUNNY";
+        ConfigManager.get().rainIntensity = 0.0f;
+        clearActivePreset();
+        ConfigManager.save();
+        NotificationUtil.applied("Clear Weather");
+        rebuildWidgets();
+    }));
+    actionIndex++;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Server Visuals", "Use server visuals.", IconType.HOME, () -> {
+        resetWeather();
+        resetTime();
+        resetSky();
+        NotificationUtil.applied("Server Visuals");
+        rebuildWidgets();
+    }));
+    actionIndex++;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Reset All", "Reset all visuals.", IconType.ADVANCED, this::confirmResetAllVisuals));
+
+    y += ((actionIndex / actionCols) + 1) * 46 + 8;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Profiles", "Pinned first"));
+    y += 28;
+
+    List<Integer> ordered = quickProfileOrder();
+    int profileCols = layout().quickProfileColumns(contentW);
+    int profileW = responsiveCardWidth(contentW, profileCols, gap);
+
+    for (int i = 0; i < ordered.size(); i++) {
+        int slot = ordered.get(i);
+        int x = contentX + (i % profileCols) * (profileW + gap);
+        int rowY = y + (i / profileCols) * 46;
+        String desc = ProfileManager.profile(slot).saved ? "Load" : "Open";
+
+        widgets.add(new ChoiceButtonWidget(x, rowY, profileW, quickProfileDisplayName(slot), desc, IconType.PRESETS, () -> ConfigManager.get().lastQuickProfile == slot, () -> {
+            ConfigManager.get().lastQuickProfile = slot;
+            ConfigManager.save();
+            if (ProfileManager.profile(slot).saved) {
+                ProfileManager.load(slot);
+                NotificationUtil.applied(quickProfileDisplayName(slot));
+            } else {
+                selectedProfileIndex = slot;
+                selectCategory(UiCategory.PROFILES);
+                scrollOffset = 0;
+                NotificationUtil.show("Open profile manager for slot " + (slot + 1));
+            }
+            rebuildWidgets();
+        }));
+    }
+
+    y += ((ordered.size() - 1) / profileCols + 1) * 46 + 8;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Presets", "Most used"));
+    y += 28;
+
+    int presetCols = responsiveColumns(contentW, 2, 210);
+    int presetW = responsiveCardWidth(contentW, presetCols, gap);
+    int presetIndex = 0;
+
+    widgets.add(new ChoiceButtonWidget(contentX + (presetIndex % presetCols) * (presetW + gap), y + (presetIndex / presetCols) * 46, presetW, "Golden Hour", "Warm day", IconType.SKY, () -> ConfigManager.get().lastQuickPreset.equals("golden_hour"), () -> applyQuickPreset("golden_hour", "Golden Hour", this::applyGoldenHour)));
+    presetIndex++;
+    widgets.add(new ChoiceButtonWidget(contentX + (presetIndex % presetCols) * (presetW + gap), y + (presetIndex / presetCols) * 46, presetW, "Midnight", "Clear night", IconType.TIME, () -> ConfigManager.get().lastQuickPreset.equals("midnight"), () -> applyQuickPreset("midnight", "Midnight Calm", this::applyMidnightCalm)));
+    presetIndex++;
+    widgets.add(new ChoiceButtonWidget(contentX + (presetIndex % presetCols) * (presetW + gap), y + (presetIndex / presetCols) * 46, presetW, "Cozy Rain", "Rain mood", IconType.WEATHER, () -> ConfigManager.get().lastQuickPreset.equals("cozy_rain"), () -> applyQuickPreset("cozy_rain", "Cozy Rain", this::applyCozyRain)));
+    presetIndex++;
+    widgets.add(new ChoiceButtonWidget(contentX + (presetIndex % presetCols) * (presetW + gap), y + (presetIndex / presetCols) * 46, presetW, "Deep Fog", "Cinematic fog", IconType.FOG, () -> ConfigManager.get().lastQuickPreset.equals("deep_fog"), () -> applyQuickPreset("deep_fog", "Deep Fog", this::applyDeepFog)));
+    presetIndex++;
+    widgets.add(new ChoiceButtonWidget(contentX + (presetIndex % presetCols) * (presetW + gap), y + (presetIndex / presetCols) * 46, presetW, "Bright Caves", "Bright boost", IconType.LIGHTING, () -> ConfigManager.get().lastQuickPreset.equals("bright_caves"), () -> applyQuickPreset("bright_caves", "Bright Caves", this::applyBrightCaves)));
+    presetIndex++;
+    widgets.add(new ChoiceButtonWidget(contentX + (presetIndex % presetCols) * (presetW + gap), y + (presetIndex / presetCols) * 46, presetW, "More Presets", "Open full list", IconType.SKY, () -> false, () -> {
+        selected = UiCategory.PRESETS;
+        scrollOffset = 0;
+        rebuildWidgets();
+    }));
+
+    y += ((presetIndex / presetCols) + 1) * 46 + 8;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Manage", "More options"));
+    y += 28;
+
+    int manageCols = layout().manageColumns(contentW);
+    int manageW = responsiveCardWidth(contentW, manageCols, gap);
+
+    widgets.add(new ActionButtonWidget(contentX, y, manageW, "Profiles", "Rename, pin, favorite and save.", IconType.PRESETS, () -> {
+        selected = UiCategory.PROFILES;
+        scrollOffset = 0;
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + (manageCols > 1 ? manageW + gap : 0), y + (manageCols > 1 ? 0 : 46), manageW, "All Presets", "Open the full preset page.", IconType.SKY, () -> {
+        selected = UiCategory.PRESETS;
+        scrollOffset = 0;
+        rebuildWidgets();
+    }));
+
+    return y + (manageCols > 1 ? 42 : 88);
+}
+
 
 private int addWeatherWidgets(int contentX, int contentY, int contentW) {
     widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override server weather visually", "Makes weather visuals client-side and independent from the server.", () -> ConfigManager.get().weatherOverride, v -> {
@@ -232,26 +597,84 @@ private int addTimeWidgets(int contentX, int contentY, int contentW) {
 
 
 private int addSkyWidgets(int contentX, int contentY, int contentW) {
-    widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override clouds visually", "Uses client-only cloud mode settings without changing server state.", () -> ConfigManager.get().cloudOverride, v -> {
+    int y = contentY;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Clouds", "Stable controls"));
+    y += 30;
+
+    widgets.add(new ToggleWidget(contentX, y, contentW, "Override clouds visually", "Client-side cloud mode only. Works best outside shader packs.", () -> ConfigManager.get().cloudOverride, v -> {
         ConfigManager.get().cloudOverride = v;
         clearActivePreset();
         ConfigManager.save();
     }));
 
     int modeW = (contentW - 20) / 3;
-    int rowY = contentY + 54;
+    int rowY = y + 54;
     addCloudChoice(contentX, rowY, modeW, "Server", "Use normal Minecraft cloud settings.", "SERVER");
     addCloudChoice(contentX + modeW + 10, rowY, modeW, "Off", "Hide clouds visually.", "OFF");
     addCloudChoice(contentX + (modeW + 10) * 2, rowY, modeW, "Fast", "Force fast clouds visually.", "FAST");
-    addCloudChoice(contentX, rowY + 50, modeW, "Fancy", "Force fancy clouds visually.", "FANCY");
+    addCloudChoice(contentX, rowY + 50, modeW, "Fancy", "Force fancy cloud rendering mode.", "FANCY");
 
-    widgets.add(new ActionButtonWidget(contentX + modeW + 10, rowY + 50, modeW * 2 + 10, "Cloud Distance Disabled", "Distance override was unstable in 1.21.11, so this build keeps vanilla distance.", IconType.SKY, () -> {
-        NotificationUtil.show("Cloud distance override is disabled for now");
+    y += 158;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Renderer", "Known working"));
+    y += 30;
+
+    widgets.add(new ToggleWidget(contentX, y, contentW, "Enable renderer controls", "Enables the working alpha renderer hooks. Shader packs may ignore them.", () -> ConfigManager.get().experimentalRendererControls, v -> {
+        ConfigManager.get().experimentalRendererControls = v;
+        ConfigManager.save();
+        if (v && CompatibilityUtil.isIrisLoaded() && ConfigManager.get().shaderAwareWarnings) {
+            NotificationUtil.show("Iris detected: shaders may override renderer hooks");
+        }
+        rebuildWidgets();
     }));
 
-    addResetButton(contentX, contentY + 158, contentW, "Reset Sky / Clouds", "Return cloud visuals to server/default settings.", IconType.SKY, this::resetSky);
+    y += 54;
 
-    return contentY + 204;
+    int halfW = (contentW - 10) / 2;
+
+    widgets.add(new SliderWidget(contentX, y, halfW, "Cloud height", "Working without shaders. Changes cloud layer height.", 0.25f, 2.0f, () -> ConfigManager.get().cloudHeight, v -> {
+        ConfigManager.get().cloudHeight = v;
+        ConfigManager.get().experimentalRendererControls = true;
+        ConfigManager.get().cloudDistanceOverride = false;
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    widgets.add(new SliderWidget(contentX + halfW + 10, y, halfW, "Star brightness", "Working without shaders. Shader packs may override stars.", 0f, 2f, () -> ConfigManager.get().starBrightness, v -> {
+        ConfigManager.get().starBrightness = v;
+        ConfigManager.get().experimentalRendererControls = true;
+        ConfigManager.get().cloudDistanceOverride = false;
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    y += 62;
+
+    widgets.add(new ActionButtonWidget(contentX, y, halfW, "Reset Renderer", "Reset cloud height, stars and experimental renderer values.", IconType.ADVANCED, () -> {
+        resetRendererSettings();
+        clearActivePreset();
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + halfW + 10, y, halfW, "Shader note", CompatibilityUtil.isIrisLoaded() ? "Iris detected. Shaders can override these hooks." : "Vanilla/Sodium path detected.", IconType.SKY, () -> {
+        NotificationUtil.show(CompatibilityUtil.isIrisLoaded() ? "Shaders may override cloud height and stars" : "Renderer hooks should be easiest to test without shaders");
+    }));
+
+    y += 46;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Removed", "Cleaned up"));
+    y += 30;
+
+    widgets.add(new PresetCardWidget(contentX, y, contentW, "Cloud distance removed", "Removed because it caused broken/tiny cloud behavior. Cloud height and stars are kept.", IconType.SKY, () -> false, () -> {
+        NotificationUtil.show("Cloud distance was removed for stability");
+    }));
+
+    y += 64;
+
+    addResetButton(contentX, y, contentW, "Reset Sky / Clouds", "Reset stable cloud settings and renderer values.", IconType.SKY, this::resetSky);
+
+    return y + 52;
 }
 
 private void addCloudChoice(int x, int y, int width, String label, String description, String mode) {
@@ -264,7 +687,16 @@ private void addCloudChoice(int x, int y, int width, String label, String descri
     }));
 }
 
+
+private void selectProfile(int slot) {
+    selectedProfileIndex = Math.max(0, Math.min(ProfileManager.PROFILE_COUNT - 1, slot));
+    rebuildWidgets();
+}
+
+
 private int addProfilesWidgets(int contentX, int contentY, int contentW) {
+    selectedProfileIndex = Math.max(0, Math.min(ProfileManager.PROFILE_COUNT - 1, selectedProfileIndex));
+
     int toolbarW = (contentW - 20) / 3;
 
     widgets.add(new ActionButtonWidget(contentX, contentY, toolbarW, "Export", "Export all profiles to config/atmosphereplus-profiles-backup.json.", IconType.PRESETS, () -> {
@@ -272,59 +704,106 @@ private int addProfilesWidgets(int contentX, int contentY, int contentW) {
         rebuildWidgets();
     }));
 
-    widgets.add(new ActionButtonWidget(contentX + toolbarW + 10, contentY, toolbarW, "Import", "Import profiles from the backup file if it exists.", IconType.PRESETS, () -> {
-        ProfileManager.importProfiles();
-        rebuildWidgets();
-    }));
+    widgets.add(new ActionButtonWidget(contentX + toolbarW + 10, contentY, toolbarW, "Import", "Import profiles from the backup file after confirmation.", IconType.PRESETS, this::confirmImportProfiles));
 
-    widgets.add(new ActionButtonWidget(contentX + (toolbarW + 10) * 2, contentY, toolbarW, "Clear All", "Clear all profile slots.", IconType.ADVANCED, () -> {
-        ProfileManager.clearAll();
-        rebuildWidgets();
-    }));
+    widgets.add(new ActionButtonWidget(contentX + (toolbarW + 10) * 2, contentY, toolbarW, "Clear All", "Clear all profile slots after confirmation.", IconType.ADVANCED, this::confirmClearAllProfiles));
 
-    int cardW = (contentW - 12) / 2;
-    int y = contentY + 52;
-    int rowStep = 120;
+    int y = contentY + 54;
+    int leftW = Math.min(250, Math.max(210, contentW / 3));
+    int gap = 16;
+    int rightX = contentX + leftW + gap;
+    int rightW = contentW - leftW - gap;
 
     AtmosphereProfile[] profiles = ProfileManager.profiles();
+
     for (int i = 0; i < profiles.length; i++) {
-        int col = i % 2;
-        int row = i / 2;
-        int x = contentX + col * (cardW + 12);
-        int slotY = y + row * rowStep;
         int slot = i;
         AtmosphereProfile profile = profiles[i];
-        String title = profile.saved ? profile.name : "Profile " + (i + 1);
-        String description = profile.saved ? "Click to load this saved atmosphere." : "Empty slot. Save current settings below.";
+        String title = quickProfileLabel(slot);
+        String description = profile.saved ? "Saved slot · click to manage" : "Empty slot · click to manage";
 
-        widgets.add(new PresetCardWidget(x, slotY, cardW, title, description, IconType.PRESETS, () -> ProfileManager.isActive(slot), () -> {
-            if (ProfileManager.profile(slot).saved) {
-                ProfileManager.load(slot);
-            } else {
-                ProfileManager.saveCurrentTo(slot);
-            }
-            rebuildWidgets();
-        }));
-
-        int buttonW = (cardW - 12) / 3;
-        widgets.add(new ActionButtonWidget(x, slotY + 76, buttonW, "Save", "Overwrite this slot with current settings.", IconType.PRESETS, () -> {
-            ProfileManager.saveCurrentTo(slot);
-            rebuildWidgets();
-        }));
-
-        widgets.add(new ActionButtonWidget(x + buttonW + 6, slotY + 76, buttonW, "Rename", "Rename this profile slot.", IconType.PRESETS, () -> {
-            startRenamingProfile(slot);
-        }));
-
-        widgets.add(new ActionButtonWidget(x + (buttonW + 6) * 2, slotY + 76, buttonW, "Clear", "Clear this profile slot.", IconType.ADVANCED, () -> {
-            ProfileManager.clear(slot);
+        widgets.add(new ChoiceButtonWidget(contentX, y + i * 46, leftW, title, description, IconType.PRESETS, () -> selectedProfileIndex == slot, () -> {
+            selectedProfileIndex = slot;
             rebuildWidgets();
         }));
     }
 
-    int rows = (profiles.length + 1) / 2;
-    return y + rows * rowStep + 2;
+    AtmosphereProfile selectedProfile = ProfileManager.profile(selectedProfileIndex);
+    String selectedTitle = quickProfileLabel(selectedProfileIndex);
+    String selectedDescription = selectedProfile.saved
+            ? "Selected profile. Load it, rename it, or adjust its quick status."
+            : "Selected empty slot. Save current settings to create it.";
+
+    widgets.add(new PresetCardWidget(rightX, y, rightW, selectedTitle, selectedDescription, IconType.PRESETS, () -> ProfileManager.isActive(selectedProfileIndex), () -> {
+        if (ProfileManager.profile(selectedProfileIndex).saved) {
+            ProfileManager.load(selectedProfileIndex);
+            ConfigManager.get().lastQuickProfile = selectedProfileIndex;
+            ConfigManager.save();
+            NotificationUtil.applied(quickProfileLabel(selectedProfileIndex));
+        } else {
+            ProfileManager.saveCurrentTo(selectedProfileIndex);
+            ConfigManager.get().lastQuickProfile = selectedProfileIndex;
+            ConfigManager.save();
+            NotificationUtil.show("Saved current settings to " + quickProfileLabel(selectedProfileIndex));
+        }
+        rebuildWidgets();
+    }));
+
+    int halfW = (rightW - 10) / 2;
+    int actionY = y + 86;
+
+    widgets.add(new ActionButtonWidget(rightX, actionY, halfW, "Load", selectedProfile.saved ? "Load this saved atmosphere profile." : "This slot is empty. Save it first.", IconType.PRESETS, () -> {
+        if (ProfileManager.profile(selectedProfileIndex).saved) {
+            ProfileManager.load(selectedProfileIndex);
+            ConfigManager.get().lastQuickProfile = selectedProfileIndex;
+            ConfigManager.save();
+            NotificationUtil.applied(quickProfileLabel(selectedProfileIndex));
+        } else {
+            NotificationUtil.show("Profile " + (selectedProfileIndex + 1) + " is empty");
+        }
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(rightX + halfW + 10, actionY, halfW, "Save Current", "Overwrite this slot with your current Atmosphere+ settings.", IconType.PRESETS, () -> {
+        ProfileManager.saveCurrentTo(selectedProfileIndex);
+        ConfigManager.get().lastQuickProfile = selectedProfileIndex;
+        ConfigManager.save();
+        NotificationUtil.show("Saved " + quickProfileLabel(selectedProfileIndex));
+        rebuildWidgets();
+    }));
+
+    actionY += 46;
+
+    widgets.add(new ActionButtonWidget(rightX, actionY, halfW, "Rename", "Rename this selected profile slot.", IconType.PRESETS, () -> startRenamingProfile(selectedProfileIndex)));
+    widgets.add(new ActionButtonWidget(rightX + halfW + 10, actionY, halfW, "Clear", "Clear this selected profile slot after confirmation.", IconType.ADVANCED, () -> confirmClearProfile(selectedProfileIndex)));
+
+    actionY += 46;
+
+    widgets.add(new ActionButtonWidget(rightX, actionY, halfW, selectedProfile.favorite ? "Favorite: On" : "Favorite: Off", "Show this profile earlier in the Quick tab.", IconType.PRESETS, () -> {
+        selectedProfile.favorite = !selectedProfile.favorite;
+        ConfigManager.save();
+        NotificationUtil.toggled(quickProfileLabel(selectedProfileIndex) + " favorite", selectedProfile.favorite);
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(rightX + halfW + 10, actionY, halfW, selectedProfile.pinned ? "Pinned: On" : "Pinned: Off", "Pinned profiles always appear first in the Quick tab.", IconType.ADVANCED, () -> {
+        selectedProfile.pinned = !selectedProfile.pinned;
+        ConfigManager.save();
+        NotificationUtil.toggled(quickProfileLabel(selectedProfileIndex) + " pinned", selectedProfile.pinned);
+        rebuildWidgets();
+    }));
+
+    actionY += 46;
+
+    widgets.add(new ActionButtonWidget(rightX, actionY, rightW, "Quick menu", "Return to the Quick tab with your latest profile ordering.", IconType.HOME, () -> {
+        selected = UiCategory.QUICK;
+        scrollOffset = 0;
+        rebuildWidgets();
+    }));
+
+    return Math.max(y + profiles.length * 46, actionY + 42);
 }
+
 
 private int addLightingWidgets(int contentX, int contentY, int contentW) {
     widgets.add(new ToggleWidget(contentX, contentY, contentW, "Fullbright", "Attempts to force maximum client-side lightmap brightness.", () -> ConfigManager.get().fullbright, v -> {
@@ -380,22 +859,154 @@ private int addParticlesWidgets(int contentX, int contentY, int contentW) {
     return contentY + 108;
 }
 
-private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
-    addResetButton(contentX, contentY, contentW, "Reset All Visuals", "Reset weather, time, sky, fog, lighting and particles.", IconType.ADVANCED, this::resetAllVisuals);
 
-    widgets.add(new ActionButtonWidget(contentX, contentY + 48, contentW, "Go to Profiles", "Save or load your own custom atmosphere slots.", IconType.PRESETS, () -> {
-        selected = UiCategory.PROFILES;
-        scrollOffset = 0;
+private int addCompatibilityWidgets(int contentX, int contentY, int contentW) {
+    int y = contentY;
+    int cardW = (contentW - 12) / 2;
+
+    widgets.add(new ActionButtonWidget(contentX, y, contentW, "Compatibility Status", CompatibilityUtil.renderCompatibilitySummary(), IconType.ADVANCED, () -> {
+        NotificationUtil.show(CompatibilityUtil.renderCompatibilitySummary());
+    }));
+
+    y += 42;
+
+    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Sodium", CompatibilityUtil.sodiumStatus(), IconType.LIGHTING, () -> {
+        NotificationUtil.show("Sodium: " + CompatibilityUtil.sodiumStatus());
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Iris / Shaders", CompatibilityUtil.irisStatus(), IconType.SKY, () -> {
+        NotificationUtil.show("Iris: shader packs can override sky/cloud renderer hooks");
+    }));
+
+    y += 42;
+
+    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Reset Renderer", "Reset cloud height, stars and experimental renderer values.", IconType.ADVANCED, () -> {
+        resetRendererSettings();
+        clearActivePreset();
         rebuildWidgets();
     }));
 
-    widgets.add(new ActionButtonWidget(contentX, contentY + 96, contentW, "Performance Clear", "Apply a low-visual-intensity profile.", IconType.PRESETS, () -> {
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Shader Safe Reset", "Reset fog, sky/clouds, lighting and renderer values.", IconType.FOG, () -> {
+        resetFog();
+        resetSky();
+        resetLighting();
+        resetRendererSettings();
+        NotificationUtil.show("Shader-sensitive visuals reset");
+        rebuildWidgets();
+    }));
+
+    y += 42;
+
+    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Vanilla Safe Mode", "Reset all visual overrides to vanilla-style defaults.", IconType.HOME, () -> {
+        applyVanillaSafeMode();
+        NotificationUtil.show("Applied Vanilla Safe Mode");
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Sodium/Iris Safe", "Safe client setup for Sodium/Iris and shader packs.", IconType.SKY, () -> {
+        applySodiumIrisSafeMode();
+        NotificationUtil.show("Applied Sodium/Iris Safe Mode");
+        rebuildWidgets();
+    }));
+
+    y += 42;
+
+    widgets.add(new ActionButtonWidget(contentX, y, cardW, ConfigManager.get().shaderAwareWarnings ? "Warnings: On" : "Warnings: Off", "Toggle shader-aware warning messages.", IconType.ADVANCED, () -> {
+        ConfigManager.get().shaderAwareWarnings = !ConfigManager.get().shaderAwareWarnings;
+        ConfigManager.save();
+        NotificationUtil.toggled("Shader-aware warnings", ConfigManager.get().shaderAwareWarnings);
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Known Working", "Cloud height and star brightness work best without shader packs.", IconType.PRESETS, () -> {
+        NotificationUtil.show("Known working: cloud height and stars. Shader-limited: most shader packs.");
+    }));
+
+    return y + 46;
+}
+
+private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
+    int cardW = (contentW - 12) / 2;
+    int y = contentY;
+
+    y = addCompatibilityWidgets(contentX, y, contentW);
+    y += 10;
+
+    addResetButton(contentX, y, cardW, "Reset All Visuals", "Reset weather, time, sky, fog, lighting and particles after confirmation.", IconType.ADVANCED, this::confirmResetAllVisuals);
+
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Performance Clear", "Apply a low-visual-intensity preset for cleaner gameplay.", IconType.PRESETS, () -> {
         applyPerformanceClear();
         NotificationUtil.show("Applied Performance Clear");
         rebuildWidgets();
     }));
 
-    return contentY + 144;
+    y += 52;
+
+    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Shader Friendly Preset", "Use a safer setup when Iris shader packs override fog/sky/lighting.", IconType.ADVANCED, () -> {
+        applyShaderFriendly();
+        NotificationUtil.show("Applied Shader Friendly");
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Screenshot Clear", "Apply a clean sunny setup with no clouds and fewer particles.", IconType.SKY, () -> {
+        applyScreenshotClear();
+        NotificationUtil.show("Applied Screenshot Clear");
+        rebuildWidgets();
+    }));
+
+    y += 52;
+
+    addResetButton(contentX, y, cardW, "Reset Weather", "Restore server weather, full rain intensity and thunder sounds.", IconType.WEATHER, this::resetWeather);
+    addResetButton(contentX + cardW + 12, y, cardW, "Reset Time", "Return to server time and default visual time.", IconType.TIME, this::resetTime);
+
+    y += 52;
+
+    addResetButton(contentX, y, cardW, "Reset Sky / Clouds", "Return cloud visuals to server/default settings.", IconType.SKY, this::resetSky);
+    addResetButton(contentX + cardW + 12, y, cardW, "Reset Fog", "Disable custom fog and restore default fog values.", IconType.FOG, this::resetFog);
+
+    y += 52;
+
+    addResetButton(contentX, y, cardW, "Reset Lighting", "Disable fullbright and restore gamma to 100%.", IconType.LIGHTING, this::resetLighting);
+    addResetButton(contentX + cardW + 12, y, cardW, "Reset Particles", "Restore normal particle amount.", IconType.PARTICLES, this::resetParticles);
+
+    y += 52;
+
+    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Profiles", "Go to save, load, rename, export or import profiles.", IconType.PRESETS, () -> {
+        selected = UiCategory.PROFILES;
+        scrollOffset = 0;
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Presets", "Go to built-in atmosphere presets.", IconType.SKY, () -> {
+        selected = UiCategory.PRESETS;
+        scrollOffset = 0;
+        rebuildWidgets();
+    }));
+
+    y += 52;
+
+    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Export Profiles", "Write profile slots to config/atmosphereplus-profiles-backup.json.", IconType.PRESETS, () -> {
+        ProfileManager.exportProfiles();
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Import Profiles", "Import profile backup after confirmation.", IconType.PRESETS, this::confirmImportProfiles));
+
+    y += 52;
+
+    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Clear All Profiles", "Clear all profile slots after confirmation.", IconType.ADVANCED, this::confirmClearAllProfiles));
+
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Version Info", "Current dev build: " + AtmospherePlusClient.VERSION, IconType.ADVANCED, () -> {
+        NotificationUtil.show("Atmosphere+ " + AtmospherePlusClient.VERSION);
+    }));
+
+    y += 52;
+
+    widgets.add(new ActionButtonWidget(contentX, y, contentW, "Known Issues", "Cloud distance is disabled for now; check KNOWN_ISSUES.md in the ZIP.", IconType.FOG, () -> {
+        NotificationUtil.show("Known issue: cloud distance disabled for now");
+    }));
+
+    return y + 52;
 }
 
     private int addThemeWidgets(int contentX, int contentY, int contentW) {
@@ -421,79 +1032,164 @@ private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
         return contentY + ((index + 1) / 2) * 48;
     }
 
+
+private int presetGridColumns(int contentW) {
+    if (contentW >= 900) {
+        return 3;
+    }
+    if (contentW >= 520) {
+        return 2;
+    }
+    return 1;
+}
+
+private int presetCardWidth(int contentW, int columns, int gap) {
+    return (contentW - gap * (columns - 1)) / columns;
+}
+
 private int addPresetWidgets(int contentX, int contentY, int contentW) {
-    int cardW = (contentW - 12) / 2;
+    int gap = 10;
+    int columns = presetGridColumns(contentW);
+    int cardW = presetCardWidth(contentW, columns, gap);
+    int rowH = 64;
     int y = contentY;
 
-    widgets.add(new PresetCardWidget(contentX, y, cardW, "Golden Hour", "Sunny, warm noon lighting and soft atmosphere.", IconType.SKY, this::isGoldenHourActive, () -> {
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Cinematic", "New mood presets"));
+    y += 30;
+
+    int index = 0;
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Aurora Night", "Stars and dark sky.", IconType.TIME, this::isAuroraNightActive, () -> {
+        applyAuroraNight();
+        NotificationUtil.show("Applied Aurora Night");
+        rebuildWidgets();
+    });
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Cinematic Sunset", "Warm sky and clouds.", IconType.SKY, this::isCinematicSunsetActive, () -> {
+        applyCinematicSunset();
+        NotificationUtil.show("Applied Cinematic Sunset");
+        rebuildWidgets();
+    });
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Low Clouds", "Experimental cloud feel.", IconType.FOG, this::isLowCloudsActive, () -> {
+        applyLowClouds();
+        NotificationUtil.show("Applied Low Clouds");
+        rebuildWidgets();
+    });
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Misty Morning", "Sunrise and soft fog.", IconType.FOG, this::isMistyMorningActive, () -> {
+        applyMistyMorning();
+        NotificationUtil.show("Applied Misty Morning");
+        rebuildWidgets();
+    });
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Starlit Night", "Clear night visibility.", IconType.TIME, this::isStarlitNightActive, () -> {
+        applyStarlitNight();
+        NotificationUtil.show("Applied Starlit Night");
+        rebuildWidgets();
+    });
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Storm Front", "Heavy storm atmosphere.", IconType.WEATHER, this::isStormFrontActive, () -> {
+        applyStormFront();
+        NotificationUtil.show("Applied Storm Front");
+        rebuildWidgets();
+    });
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Moonlit Fog", "Night with dense fog.", IconType.FOG, this::isMoonlitFogActive, () -> {
+        applyMoonlitFog();
+        NotificationUtil.show("Applied Moonlit Fog");
+        rebuildWidgets();
+    });
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Screenshot Clear", "Clean sunny setup.", IconType.SKY, this::isScreenshotClearActive, () -> {
+        applyScreenshotClear();
+        NotificationUtil.show("Applied Screenshot Clear");
+        rebuildWidgets();
+    });
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Shader Friendly", "Safer with Iris shaders.", IconType.ADVANCED, this::isShaderFriendlyActive, () -> {
+        applyShaderFriendly();
+        NotificationUtil.show("Applied Shader Friendly");
+        rebuildWidgets();
+    });
+
+    y += ((index + columns - 1) / columns) * rowH + 10;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Classic", "Stable presets"));
+    y += 30;
+    index = 0;
+
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Golden Hour", "Warm sunny atmosphere.", IconType.SKY, this::isGoldenHourActive, () -> {
         applyGoldenHour();
         NotificationUtil.show("Applied Golden Hour");
         rebuildWidgets();
-    }));
+    });
 
-    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Midnight Calm", "Permanent midnight visuals with calm weather.", IconType.TIME, this::isMidnightCalmActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Midnight Calm", "Clear calm midnight.", IconType.TIME, this::isMidnightCalmActive, () -> {
         applyMidnightCalm();
         NotificationUtil.show("Applied Midnight Calm");
         rebuildWidgets();
-    }));
+    });
 
-    y += 84;
-
-    widgets.add(new PresetCardWidget(contentX, y, cardW, "Cozy Rain", "Light rain mood with afternoon lighting.", IconType.WEATHER, this::isCozyRainActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Cozy Rain", "Rainy afternoon mood.", IconType.WEATHER, this::isCozyRainActive, () -> {
         applyCozyRain();
         NotificationUtil.show("Applied Cozy Rain");
         rebuildWidgets();
-    }));
+    });
 
-    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Thunder Night", "Dark night with thunderstorm mood.", IconType.LIGHTING, this::isThunderNightActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Thunder Night", "Dark stormy night.", IconType.LIGHTING, this::isThunderNightActive, () -> {
         applyThunderNight();
         NotificationUtil.show("Applied Thunder Night");
         rebuildWidgets();
-    }));
+    });
 
-    y += 84;
-
-    widgets.add(new PresetCardWidget(contentX, y, cardW, "Deep Fog", "Thick custom fog for atmospheric screenshots.", IconType.FOG, this::isDeepFogActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Deep Fog", "Thick screenshot fog.", IconType.FOG, this::isDeepFogActive, () -> {
         applyDeepFog();
         NotificationUtil.show("Applied Deep Fog");
         rebuildWidgets();
-    }));
+    });
 
-    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Bright Caves", "Fullbright and boosted gamma for dark areas.", IconType.LIGHTING, this::isBrightCavesActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Bright Caves", "Fullbright boost.", IconType.LIGHTING, this::isBrightCavesActive, () -> {
         applyBrightCaves();
         NotificationUtil.show("Applied Bright Caves");
         rebuildWidgets();
-    }));
+    });
 
-    y += 84;
-
-    widgets.add(new PresetCardWidget(contentX, y, cardW, "Performance Clear", "Reduces rain, fog and particles.", IconType.ADVANCED, this::isPerformanceClearActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Performance Clear", "Cleaner gameplay visuals.", IconType.ADVANCED, this::isPerformanceClearActive, () -> {
         applyPerformanceClear();
         NotificationUtil.show("Applied Performance Clear");
         rebuildWidgets();
-    }));
+    });
 
-    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Soft Mist", "Light custom fog with calm weather.", IconType.FOG, this::isSoftMistActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Soft Mist", "Light calm fog.", IconType.FOG, this::isSoftMistActive, () -> {
         applySoftMist();
         NotificationUtil.show("Applied Soft Mist");
         rebuildWidgets();
-    }));
+    });
 
-    y += 84;
-
-    widgets.add(new PresetCardWidget(contentX, y, cardW, "Cloudless Clear", "Clear weather with clouds hidden.", IconType.SKY, this::isCloudlessClearActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Cloudless Clear", "Clear with clouds off.", IconType.SKY, this::isCloudlessClearActive, () -> {
         applyCloudlessClear();
         NotificationUtil.show("Applied Cloudless Clear");
         rebuildWidgets();
-    }));
+    });
 
-    widgets.add(new PresetCardWidget(contentX + cardW + 12, y, cardW, "Fancy Clouds", "Force fancy cloud rendering mode.", IconType.SKY, this::isFancyCloudsActive, () -> {
+    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Fancy Clouds", "Force fancy clouds.", IconType.SKY, this::isFancyCloudsActive, () -> {
         applyFancyClouds();
         NotificationUtil.show("Applied Fancy Clouds");
         rebuildWidgets();
-    }));
+    });
 
-    return y + 84;
+    int rows = (index + columns - 1) / columns;
+    return y + rows * rowH;
+}
+
+private int addPresetCard(int index, int columns, int contentX, int contentY, int cardW, int gap, int rowH, String title, String description, IconType icon, java.util.function.Supplier<Boolean> activeSupplier, Runnable action) {
+    int col = index % columns;
+    int row = index / columns;
+    int x = contentX + col * (cardW + gap);
+    int y = contentY + row * rowH;
+
+    widgets.add(new PresetCardWidget(x, y, cardW, title, description, icon, activeSupplier, action));
+    return index + 1;
 }
 
 private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
@@ -510,7 +1206,75 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         y = addSearchCategoryJump(y, contentX, contentW, category);
     }
 
-    y = addSearchAction(y, contentX, contentW, "Reset · All Visuals", "reset all visuals default restore", "Reset All Visuals", "Reset weather, time, fog, lighting and particles.", IconType.ADVANCED, this::resetAllVisuals);
+
+y = addSearchAction(y, contentX, contentW, "Compatibility · Status", "compatibility sodium iris mod menu shaders status", "Compatibility Status", "Show detected compatibility status.", IconType.ADVANCED, () -> {
+    NotificationUtil.show(CompatibilityUtil.renderCompatibilitySummary());
+    rebuildWidgets();
+});
+
+y = addSearchAction(y, contentX, contentW, "Compatibility · Shader Safe Reset", "compatibility shaders iris fog sky lighting reset safe", "Shader Safe Reset", "Reset shader-sensitive visual settings.", IconType.FOG, () -> {
+    resetFog();
+    resetSky();
+    resetLighting();
+    rebuildWidgets();
+});
+
+
+y = addSearchAction(y, contentX, contentW, "Preset · Misty Morning", "preset misty morning sunrise fog clouds cinematic atmosphere", "Misty Morning", "Apply sunrise, soft fog and fancy clouds.", IconType.FOG, () -> {
+    applyMistyMorning();
+    rebuildWidgets();
+});
+
+y = addSearchAction(y, contentX, contentW, "Preset · Starlit Night", "preset starlit night midnight clear stars dark atmosphere", "Starlit Night", "Apply clear midnight with a light visibility boost.", IconType.TIME, () -> {
+    applyStarlitNight();
+    rebuildWidgets();
+});
+
+y = addSearchAction(y, contentX, contentW, "Preset · Storm Front", "preset storm thunder rain dark fog cinematic atmosphere", "Storm Front", "Apply dark thunderstorm atmosphere.", IconType.WEATHER, () -> {
+    applyStormFront();
+    rebuildWidgets();
+});
+
+y = addSearchAction(y, contentX, contentW, "Preset · Moonlit Fog", "preset moonlit fog night cinematic atmosphere", "Moonlit Fog", "Apply moonlit night with thick fog.", IconType.FOG, () -> {
+    applyMoonlitFog();
+    rebuildWidgets();
+});
+
+y = addSearchAction(y, contentX, contentW, "Preset · Screenshot Clear", "preset screenshot clear sunny no clouds particles clean", "Screenshot Clear", "Apply a clean sunny screenshot setup.", IconType.SKY, () -> {
+    applyScreenshotClear();
+    rebuildWidgets();
+});
+
+y = addSearchAction(y, contentX, contentW, "Preset · Shader Friendly", "preset shader friendly iris sodium reset safe", "Shader Friendly", "Apply minimal shader-sensitive overrides.", IconType.ADVANCED, () -> {
+    applyShaderFriendly();
+    rebuildWidgets();
+});
+
+    y = addSearchAction(y, contentX, contentW, "Quick · Fullbright", "quick fullbright lighting toggle bright caves", ConfigManager.get().fullbright ? "Fullbright: On" : "Fullbright: Off", "Click to toggle fullbright instantly.", IconType.LIGHTING, () -> {
+        ConfigManager.get().fullbright = !ConfigManager.get().fullbright;
+        clearActivePreset();
+        ConfigManager.save();
+        rebuildWidgets();
+    });
+
+    y = addSearchAction(y, contentX, contentW, "Quick · Clouds Off", "quick clouds off hide sky", "Clouds Off", "Hide clouds visually.", IconType.SKY, () -> {
+        ConfigManager.get().cloudOverride = true;
+        ConfigManager.get().cloudMode = "OFF";
+        clearActivePreset();
+        ConfigManager.save();
+        rebuildWidgets();
+    });
+
+    y = addSearchAction(y, contentX, contentW, "Quick · Clear Weather", "quick clear weather sunny rain off", "Clear Weather", "Force clear visual weather.", IconType.WEATHER, () -> {
+        ConfigManager.get().weatherOverride = true;
+        ConfigManager.get().weatherMode = "SUNNY";
+        ConfigManager.get().rainIntensity = 0.0f;
+        clearActivePreset();
+        ConfigManager.save();
+        rebuildWidgets();
+    });
+
+    y = addSearchAction(y, contentX, contentW, "Reset · All Visuals", "reset all visuals default restore", "Reset All Visuals", "Reset weather, time, sky, fog, lighting and particles.", IconType.ADVANCED, this::confirmResetAllVisuals);
     y = addSearchAction(y, contentX, contentW, "Reset · Weather", "reset weather server rain thunder", "Reset Weather", "Restore server weather mode.", IconType.WEATHER, this::resetWeather);
     y = addSearchAction(y, contentX, contentW, "Reset · Time", "reset time server day night", "Reset Time", "Return to server time.", IconType.TIME, this::resetTime);
     y = addSearchAction(y, contentX, contentW, "Reset · Fog", "reset fog distance density", "Reset Fog", "Disable custom fog.", IconType.FOG, this::resetFog);
@@ -562,6 +1326,38 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
             clearActivePreset();
         ConfigManager.save();
     });
+
+
+y = addSearchAction(y, contentX, contentW, "Preset · Aurora Night", "preset aurora night stars sky brightness cinematic", "Aurora Night", "Apply a star-focused cinematic night.", IconType.TIME, () -> {
+    applyAuroraNight();
+    rebuildWidgets();
+});
+
+y = addSearchAction(y, contentX, contentW, "Preset · Cinematic Sunset", "preset cinematic sunset sky clouds sun atmosphere", "Cinematic Sunset", "Apply warm sunset atmosphere.", IconType.SKY, () -> {
+    applyCinematicSunset();
+    rebuildWidgets();
+});
+
+y = addSearchAction(y, contentX, contentW, "Preset · Low Clouds", "preset low clouds cloud height distance opacity experimental", "Low Clouds", "Apply experimental low-cloud atmosphere.", IconType.FOG, () -> {
+    applyLowClouds();
+    rebuildWidgets();
+});
+
+y = addSearchToggle(y, contentX, contentW, "Sky · Experimental renderer controls", "sky cloud opacity height brightness stars sun moon experimental", () -> ConfigManager.get().experimentalRendererControls, v -> {
+    ConfigManager.get().experimentalRendererControls = v;
+    ConfigManager.save();
+});
+
+y = addSearchToggle(y, contentX, contentW, "Sky · Shader-aware warnings", "shader warnings iris sodium sky clouds", () -> ConfigManager.get().shaderAwareWarnings, v -> {
+    ConfigManager.get().shaderAwareWarnings = v;
+    ConfigManager.save();
+});
+
+y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "cloud distance attempt experimental chunks", () -> ConfigManager.get().cloudDistanceOverride, v -> {
+    ConfigManager.get().cloudDistanceOverride = v;
+    ConfigManager.get().experimentalRendererControls = v || ConfigManager.get().experimentalRendererControls;
+    ConfigManager.save();
+});
 
     y = addSearchToggle(y, contentX, contentW, "Sky · Override clouds visually", "sky cloud clouds override visual off fast fancy", () -> ConfigManager.get().cloudOverride, v -> {
         ConfigManager.get().cloudOverride = v;
@@ -713,6 +1509,8 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
 
 
     private void setActivePreset(String presetId) {
+        ConfigManager.get().cloudDistanceOverride = false; // alpha 17 preset safety
+        ConfigManager.get().cloudDistance = 12;
         ConfigManager.get().activePreset = presetId;
     }
 
@@ -725,12 +1523,91 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
     }
 
     private void resetSky() {
-        ConfigManager.get().cloudOverride = false;
-        ConfigManager.get().cloudMode = "SERVER";
-        ConfigManager.get().cloudDistance = 12;
+        resetSkySilently();
         clearActivePreset();
         ConfigManager.save();
         NotificationUtil.show("Reset Sky / Clouds");
+    }
+
+
+
+    private void confirmResetAllVisuals() {
+        showConfirmation(
+                "Reset all visuals?",
+                "This will reset weather, time, clouds, fog, lighting and particles to default settings.",
+                () -> {
+                    resetAllVisuals();
+                    rebuildWidgets();
+                }
+        );
+    }
+
+    private void confirmClearProfile(int slot) {
+        selectedProfileIndex = Math.max(0, Math.min(ProfileManager.PROFILE_COUNT - 1, slot));
+        AtmosphereProfile profile = ProfileManager.profile(slot);
+        String name = profile.name == null || profile.name.isBlank() ? "Profile " + (slot + 1) : profile.name;
+
+        showConfirmation(
+                "Clear " + name + "?",
+                "This will delete this saved profile slot. Export first if you want a backup.",
+                () -> {
+                    ProfileManager.clear(slot);
+                    rebuildWidgets();
+                }
+        );
+    }
+
+    private void confirmClearAllProfiles() {
+        showConfirmation(
+                "Clear all profiles?",
+                "This will reset every profile slot. Export first if you want a backup.",
+                () -> {
+                    ProfileManager.clearAll();
+                    rebuildWidgets();
+                }
+        );
+    }
+
+    private void confirmImportProfiles() {
+        showConfirmation(
+                "Import profiles?",
+                "This will overwrite the current profile slots from the backup file.",
+                () -> {
+                    ProfileManager.importProfiles();
+                    rebuildWidgets();
+                }
+        );
+    }
+
+    private void showConfirmation(String title, String message, Runnable action) {
+        confirmTitle = title == null ? "Are you sure?" : title;
+        confirmMessage = message == null ? "" : message;
+        confirmAction = action;
+        searchFocused = false;
+        renamingProfileIndex = -1;
+        renameProfileText = "";
+    }
+
+    private boolean isConfirmingAction() {
+        return confirmAction != null;
+    }
+
+    private void cancelConfirmation() {
+        confirmTitle = "";
+        confirmMessage = "";
+        confirmAction = null;
+        NotificationUtil.show("Cancelled");
+    }
+
+    private void acceptConfirmation() {
+        Runnable action = confirmAction;
+        confirmTitle = "";
+        confirmMessage = "";
+        confirmAction = null;
+
+        if (action != null) {
+            action.run();
+        }
     }
 
     private void resetWeather() {
@@ -795,6 +1672,126 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         NotificationUtil.show("Reset All Visuals");
     }
 
+
+private void setRendererMood(float cloudOpacity, float cloudHeight, float skyBrightness, float starBrightness, float sunVisibility) {
+    ConfigManager.get().experimentalRendererControls = true;
+    ConfigManager.get().cloudOpacity = cloudOpacity;
+    ConfigManager.get().cloudHeight = cloudHeight;
+    ConfigManager.get().skyBrightness = skyBrightness;
+    ConfigManager.get().starBrightness = starBrightness;
+    ConfigManager.get().sunMoonVisibility = sunVisibility;
+    ConfigManager.get().cloudDistanceOverride = false;
+}
+
+private void setRendererNeutral() {
+    ConfigManager.get().experimentalRendererControls = false;
+    ConfigManager.get().cloudOpacity = 1.0f;
+    ConfigManager.get().cloudHeight = 1.0f;
+    ConfigManager.get().skyBrightness = 1.0f;
+    ConfigManager.get().starBrightness = 1.0f;
+    ConfigManager.get().sunMoonVisibility = 1.0f;
+    ConfigManager.get().cloudDistanceOverride = false;
+}
+
+
+private void resetRendererSettings() {
+    ConfigManager.get().experimentalRendererControls = false;
+    ConfigManager.get().cloudOpacity = 1.0f;
+    ConfigManager.get().cloudHeight = 1.0f;
+    ConfigManager.get().cloudDistanceOverride = false;
+    ConfigManager.get().cloudDistance = 12;
+    ConfigManager.get().skyBrightness = 1.0f;
+    ConfigManager.get().starBrightness = 1.0f;
+    ConfigManager.get().sunMoonVisibility = 1.0f;
+    ConfigManager.save();
+    NotificationUtil.show("Renderer settings reset");
+}
+
+private void resetRendererSettingsSilently() {
+    ConfigManager.get().experimentalRendererControls = false;
+    ConfigManager.get().cloudOpacity = 1.0f;
+    ConfigManager.get().cloudHeight = 1.0f;
+    ConfigManager.get().cloudDistanceOverride = false;
+    ConfigManager.get().cloudDistance = 12;
+    ConfigManager.get().skyBrightness = 1.0f;
+    ConfigManager.get().starBrightness = 1.0f;
+    ConfigManager.get().sunMoonVisibility = 1.0f;
+}
+
+private void applyVanillaSafeMode() {
+    resetWeatherSilently();
+    resetTimeSilently();
+    resetFogSilently();
+    resetLightingSilently();
+    resetSkySilently();
+    ConfigManager.get().particleAmount = 1.0f;
+    resetRendererSettingsSilently();
+    setActivePreset("vanilla_safe");
+    ConfigManager.save();
+}
+
+private boolean isVanillaSafeModeActive() {
+    return isPresetActive("vanilla_safe");
+}
+
+private void applySodiumIrisSafeMode() {
+    ConfigManager.get().weatherOverride = false;
+    ConfigManager.get().weatherMode = "SERVER";
+    ConfigManager.get().rainIntensity = 1.0f;
+    ConfigManager.get().timeOverride = false;
+    ConfigManager.get().freezeVisualTime = false;
+    ConfigManager.get().fogOverride = false;
+    ConfigManager.get().fullbright = false;
+    ConfigManager.get().gamma = 1.0f;
+    ConfigManager.get().particleAmount = 0.85f;
+    ConfigManager.get().cloudOverride = false;
+    ConfigManager.get().cloudMode = "SERVER";
+    resetRendererSettingsSilently();
+    setActivePreset("sodium_iris_safe");
+    ConfigManager.save();
+}
+
+private boolean isSodiumIrisSafeModeActive() {
+    return isPresetActive("sodium_iris_safe");
+}
+
+private void resetWeatherSilently() {
+    ConfigManager.get().weatherOverride = false;
+    ConfigManager.get().weatherMode = "SERVER";
+    ConfigManager.get().rainIntensity = 1.0f;
+    ConfigManager.get().thunderSounds = true;
+}
+
+private void resetTimeSilently() {
+    ConfigManager.get().timeOverride = false;
+    ConfigManager.get().visualTime = 6000;
+    ConfigManager.get().freezeVisualTime = false;
+}
+
+private void resetFogSilently() {
+    ConfigManager.get().fogOverride = false;
+    ConfigManager.get().fogDistance = 1.0f;
+    ConfigManager.get().fogDensity = 1.0f;
+}
+
+private void resetLightingSilently() {
+    ConfigManager.get().fullbright = false;
+    ConfigManager.get().gamma = 1.0f;
+}
+
+private void resetSkySilently() {
+    ConfigManager.get().cloudOverride = false;
+    ConfigManager.get().cloudMode = "SERVER";
+    ConfigManager.get().cloudDistance = 12;
+    ConfigManager.get().cloudDistanceOverride = false;
+    ConfigManager.get().cloudOpacity = 1.0f;
+    ConfigManager.get().cloudHeight = 1.0f;
+    ConfigManager.get().skyBrightness = 1.0f;
+    ConfigManager.get().starBrightness = 1.0f;
+    ConfigManager.get().sunMoonVisibility = 1.0f;
+    ConfigManager.get().experimentalRendererControls = false;
+}
+
     private void applyGoldenHour() {
         ConfigManager.get().timeOverride = true;
         ConfigManager.get().visualTime = 6000;
@@ -804,6 +1801,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().fogOverride = false;
         ConfigManager.get().fullbright = false;
         ConfigManager.get().gamma = 1.1f;
+    setRendererMood(0.85f, 1.10f, 1.25f, 0.75f, 1.0f);
         setActivePreset("golden_hour");
         ConfigManager.save();
     }
@@ -818,6 +1816,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().weatherOverride = true;
         ConfigManager.get().weatherMode = "SUNNY";
         ConfigManager.get().rainIntensity = 0f;
+    setRendererMood(0.95f, 1.0f, 0.70f, 1.55f, 0.55f);
         setActivePreset("midnight_calm");
         ConfigManager.save();
     }
@@ -833,6 +1832,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().weatherMode = "RAIN";
         ConfigManager.get().rainIntensity = 0.35f;
         ConfigManager.get().fogOverride = false;
+    setRendererMood(0.80f, 0.90f, 0.85f, 0.65f, 0.70f);
         setActivePreset("cozy_rain");
         ConfigManager.save();
     }
@@ -850,6 +1850,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().fogOverride = true;
         ConfigManager.get().fogDistance = 0.65f;
         ConfigManager.get().fogDensity = 1.35f;
+    setRendererMood(0.75f, 0.75f, 0.55f, 1.25f, 0.35f);
         setActivePreset("thunder_night");
         ConfigManager.save();
     }
@@ -862,6 +1863,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().fogOverride = true;
         ConfigManager.get().fogDistance = 0.35f;
         ConfigManager.get().fogDensity = 1.75f;
+    setRendererMood(0.65f, 0.70f, 0.75f, 0.90f, 0.45f);
         setActivePreset("deep_fog");
         ConfigManager.save();
     }
@@ -876,6 +1878,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().fogOverride = true;
         ConfigManager.get().fogDistance = 0.85f;
         ConfigManager.get().fogDensity = 1.2f;
+    setRendererMood(0.72f, 0.85f, 0.95f, 0.80f, 0.65f);
         setActivePreset("soft_mist");
         ConfigManager.save();
     }
@@ -887,6 +1890,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
     private void applyBrightCaves() {
         ConfigManager.get().fullbright = true;
         ConfigManager.get().gamma = 2.0f;
+    setRendererNeutral();
         setActivePreset("bright_caves");
         ConfigManager.save();
     }
@@ -894,6 +1898,256 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
     private boolean isBrightCavesActive() {
         return isPresetActive("bright_caves");
     }
+
+
+private void applyMistyMorning() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().rainIntensity = 0.0f;
+    ConfigManager.get().timeOverride = true;
+    ConfigManager.get().visualTime = 1000;
+    ConfigManager.get().freezeVisualTime = true;
+    ConfigManager.get().fogOverride = true;
+    ConfigManager.get().fogDistance = 0.75f;
+    ConfigManager.get().fogDensity = 1.25f;
+    ConfigManager.get().fullbright = false;
+    ConfigManager.get().gamma = 1.05f;
+    ConfigManager.get().particleAmount = 0.85f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "FANCY";
+    setRendererMood(0.70f, 0.80f, 1.10f, 0.60f, 0.85f);
+    setActivePreset("misty_morning");
+    ConfigManager.save();
+}
+
+private boolean isMistyMorningActive() {
+    return isPresetActive("misty_morning");
+}
+
+private void applyStarlitNight() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().rainIntensity = 0.0f;
+    ConfigManager.get().timeOverride = true;
+    ConfigManager.get().visualTime = 18000;
+    ConfigManager.get().freezeVisualTime = true;
+    ConfigManager.get().fogOverride = true;
+    ConfigManager.get().fogDistance = 1.35f;
+    ConfigManager.get().fogDensity = 0.65f;
+    ConfigManager.get().fullbright = false;
+    ConfigManager.get().gamma = 1.15f;
+    ConfigManager.get().particleAmount = 0.7f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "OFF";
+    setRendererMood(1.0f, 1.0f, 0.65f, 2.0f, 0.45f);
+    setActivePreset("starlit_night");
+    ConfigManager.save();
+}
+
+private boolean isStarlitNightActive() {
+    return isPresetActive("starlit_night");
+}
+
+private void applyStormFront() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "THUNDER";
+    ConfigManager.get().rainIntensity = 0.9f;
+    ConfigManager.get().thunderSounds = true;
+    ConfigManager.get().timeOverride = true;
+    ConfigManager.get().visualTime = 13500;
+    ConfigManager.get().freezeVisualTime = true;
+    ConfigManager.get().fogOverride = true;
+    ConfigManager.get().fogDistance = 0.65f;
+    ConfigManager.get().fogDensity = 1.45f;
+    ConfigManager.get().fullbright = false;
+    ConfigManager.get().gamma = 0.95f;
+    ConfigManager.get().particleAmount = 1.15f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "FANCY";
+    setRendererMood(0.70f, 0.70f, 0.55f, 1.20f, 0.30f);
+    setActivePreset("storm_front");
+    ConfigManager.save();
+}
+
+private boolean isStormFrontActive() {
+    return isPresetActive("storm_front");
+}
+
+private void applyMoonlitFog() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().rainIntensity = 0.0f;
+    ConfigManager.get().timeOverride = true;
+    ConfigManager.get().visualTime = 18000;
+    ConfigManager.get().freezeVisualTime = true;
+    ConfigManager.get().fogOverride = true;
+    ConfigManager.get().fogDistance = 0.55f;
+    ConfigManager.get().fogDensity = 1.6f;
+    ConfigManager.get().fullbright = false;
+    ConfigManager.get().gamma = 1.05f;
+    ConfigManager.get().particleAmount = 0.8f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "FAST";
+    setRendererMood(0.75f, 0.65f, 0.55f, 1.65f, 0.35f);
+    setActivePreset("moonlit_fog");
+    ConfigManager.save();
+}
+
+private boolean isMoonlitFogActive() {
+    return isPresetActive("moonlit_fog");
+}
+
+private void applyScreenshotClear() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().rainIntensity = 0.0f;
+    ConfigManager.get().timeOverride = true;
+    ConfigManager.get().visualTime = 6000;
+    ConfigManager.get().freezeVisualTime = true;
+    ConfigManager.get().fogOverride = false;
+    ConfigManager.get().fogDistance = 1.0f;
+    ConfigManager.get().fogDensity = 1.0f;
+    ConfigManager.get().fullbright = false;
+    ConfigManager.get().gamma = 1.1f;
+    ConfigManager.get().particleAmount = 0.45f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "OFF";
+    setRendererMood(0.0f, 1.15f, 1.20f, 0.50f, 1.0f);
+    setActivePreset("screenshot_clear");
+    ConfigManager.save();
+}
+
+private boolean isScreenshotClearActive() {
+    return isPresetActive("screenshot_clear");
+}
+
+private void applyShaderFriendly() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().rainIntensity = 0.0f;
+    ConfigManager.get().timeOverride = false;
+    ConfigManager.get().visualTime = 6000;
+    ConfigManager.get().freezeVisualTime = false;
+    ConfigManager.get().fogOverride = false;
+    ConfigManager.get().fogDistance = 1.0f;
+    ConfigManager.get().fogDensity = 1.0f;
+    ConfigManager.get().fullbright = false;
+    ConfigManager.get().gamma = 1.0f;
+    ConfigManager.get().particleAmount = 0.85f;
+    ConfigManager.get().cloudOverride = false;
+    ConfigManager.get().cloudMode = "SERVER";
+    setRendererNeutral();
+    setActivePreset("shader_friendly");
+    ConfigManager.save();
+}
+
+private boolean isShaderFriendlyActive() {
+    return isPresetActive("shader_friendly");
+}
+
+
+private void applyAuroraNight() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().rainIntensity = 0.0f;
+    ConfigManager.get().timeOverride = true;
+    ConfigManager.get().visualTime = 18000;
+    ConfigManager.get().freezeVisualTime = true;
+    ConfigManager.get().fogOverride = true;
+    ConfigManager.get().fogDistance = 1.2f;
+    ConfigManager.get().fogDensity = 0.7f;
+    ConfigManager.get().gamma = 1.2f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "OFF";
+    ConfigManager.get().experimentalRendererControls = true;
+    ConfigManager.get().skyBrightness = 0.75f;
+    ConfigManager.get().starBrightness = 1.75f;
+    ConfigManager.get().sunMoonVisibility = 0.8f;
+    setRendererMood(0.45f, 1.25f, 0.60f, 2.0f, 0.40f);
+    setActivePreset("aurora_night");
+    ConfigManager.save();
+}
+
+private boolean isAuroraNightActive() {
+    return isPresetActive("aurora_night");
+}
+
+private void applyCinematicSunset() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().rainIntensity = 0.0f;
+    ConfigManager.get().timeOverride = true;
+    ConfigManager.get().visualTime = 12000;
+    ConfigManager.get().freezeVisualTime = true;
+    ConfigManager.get().fogOverride = true;
+    ConfigManager.get().fogDistance = 1.05f;
+    ConfigManager.get().fogDensity = 0.85f;
+    ConfigManager.get().gamma = 1.1f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "FANCY";
+    ConfigManager.get().experimentalRendererControls = true;
+    ConfigManager.get().cloudOpacity = 0.75f;
+    ConfigManager.get().cloudHeight = 1.15f;
+    ConfigManager.get().skyBrightness = 1.2f;
+    ConfigManager.get().sunMoonVisibility = 1.0f;
+    setRendererMood(0.65f, 1.20f, 1.35f, 0.70f, 1.0f);
+    setActivePreset("cinematic_sunset");
+    ConfigManager.save();
+}
+
+private boolean isCinematicSunsetActive() {
+    return isPresetActive("cinematic_sunset");
+}
+
+private void applyLowClouds() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().fogOverride = true;
+    ConfigManager.get().fogDistance = 0.7f;
+    ConfigManager.get().fogDensity = 1.15f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "FANCY";
+    ConfigManager.get().experimentalRendererControls = true;
+    ConfigManager.get().cloudOpacity = 0.85f;
+    ConfigManager.get().cloudHeight = 0.65f;
+    ConfigManager.get().cloudDistanceOverride = true;
+    ConfigManager.get().cloudDistance = 8;
+    setRendererMood(0.82f, 0.45f, 0.90f, 0.90f, 0.60f);
+    setActivePreset("low_clouds");
+    ConfigManager.save();
+}
+
+private boolean isLowCloudsActive() {
+    return isPresetActive("low_clouds");
+}
+
+
+private void applyRendererTest() {
+    ConfigManager.get().weatherOverride = true;
+    ConfigManager.get().weatherMode = "SUNNY";
+    ConfigManager.get().rainIntensity = 0.0f;
+    ConfigManager.get().timeOverride = true;
+    ConfigManager.get().visualTime = 18000;
+    ConfigManager.get().freezeVisualTime = true;
+    ConfigManager.get().fogOverride = true;
+    ConfigManager.get().fogDistance = 1.15f;
+    ConfigManager.get().fogDensity = 0.75f;
+    ConfigManager.get().cloudOverride = true;
+    ConfigManager.get().cloudMode = "FANCY";
+    ConfigManager.get().experimentalRendererControls = true;
+    ConfigManager.get().cloudOpacity = 0.45f;
+    ConfigManager.get().cloudHeight = 0.65f;
+    ConfigManager.get().skyBrightness = 0.65f;
+    ConfigManager.get().starBrightness = 2.0f;
+    ConfigManager.get().sunMoonVisibility = 0.35f;
+    setRendererMood(0.45f, 0.65f, 0.65f, 2.0f, 0.35f);
+    setActivePreset("renderer_test");
+    ConfigManager.save();
+}
+
+private boolean isRendererTestActive() {
+    return isPresetActive("renderer_test");
+}
 
     private void applyPerformanceClear() {
         ConfigManager.get().weatherMode = "SUNNY";
@@ -903,6 +2157,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().fogOverride = true;
         ConfigManager.get().fogDistance = 1.5f;
         ConfigManager.get().fogDensity = 0.5f;
+    setRendererNeutral();
         setActivePreset("performance_clear");
         ConfigManager.save();
     }
@@ -918,6 +2173,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().cloudOverride = true;
         ConfigManager.get().cloudMode = "OFF";
         ConfigManager.get().cloudDistance = 12;
+    setRendererMood(0.0f, 1.0f, 1.15f, 0.60f, 1.0f);
         setActivePreset("cloudless_clear");
         ConfigManager.save();
     }
@@ -930,6 +2186,7 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.get().cloudOverride = true;
         ConfigManager.get().cloudMode = "FANCY";
         ConfigManager.get().cloudDistance = 12;
+    setRendererMood(0.95f, 1.0f, 1.0f, 0.80f, 1.0f);
         setActivePreset("fancy_clouds");
         ConfigManager.save();
     }
@@ -961,15 +2218,9 @@ private int addSearchProfiles(int y, int x, int width) {
             rebuildWidgets();
         });
 
-        y = addSearchAction(y, x, width, "Profiles · Import", "profile profiles import backup load file", "Import Profiles", "Import profile slots from backup file.", IconType.PRESETS, () -> {
-            ProfileManager.importProfiles();
-            rebuildWidgets();
-        });
+        y = addSearchAction(y, x, width, "Profiles · Import", "profile profiles import backup load file", "Import Profiles", "Import profile slots from backup file after confirmation.", IconType.PRESETS, this::confirmImportProfiles);
 
-        y = addSearchAction(y, x, width, "Profiles · Clear All", "profile profiles clear all delete reset", "Clear All Profiles", "Clear every profile slot.", IconType.ADVANCED, () -> {
-            ProfileManager.clearAll();
-            rebuildWidgets();
-        });
+        y = addSearchAction(y, x, width, "Profiles · Clear All", "profile profiles clear all delete reset", "Clear All Profiles", "Clear every profile slot after confirmation.", IconType.ADVANCED, this::confirmClearAllProfiles);
 
         AtmosphereProfile[] profiles = ProfileManager.profiles();
         for (int i = 0; i < profiles.length; i++) {
@@ -983,8 +2234,10 @@ private int addSearchProfiles(int y, int x, int width) {
 
             widgets.add(new PresetCardWidget(x, y, width, title, profile.saved ? "Click to load this profile." : "Empty slot. Click to save current settings.", IconType.PRESETS, () -> ProfileManager.isActive(slot), () -> {
                 if (ProfileManager.profile(slot).saved) {
+                    selectedProfileIndex = slot;
                     ProfileManager.load(slot);
                 } else {
+                    selectedProfileIndex = slot;
                     ProfileManager.saveCurrentTo(slot);
                 }
                 rebuildWidgets();
@@ -994,6 +2247,7 @@ private int addSearchProfiles(int y, int x, int width) {
 
             int buttonW = (width - 12) / 3;
             widgets.add(new ActionButtonWidget(x, y, buttonW, "Save", "Overwrite this profile slot with current settings.", IconType.PRESETS, () -> {
+                selectedProfileIndex = slot;
                 ProfileManager.saveCurrentTo(slot);
                 rebuildWidgets();
             }));
@@ -1003,8 +2257,7 @@ private int addSearchProfiles(int y, int x, int width) {
             searchResultCount++;
 
             widgets.add(new ActionButtonWidget(x + (buttonW + 6) * 2, y, buttonW, "Clear", "Clear this profile slot.", IconType.ADVANCED, () -> {
-                ProfileManager.clear(slot);
-                rebuildWidgets();
+                confirmClearProfile(slot);
             }));
             searchResultCount++;
             y += 48;
@@ -1122,33 +2375,65 @@ private int addSearchProfiles(int y, int x, int width) {
         return time + " Midnight";
     }
 
+
+private String trimHeaderText(String text, int maxWidth) {
+    if (text == null) {
+        return "";
+    }
+
+    if (textRenderer.getWidth(text) <= maxWidth) {
+        return text;
+    }
+
+    String result = text;
+    while (result.length() > 3 && textRenderer.getWidth(result + "...") > maxWidth) {
+        result = result.substring(0, result.length() - 1);
+    }
+
+    return result + "...";
+}
+
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        renderBackdrop(context);
-
-        Theme theme = ThemeManager.current();
-
-        UiRender.borderedRect(context, windowX, windowY, windowW, windowH, theme.background(), theme.border());
-        UiRender.gradientHorizontal(context, windowX + 1, windowY + 1, windowW - 2, 48, theme.panel(), theme.panelAlt());
-        UiRender.rect(context, windowX + 1, windowY + 48, windowW - 2, 1, theme.border());
-
-        drawBranding(context, theme);
-        drawSearchBar(context, theme);
-        drawTopButtons(context, theme, mouseX, mouseY);
-        drawSidebar(context, theme);
-        drawContentHeader(context, theme);
-        renderContentBackground(context, theme);
-
-        renderSidebarWidgets(context, mouseX, mouseY, delta);
-
-        context.enableScissor(windowX + 204, windowY + 105, windowX + windowW - 14, windowY + windowH - 14);
-        renderContentWidgets(context, mouseX, mouseY, delta);
-        context.disableScissor();
-
-        renderScrollIndicator(context, theme);
-        renderProfileRenameOverlay(context, theme);
-        renderTooltip(context, mouseX, mouseY);
+    LayoutProfile currentLayout = LayoutProfile.create(width, height);
+    if (lastScreenWidth != width || lastScreenHeight != height || !currentLayout.key().equals(lastLayoutKey)) {
+        scrollOffset = 0;
+        layoutProfile = currentLayout;
+        rebuildWidgets();
     }
+
+    renderBackdrop(context);
+
+    Theme theme = ThemeManager.current();
+    boolean modalOpen = isRenamingProfile() || isConfirmingAction();
+    int uiMouseX = modalOpen ? -100000 : mouseX;
+    int uiMouseY = modalOpen ? -100000 : mouseY;
+
+    UiRender.borderedRect(context, windowX, windowY, windowW, windowH, theme.background(), theme.border());
+    UiRender.gradientHorizontal(context, windowX + 1, windowY + 1, windowW - 2, layout().topBarHeight(), theme.panel(), theme.panelAlt());
+    UiRender.rect(context, windowX + 1, windowY + layout().topBarHeight(), windowW - 2, 1, theme.border());
+
+    drawBranding(context, theme);
+    drawSearchBar(context, theme);
+    drawTopButtons(context, theme, uiMouseX, uiMouseY);
+    drawSidebar(context, theme);
+    drawContentHeader(context, theme);
+    renderContentBackground(context, theme);
+
+    context.enableScissor(sidebarLeft(), sidebarListTop() - 2, sidebarRight(), sidebarPanelBottom() - 2);
+    renderSidebarWidgets(context, uiMouseX, uiMouseY, delta);
+    context.disableScissor();
+
+    int contentClipLeft = contentWidgetLeft();
+    context.enableScissor(contentClipLeft, windowY + layout().contentTopOffset() - 12, contentRight() - contentPadding(), sidebarPanelBottom() - 2);
+    renderContentWidgets(context, uiMouseX, uiMouseY, delta);
+    context.disableScissor();
+
+    renderScrollIndicator(context, theme);
+    renderProfileRenameOverlay(context, theme);
+    renderConfirmOverlay(context, theme, mouseX, mouseY);
+    renderTooltip(context, uiMouseX, uiMouseY);
+}
 
     private void renderSidebarWidgets(DrawContext context, int mouseX, int mouseY, float delta) {
         for (AtmosphereWidget widget : widgets) {
@@ -1241,80 +2526,80 @@ private int addSearchProfiles(int y, int x, int width) {
     }
 
     private void drawSidebar(DrawContext context, Theme theme) {
-        int x = windowX + 12;
-        int y = windowY + 58;
-        int w = 174;
-        int h = windowH - 70;
+    int x = sidebarLeft();
+    int y = sidebarPanelTop();
+    int w = sidebarWidth();
+    int h = sidebarPanelBottom() - y;
 
-        UiRender.panel(context, x, y, w, h, theme.panel(), theme.border(), theme.accent());
+    UiRender.panel(context, x, y, w, h, theme.panel(), theme.border(), theme.accent());
 
-        UiRender.text(context, textRenderer, isSearching() ? "Search Mode" : "Navigation", x + 14, y + 12, theme.mutedText());
-        UiRender.rect(context, x + 14, y + 29, w - 28, 1, theme.border());
+    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 14, y + 12, theme.mutedText());
+    UiRender.rect(context, x + 14, y + 29, w - 28, 1, theme.border());
 
-        if (isSearching()) {
-            UiRender.centeredText(context, textRenderer, "Direct results", x + w / 2, y + 62, theme.accent());
-            UiRender.centeredText(context, textRenderer, "Categories hidden", x + w / 2, y + 84, theme.mutedText());
-            UiRender.centeredText(context, textRenderer, "Clear search to browse", x + w / 2, y + 104, theme.mutedText());
+    if (isSearching()) {
+        UiRender.centeredText(context, textRenderer, "Direct results", x + w / 2, y + 54, theme.accent());
+        UiRender.centeredText(context, textRenderer, "Categories hidden", x + w / 2, y + 74, theme.mutedText());
+        UiRender.centeredText(context, textRenderer, "Clear search", x + w / 2, y + 94, theme.mutedText());
 
-            UiRender.borderedRect(context, x + 20, y + 138, w - 40, 24, theme.accentSoft(), theme.border());
-            UiRender.centeredText(context, textRenderer, searchResultCount + " result" + (searchResultCount == 1 ? "" : "s"), x + w / 2, y + 146, theme.text());
-            return;
-        }
-
-        if (visibleCategories().isEmpty()) {
-            UiRender.centeredText(context, textRenderer, "No category matches", x + w / 2, y + 64, theme.mutedText());
-        }
+        UiRender.borderedRect(context, x + 16, y + 122, w - 32, 24, theme.accentSoft(), theme.border());
+        UiRender.centeredText(context, textRenderer, searchResultCount + " result" + (searchResultCount == 1 ? "" : "s"), x + w / 2, y + 130, theme.text());
+        return;
     }
+
+    if (visibleCategories().isEmpty()) {
+        UiRender.centeredText(context, textRenderer, "No category matches", x + w / 2, y + 64, theme.mutedText());
+    }
+}
 
     private void drawContentHeader(DrawContext context, Theme theme) {
-        int x = windowX + 204;
-        int y = windowY + 58;
-        int w = windowW - 218;
+    int x = contentLeft();
+    int y = windowY + layout().topBarHeight() + 10;
+    int w = contentWidth();
 
-        UiRender.borderedRect(context, x, y, w, 38, theme.panel(), theme.border());
+    UiRender.borderedRect(context, x, y, w, 38, theme.panel(), theme.border());
 
-        if (isSearching()) {
-            UiRender.borderedRect(context, x + 10, y + 8, 22, 22, theme.accentSoft(), theme.accent());
-            IconRenderer.drawCentered(context, IconType.ADVANCED, x + 21, y + 19, 18);
-
-            UiRender.text(context, textRenderer, "SEARCH MODE", x + 42, y + 7, theme.accent());
-            UiRender.text(context, textRenderer, searchResultCount + " direct setting result" + (searchResultCount == 1 ? "" : "s") + " for \"" + searchQuery + "\"", x + 42, y + 22, theme.text());
-
-            int chipW = 82;
-            UiRender.borderedRect(context, x + w - chipW - 10, y + 9, chipW, 18, theme.accentSoft(), theme.accent());
-            UiRender.centeredText(context, textRenderer, "DIRECT EDIT", x + w - chipW / 2 - 10, y + 14, theme.text());
-            return;
-        }
-
+    if (isSearching()) {
         UiRender.borderedRect(context, x + 10, y + 8, 22, 22, theme.accentSoft(), theme.accent());
-        IconRenderer.drawCentered(context, selected.icon, x + 21, y + 19, 18);
+        IconRenderer.drawCentered(context, IconType.ADVANCED, x + 21, y + 19, 18);
 
-        UiRender.text(context, textRenderer, selected.title, x + 42, y + 8, theme.text());
-        UiRender.text(context, textRenderer, selected.description, x + 42, y + 22, theme.mutedText());
+        UiRender.text(context, textRenderer, "SEARCH MODE", x + 42, y + 7, theme.accent());
+        UiRender.text(context, textRenderer, trimHeaderText(searchResultCount + " direct result" + (searchResultCount == 1 ? "" : "s") + " for " + searchQuery, w - 150), x + 42, y + 22, theme.text());
+
+        int chipW = Math.min(82, Math.max(54, w / 4));
+        UiRender.borderedRect(context, x + w - chipW - 10, y + 9, chipW, 18, theme.accentSoft(), theme.accent());
+        UiRender.centeredText(context, textRenderer, "DIRECT", x + w - chipW / 2 - 10, y + 14, theme.text());
+        return;
     }
+
+    UiRender.borderedRect(context, x + 10, y + 8, 22, 22, theme.accentSoft(), theme.accent());
+    IconRenderer.drawCentered(context, selected.icon, x + 21, y + 19, 18);
+
+    UiRender.text(context, textRenderer, selected.title, x + 42, y + 8, theme.text());
+    UiRender.text(context, textRenderer, trimHeaderText(selected.description, w - 58), x + 42, y + 22, theme.mutedText());
+}
 
     private void renderContentBackground(DrawContext context, Theme theme) {
-        int x = windowX + 204;
-        int y = windowY + 104;
-        int w = windowW - 218;
-        int h = windowH - 116;
+    int x = contentLeft();
+    int y = windowY + layout().topBarHeight() + 56;
+    int w = contentWidth();
+    int h = Math.max(1, sidebarPanelBottom() - y);
 
-        UiRender.panel(context, x, y, w, h, theme.panel(), theme.border(), theme.accent());
+    UiRender.panel(context, x, y, w, h, theme.panel(), theme.border(), theme.accent());
 
-        if (isSearching()) {
-            if (searchResultCount == 0) {
-                UiRender.centeredText(context, textRenderer, "No direct settings found", x + w / 2, y + 112, theme.text());
-                UiRender.centeredText(context, textRenderer, "Try clouds, cloudless, profile, sunrise, rain, deep fog, bright caves, reset, fullbright, or gamma.", x + w / 2, y + 134, theme.mutedText());
-            } else {
-                UiRender.centeredText(context, textRenderer, "Search mode: edit matching controls directly here.", x + w / 2, y + h - 26, theme.mutedText());
-            }
-            return;
+    if (isSearching()) {
+        if (searchResultCount == 0) {
+            UiRender.centeredText(context, textRenderer, "No direct settings found", x + w / 2, y + 112, theme.text());
+            UiRender.centeredText(context, textRenderer, "Try clouds, profile, sunrise, rain, fog, fullbright, or gamma.", x + w / 2, y + 134, theme.mutedText());
+        } else {
+            UiRender.centeredText(context, textRenderer, "Search mode: edit matching controls directly here.", x + w / 2, y + h - 26, theme.mutedText());
         }
-
-        if (selected == UiCategory.HOME) {
-            renderHome(context, theme, x, y, w, h);
-        }
+        return;
     }
+
+    if (selected == UiCategory.HOME) {
+        renderHome(context, theme, x, y, w, h);
+    }
+}
 
     private void renderHome(DrawContext context, Theme theme, int x, int y, int w, int h) {
         UiRender.centeredText(context, textRenderer, "Welcome to Atmosphere+", x + w / 2, y + 48, theme.text());
@@ -1350,6 +2635,7 @@ private int addSearchProfiles(int y, int x, int width) {
 
 
     private void startRenamingProfile(int slot) {
+        selectedProfileIndex = Math.max(0, Math.min(ProfileManager.PROFILE_COUNT - 1, slot));
         AtmosphereProfile profile = ProfileManager.profile(slot);
         renamingProfileIndex = slot;
         renameProfileText = profile.name == null || profile.name.isBlank() ? "Profile " + (slot + 1) : profile.name;
@@ -1377,6 +2663,80 @@ private int addSearchProfiles(int y, int x, int width) {
 
     private boolean isRenamingProfile() {
         return renamingProfileIndex >= 0;
+    }
+
+
+
+private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, int mouseY) {
+        if (!isConfirmingAction()) {
+            return;
+        }
+
+        int modalW = Math.min(420, windowW - 80);
+        int modalH = 132;
+        int x = windowX + windowW / 2 - modalW / 2;
+        int y = windowY + windowH / 2 - modalH / 2;
+
+        context.fill(0, 0, width, height, 0xB0000000);
+        UiRender.borderedRect(context, x, y, modalW, modalH, theme.panel(), theme.accent());
+
+        UiRender.text(context, textRenderer, confirmTitle, x + 16, y + 14, theme.text());
+        UiRender.text(context, textRenderer, confirmMessage, x + 16, y + 34, theme.mutedText());
+        UiRender.rect(context, x + 16, y + 58, modalW - 32, 1, theme.border());
+
+        int buttonY = y + 78;
+        int buttonW = (modalW - 44) / 2;
+        int confirmX = x + 16;
+        int cancelX = confirmX + buttonW + 12;
+
+        boolean confirmHover = UiRender.hovered(mouseX, mouseY, confirmX, buttonY, buttonW, 32);
+        boolean cancelHover = UiRender.hovered(mouseX, mouseY, cancelX, buttonY, buttonW, 32);
+
+        int confirmFill = confirmHover ? theme.panel() : theme.panelAlt();
+        int confirmBorder = confirmHover ? theme.accent() : theme.border();
+        int cancelFill = cancelHover ? theme.panel() : theme.panelAlt();
+        int cancelBorder = cancelHover ? theme.accent() : theme.border();
+
+        UiRender.borderedRect(context, confirmX, buttonY, buttonW, 32, confirmFill, confirmBorder);
+        UiRender.centeredText(context, textRenderer, "Confirm", confirmX + buttonW / 2, buttonY + 12, theme.text());
+
+        UiRender.borderedRect(context, cancelX, buttonY, buttonW, 32, cancelFill, cancelBorder);
+        UiRender.centeredText(context, textRenderer, "Cancel", cancelX + buttonW / 2, buttonY + 12, theme.text());
+
+        if (confirmHover) {
+            UiRender.centeredText(context, textRenderer, "Click to confirm", confirmX + buttonW / 2, buttonY + 36, theme.accent());
+        } else if (cancelHover) {
+            UiRender.centeredText(context, textRenderer, "Click to cancel", cancelX + buttonW / 2, buttonY + 36, theme.accent());
+        } else {
+            UiRender.centeredText(context, textRenderer, "Enter confirms · Esc cancels", x + modalW / 2, y + 116, theme.mutedText());
+        }
+    }
+
+    private boolean handleConfirmClick(double mouseX, double mouseY) {
+        if (!isConfirmingAction()) {
+            return false;
+        }
+
+        int modalW = Math.min(420, windowW - 80);
+        int modalH = 132;
+        int x = windowX + windowW / 2 - modalW / 2;
+        int y = windowY + windowH / 2 - modalH / 2;
+        int buttonY = y + 78;
+        int buttonW = (modalW - 44) / 2;
+        int confirmX = x + 16;
+        int cancelX = confirmX + buttonW + 12;
+
+        if (UiRender.hovered(mouseX, mouseY, confirmX, buttonY, buttonW, 32)) {
+            acceptConfirmation();
+            return true;
+        }
+
+        if (UiRender.hovered(mouseX, mouseY, cancelX, buttonY, buttonW, 32)) {
+            cancelConfirmation();
+            return true;
+        }
+
+        return true;
     }
 
     private void renderProfileRenameOverlay(DrawContext context, Theme theme) {
@@ -1432,7 +2792,7 @@ private int addSearchProfiles(int y, int x, int width) {
     }
 
     private void renderTooltip(DrawContext context, int mouseX, int mouseY) {
-        if (isRenamingProfile()) {
+        if (isRenamingProfile() || isConfirmingAction()) {
             return;
         }
 
@@ -1454,6 +2814,10 @@ private int addSearchProfiles(int y, int x, int width) {
         if (UiRender.hovered(click.x(), click.y(), closeX, closeY, closeSize, closeSize)) {
             MinecraftClient.getInstance().setScreen(null);
             return true;
+        }
+
+        if (isConfirmingAction()) {
+            return handleConfirmClick(click.x(), click.y());
         }
 
         if (isRenamingProfile()) {
@@ -1526,6 +2890,20 @@ private int addSearchProfiles(int y, int x, int width) {
     public boolean keyPressed(KeyInput input) {
         if (AtmosphereKeybinds.matchesOpenMenu(input)) {
             MinecraftClient.getInstance().setScreen(null);
+            return true;
+        }
+
+        if (isConfirmingAction()) {
+            if (input.isEscape()) {
+                cancelConfirmation();
+                return true;
+            }
+
+            if (input.getKeycode() == GLFW.GLFW_KEY_ENTER) {
+                acceptConfirmation();
+                return true;
+            }
+
             return true;
         }
 

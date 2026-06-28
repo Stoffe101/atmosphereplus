@@ -1,26 +1,48 @@
 {
   "schemaVersion": 1,
   "id": "atmosphereplus",
-  "version": "${version}",
+  "version": "0.1.0-alpha.17",
   "name": "Atmosphere+",
-  "description": "A client-side visual customization suite for Minecraft.",
+  "description": "Client-side visual atmosphere control suite for time, weather, fog, lighting, particles, clouds, presets and profiles.",
   "authors": [
-    "Skrra"
+    "Skrra",
+    "Christoffer Lööf"
   ],
-  "contact": {},
+  "contact": {
+    "homepage": "https://github.com/Stoffe101/AtmospherePlus",
+    "sources": "https://github.com/Stoffe101/AtmospherePlus",
+    "issues": "https://github.com/Stoffe101/AtmospherePlus/issues"
+  },
   "license": "MIT",
+  "icon": "assets/atmosphereplus/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
       "com.skrra.atmosphereplus.client.AtmospherePlusClient"
+    ],
+    "modmenu": [
+      "com.skrra.atmosphereplus.compat.AtmosphereModMenuIntegration"
     ]
   },
   "mixins": [
     "atmosphereplus.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=${loader_version}",
+    "fabricloader": ">=0.18.4",
+    "minecraft": ">=1.21.11 <1.21.12",
+    "java": ">=21"
+  },
+  "suggests": {
     "fabric-api": "*",
-    "minecraft": "${minecraft_version}"
+    "modmenu": "*",
+    "sodium": "*",
+    "iris": "*"
+  },
+  "custom": {
+    "modmenu": {
+      "badges": [
+        "client"
+      ]
+    }
   }
 }

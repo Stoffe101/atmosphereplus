@@ -22,7 +22,7 @@ public class PresetCardWidget extends AtmosphereWidget {
     }
 
     public PresetCardWidget(int x, int y, int width, String title, String description, IconType icon, Supplier<Boolean> activeSupplier, Runnable action) {
-        super(x, y, width, 72);
+        super(x, y, width, 48);
         this.title = title;
         this.description = description;
         this.tooltip = description;
@@ -38,27 +38,43 @@ public class PresetCardWidget extends AtmosphereWidget {
         boolean active = activeSupplier.get();
 
         int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
-        int border = active ? theme.accent() : hover ? theme.accent() : theme.border();
+        int border = active ? theme.accent() : hover ? theme.accentSoft() : theme.border();
 
         UiRender.card(context, x, y, width, height, fill, border);
 
         if (active) {
-            context.fill(x, y, x + 3, y + height, theme.accent());
-            UiRender.borderedRect(context, x + width - 54, y + 10, 42, 15, theme.accentSoft(), theme.accent());
-            UiRender.centeredText(context, textRenderer, "ACTIVE", x + width - 33, y + 14, theme.text());
+            context.fill(x, y + 4, x + 2, y + height - 4, theme.accent());
         }
 
-        UiRender.borderedRect(context, x + 12, y + 13, 26, 26, active ? theme.accentSoft() : theme.panelAlt(), border);
-        IconRenderer.drawCentered(context, icon, x + 25, y + 26, 20);
+        int tileSize = 20;
+        int tileX = x + 9;
+        int tileY = y + 14;
 
-        UiRender.text(context, textRenderer, title, x + 48, y + 14, theme.text());
-        UiRender.text(context, textRenderer, trim(textRenderer, description, width - 72), x + 48, y + 30, active ? theme.accent() : theme.mutedText());
+        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, active ? theme.accentSoft() : theme.panelAlt(), active ? theme.accent() : theme.border());
+        IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 15);
 
-        UiRender.rect(context, x + 12, y + 56, width - 24, 3, theme.accentSoft());
-        UiRender.rect(context, x + 12, y + 56, (width - 24) / 2, 3, theme.accent());
+        int textX = x + 38;
+        int textW = width - 48;
+
+        if (active && textW > 72) {
+            int chipW = 36;
+            UiRender.borderedRect(context, x + width - chipW - 8, y + 7, chipW, 13, theme.accentSoft(), theme.accent());
+            UiRender.centeredText(context, textRenderer, "ON", x + width - chipW / 2 - 8, y + 10, theme.text());
+            textW -= chipW + 8;
+        }
+
+        UiRender.text(context, textRenderer, trim(textRenderer, title, textW), textX, y + 8, theme.text());
+
+        if (description != null && !description.isBlank()) {
+            UiRender.text(context, textRenderer, trim(textRenderer, description, width - 48), textX, y + 24, active ? theme.accent() : theme.mutedText());
+        }
     }
 
     private String trim(TextRenderer renderer, String text, int maxWidth) {
+        if (text == null || maxWidth <= 0) {
+            return "";
+        }
+
         if (renderer.getWidth(text) <= maxWidth) {
             return text;
         }

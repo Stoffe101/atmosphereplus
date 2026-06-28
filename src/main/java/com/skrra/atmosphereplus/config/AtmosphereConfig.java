@@ -1,6 +1,8 @@
 package com.skrra.atmosphereplus.config;
 
 public class AtmosphereConfig {
+    public int configVersion = ConfigSafety.LATEST_CONFIG_VERSION;
+
     public String theme = "midnight";
     public boolean compactMode = false;
     public float animationSpeed = 1.0f;
@@ -27,6 +29,26 @@ public class AtmosphereConfig {
     public String cloudMode = "SERVER";
     public int cloudDistance = 12;
 
+    public boolean experimentalRendererControls = false;
+    public float cloudOpacity = 1.0f;
+    public float cloudHeight = 1.0f;
+    public boolean cloudDistanceOverride = false;
+    public float skyBrightness = 1.0f;
+    public float starBrightness = 1.0f;
+    public float sunMoonVisibility = 1.0f;
+    public boolean shaderAwareWarnings = true;
+
     public String activePreset = "";
+    public String lastUiCategory = "QUICK";
+    public int lastQuickProfile = 0;
+    public String lastQuickPreset = "";
+
+    public boolean favoritePresetGoldenHour = true;
+    public boolean favoritePresetMidnight = true;
+    public boolean favoritePresetCozyRain = false;
+    public boolean favoritePresetDeepFog = false;
+    public boolean favoritePresetBrightCaves = true;
+    public boolean favoritePresetCloudsOff = false;
+
     public AtmosphereProfile[] profiles = AtmosphereProfile.defaults();
 }

@@ -45,6 +45,17 @@ public abstract class SimpleOptionMixin<T> {
             @SuppressWarnings("unchecked")
             T adjusted = (T) VisualSettings.applyCloudMode(vanillaMode);
             cir.setReturnValue(adjusted);
+            return;
+        }
+
+        if (self == client.options.getCloudRenderDistance()) {
+            if (!(value instanceof Integer vanillaDistance)) {
+                return;
+            }
+
+            @SuppressWarnings("unchecked")
+            T adjusted = (T) Integer.valueOf(VisualSettings.applyCloudDistance(vanillaDistance));
+            cir.setReturnValue(adjusted);
         }
     }
 }

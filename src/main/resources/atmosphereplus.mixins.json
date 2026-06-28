@@ -10,7 +10,9 @@
     "FogRendererMixin",
     "LightmapTextureManagerMixin",
     "SimpleOptionMixin",
-    "GameOptionsMixin"
+    "GameOptionsMixin",
+    "CloudRendererMixin",
+    "SkyRenderingMixin"
   ],
   "injectors": {
     "defaultRequire": 1

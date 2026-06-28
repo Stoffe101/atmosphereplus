@@ -15,7 +15,7 @@ public class ActionButtonWidget extends AtmosphereWidget {
     private final Runnable action;
 
     public ActionButtonWidget(int x, int y, int width, String label, String description, IconType icon, Runnable action) {
-        super(x, y, width, 38);
+        super(x, y, width, 34);
         this.label = label;
         this.description = description;
         this.icon = icon;
@@ -28,16 +28,30 @@ public class ActionButtonWidget extends AtmosphereWidget {
         Theme theme = ThemeManager.current();
         boolean hover = isHovered(mouseX, mouseY);
 
-        UiRender.card(context, x, y, width, height, hover ? theme.accentSoft() : theme.panel(), hover ? theme.accent() : theme.border());
+        int fill = hover ? theme.panelAlt() : theme.panel();
+        int border = hover ? theme.accentSoft() : theme.border();
+        UiRender.card(context, x, y, width, height, fill, border);
 
-        UiRender.borderedRect(context, x + 9, y + 8, 22, 22, hover ? theme.accentSoft() : theme.panelAlt(), hover ? theme.accent() : theme.border());
-        IconRenderer.drawCentered(context, icon, x + 20, y + 19, 16);
+        int tileX = x + 9;
+        int tileY = y + 7;
+        int tileSize = 20;
+        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, theme.panelAlt(), hover ? theme.accent() : theme.border());
+        IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 15);
 
-        UiRender.text(context, textRenderer, label, x + 40, y + 8, theme.text());
-        UiRender.text(context, textRenderer, trim(textRenderer, description, width - 52), x + 40, y + 22, hover ? theme.accent() : theme.mutedText());
+        int textX = x + 38;
+        int textW = width - 48;
+        UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + 6, theme.text());
+
+        if (description != null && !description.isBlank()) {
+            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 19, hover ? theme.text() : theme.mutedText());
+        }
     }
 
     private String trim(TextRenderer renderer, String text, int maxWidth) {
+        if (text == null || maxWidth <= 0) {
+            return "";
+        }
+
         if (renderer.getWidth(text) <= maxWidth) {
             return text;
         }

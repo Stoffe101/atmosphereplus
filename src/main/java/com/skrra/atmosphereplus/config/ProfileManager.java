@@ -133,6 +133,7 @@ public final class ProfileManager {
             ConfigManager.get().activePreset = "";
             ConfigManager.save();
             ensureProfiles();
+            ConfigSafety.repairAndMigrate();
             NotificationUtil.show("Imported profiles backup");
         } catch (Exception exception) {
             NotificationUtil.show("Failed to import profiles");

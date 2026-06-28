@@ -18,7 +18,7 @@ public class ChoiceButtonWidget extends AtmosphereWidget {
     private final Runnable action;
 
     public ChoiceButtonWidget(int x, int y, int width, String label, String description, IconType icon, Supplier<Boolean> activeSupplier, Runnable action) {
-        super(x, y, width, 42);
+        super(x, y, width, 38);
         this.label = label;
         this.description = description;
         this.icon = icon;
@@ -34,22 +34,35 @@ public class ChoiceButtonWidget extends AtmosphereWidget {
         boolean hover = isHovered(mouseX, mouseY);
 
         int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
-        int border = active ? theme.accent() : hover ? theme.accent() : theme.border();
+        int border = active ? theme.accent() : hover ? theme.accentSoft() : theme.border();
 
         UiRender.card(context, x, y, width, height, fill, border);
 
         if (active) {
-            context.fill(x, y, x + 3, y + height, theme.accent());
+            context.fill(x, y + 4, x + 2, y + height - 4, theme.accent());
         }
 
-        UiRender.borderedRect(context, x + 9, y + 10, 22, 22, active ? theme.accentSoft() : theme.panelAlt(), border);
-        IconRenderer.drawCentered(context, icon, x + 20, y + 21, 17);
+        int tileX = x + 9;
+        int tileY = y + 8;
+        int tileSize = 20;
 
-        UiRender.text(context, textRenderer, label, x + 40, y + 9, theme.text());
-        UiRender.text(context, textRenderer, trim(textRenderer, description, width - 54), x + 40, y + 24, active ? theme.accent() : theme.mutedText());
+        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, active ? theme.accentSoft() : theme.panelAlt(), active ? theme.accent() : theme.border());
+        IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 15);
+
+        int textX = x + 38;
+        int textW = width - 48;
+        UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + 6, theme.text());
+
+        if (description != null && !description.isBlank()) {
+            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 20, active ? theme.accent() : theme.mutedText());
+        }
     }
 
     private String trim(TextRenderer renderer, String text, int maxWidth) {
+        if (text == null || maxWidth <= 0) {
+            return "";
+        }
+
         if (renderer.getWidth(text) <= maxWidth) {
             return text;
         }

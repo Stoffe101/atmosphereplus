@@ -17,7 +17,7 @@ public class CategoryButton extends AtmosphereWidget {
     private final Consumer<UiCategory> onClick;
 
     public CategoryButton(int x, int y, int width, UiCategory category, Supplier<UiCategory> current, Consumer<UiCategory> onClick) {
-        super(x, y, width, 24);
+        super(x, y, width, 20);
         this.category = category;
         this.current = current;
         this.onClick = onClick;
@@ -30,26 +30,41 @@ public class CategoryButton extends AtmosphereWidget {
         boolean hover = isHovered(mouseX, mouseY);
 
         int buttonX = x + 4;
+        int buttonY = y + 1;
         int buttonW = width - 8;
+        int buttonH = height - 2;
         int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : 0x00000000;
         int textColor = active || hover ? theme.text() : theme.mutedText();
 
         if (fill != 0) {
-            context.fill(buttonX, y, buttonX + buttonW, y + height, fill);
+            context.fill(buttonX, buttonY, buttonX + buttonW, buttonY + buttonH, fill);
             if (active) {
-                context.fill(buttonX, y, buttonX + 2, y + height, theme.accent());
+                context.fill(buttonX, buttonY, buttonX + 2, buttonY + buttonH, theme.accent());
             }
         }
 
         int tileX = buttonX + 8;
-        int tileY = y + 3;
-        int tileSize = 18;
+        int tileY = y + 2;
+        int tileSize = 16;
         int tileFill = active ? theme.accentSoft() : hover ? theme.panel() : theme.panelAlt();
 
         UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, tileFill, active ? theme.accent() : theme.border());
-        IconRenderer.drawCentered(context, category.icon, tileX + tileSize / 2, tileY + tileSize / 2, 16);
+        IconRenderer.drawCentered(context, category.icon, tileX + tileSize / 2, tileY + tileSize / 2, 14);
 
-        UiRender.text(context, textRenderer, category.title, buttonX + 34, y + 8, textColor);
+        UiRender.text(context, textRenderer, trim(textRenderer, category.title, buttonW - 40), buttonX + 32, y + 6, textColor);
+    }
+
+    private String trim(TextRenderer renderer, String text, int maxWidth) {
+        if (renderer.getWidth(text) <= maxWidth) {
+            return text;
+        }
+
+        String result = text;
+        while (result.length() > 3 && renderer.getWidth(result + "...") > maxWidth) {
+            result = result.substring(0, result.length() - 1);
+        }
+
+        return result + "...";
     }
 
     @Override
