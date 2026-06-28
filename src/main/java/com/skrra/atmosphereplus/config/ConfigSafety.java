@@ -10,7 +10,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 
 public final class ConfigSafety {
-    public static final int LATEST_CONFIG_VERSION = 6;
+    public static final int LATEST_CONFIG_VERSION = 7;
 
     private ConfigSafety() {
     }
@@ -23,6 +23,7 @@ public final class ConfigSafety {
             backupConfigBeforeMigration();
 
             // alpha 17 cleanup: cloud distance was removed because it caused broken cloud behavior.
+            // alpha 18 release cleanup: keep stale experimental values safe and non-invasive.
             config.cloudDistanceOverride = false;
             config.cloudDistance = 12;
 

@@ -1,0 +1,4 @@
+wrapper {
+    gradleVersion = '9.2.0'
+    distributionType = Wrapper.DistributionType.BIN
+}

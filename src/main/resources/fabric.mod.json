@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "id": "atmosphereplus",
-  "version": "0.1.0-alpha.17",
+  "version": "0.1.0-alpha.18.4",
   "name": "Atmosphere+",
-  "description": "Client-side visual atmosphere control suite for time, weather, fog, lighting, particles, clouds, presets and profiles.",
+  "description": "Client-side visual atmosphere control suite: weather, time, fog, lighting, particles, clouds, profiles, presets, and Sodium/Iris-aware renderer controls.",
   "authors": [
     "Skrra",
     "Christoffer Lööf"

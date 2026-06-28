@@ -50,6 +50,9 @@ public class AtmosphereScreen extends Screen {
     private int maxScroll = 0;
     private int contentBottom = 0;
 
+    private int sidebarScrollOffset = 0;
+    private int sidebarMaxScroll = 0;
+
     private int searchResultCount = 0;
 
     private int lastScreenWidth = -1;
@@ -140,6 +143,28 @@ private int sidebarStep() {
     return layout().sidebarStep(count, available);
 }
 
+
+private int sidebarViewportHeight() {
+    return Math.max(24, sidebarPanelBottom() - sidebarListTop() - 4);
+}
+
+private int sidebarContentHeight() {
+    if (isSearching()) {
+        return 0;
+    }
+
+    return Math.max(0, visibleCategories().size() * sidebarStep());
+}
+
+private void clampSidebarScroll() {
+    sidebarMaxScroll = Math.max(0, sidebarContentHeight() - sidebarViewportHeight());
+    sidebarScrollOffset = Math.max(0, Math.min(sidebarScrollOffset, sidebarMaxScroll));
+}
+
+private boolean isMouseOverSidebar(double mouseX, double mouseY) {
+    return UiRender.hovered(mouseX, mouseY, sidebarLeft(), sidebarListTop() - 2, sidebarWidth(), sidebarViewportHeight() + 2);
+}
+
 private int contentGap() {
     return layout().contentGap();
 }
@@ -199,11 +224,12 @@ private int contentWidgetWidth() {
     int sidebarY = sidebarListTop();
     int sidebarW = sidebarWidth();
     int sidebarStep = sidebarStep();
+    clampSidebarScroll();
 
     if (!isSearching()) {
         int i = 0;
         for (UiCategory category : visibleCategories()) {
-            widgets.add(new CategoryButton(sidebarX, sidebarY + i * sidebarStep, sidebarW, category, () -> selected, c -> {
+            widgets.add(new CategoryButton(sidebarX, sidebarY + i * sidebarStep - sidebarScrollOffset, sidebarW, category, () -> selected, c -> {
                 selectCategory(c);
                 searchFocused = false;
                 scrollOffset = 0;
@@ -663,10 +689,10 @@ private int addSkyWidgets(int contentX, int contentY, int contentW) {
 
     y += 46;
 
-    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Removed", "Cleaned up"));
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Notes", "Renderer limits"));
     y += 30;
 
-    widgets.add(new PresetCardWidget(contentX, y, contentW, "Cloud distance removed", "Removed because it caused broken/tiny cloud behavior. Cloud height and stars are kept.", IconType.SKY, () -> false, () -> {
+    widgets.add(new PresetCardWidget(contentX, y, contentW, "Cloud distance removed", "Removed for stability. Cloud height and stars are kept.", IconType.SKY, () -> false, () -> {
         NotificationUtil.show("Cloud distance was removed for stability");
     }));
 
@@ -903,7 +929,7 @@ private int addCompatibilityWidgets(int contentX, int contentY, int contentW) {
         rebuildWidgets();
     }));
 
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Sodium/Iris Safe", "Safe client setup for Sodium/Iris and shader packs.", IconType.SKY, () -> {
+    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Sodium/Iris Safe", "Safe setup for Sodium/Iris and shader packs.", IconType.SKY, () -> {
         applySodiumIrisSafeMode();
         NotificationUtil.show("Applied Sodium/Iris Safe Mode");
         rebuildWidgets();
@@ -2420,9 +2446,10 @@ private String trimHeaderText(String text, int maxWidth) {
     drawContentHeader(context, theme);
     renderContentBackground(context, theme);
 
-    context.enableScissor(sidebarLeft(), sidebarListTop() - 2, sidebarRight(), sidebarPanelBottom() - 2);
+    context.enableScissor(sidebarLeft(), sidebarListTop() - 2, sidebarRight(), sidebarListTop() + sidebarViewportHeight());
     renderSidebarWidgets(context, uiMouseX, uiMouseY, delta);
     context.disableScissor();
+    renderSidebarScrollIndicator(context, theme);
 
     int contentClipLeft = contentWidgetLeft();
     context.enableScissor(contentClipLeft, windowY + layout().contentTopOffset() - 12, contentRight() - contentPadding(), sidebarPanelBottom() - 2);
@@ -2546,9 +2573,9 @@ private String trimHeaderText(String text, int maxWidth) {
         return;
     }
 
-    if (visibleCategories().isEmpty()) {
-        UiRender.centeredText(context, textRenderer, "No category matches", x + w / 2, y + 64, theme.mutedText());
-    }
+        if (visibleCategories().isEmpty()) {
+            UiRender.centeredText(context, textRenderer, "No category matches", x + w / 2, y + 64, theme.mutedText());
+        }
 }
 
     private void drawContentHeader(DrawContext context, Theme theme) {
@@ -2776,6 +2803,22 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
         UiRender.centeredText(context, textRenderer, "New name: " + renameProfileText.length() + "/24", x + modalW / 2, y + 92, theme.mutedText());
     }
 
+
+private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
+    if (sidebarMaxScroll <= 0 || isSearching()) {
+        return;
+    }
+
+    int trackX = sidebarRight() - 5;
+    int trackY = sidebarListTop();
+    int trackH = sidebarViewportHeight();
+    int thumbH = Math.max(18, (int) (trackH * (trackH / (float) (trackH + sidebarMaxScroll))));
+    int thumbY = trackY + (int) ((trackH - thumbH) * (sidebarScrollOffset / (float) sidebarMaxScroll));
+
+    UiRender.rect(context, trackX, trackY, 2, trackH, theme.border());
+    UiRender.rect(context, trackX, thumbY, 2, thumbH, theme.accent());
+}
+
     private void renderScrollIndicator(DrawContext context, Theme theme) {
         if (maxScroll <= 0) {
             return;
@@ -2871,7 +2914,19 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-    if (maxScroll > 0 && UiRender.hovered(mouseX, mouseY, windowX + 204, windowY + 104, windowW - 218, windowH - 116)) {
+    if (!isSearching() && sidebarMaxScroll > 0 && isMouseOverSidebar(mouseX, mouseY)) {
+        int oldOffset = sidebarScrollOffset;
+        int newOffset = (int) Math.max(0, Math.min(sidebarMaxScroll, sidebarScrollOffset - verticalAmount * 18));
+
+        if (newOffset != oldOffset) {
+            sidebarScrollOffset = newOffset;
+            rebuildWidgets();
+        }
+
+        return true;
+    }
+
+    if (maxScroll > 0 && UiRender.hovered(mouseX, mouseY, contentLeft(), windowY + layout().topBarHeight() + 56, contentWidth(), Math.max(1, sidebarPanelBottom() - (windowY + layout().topBarHeight() + 56)))) {
         int oldOffset = scrollOffset;
         int newOffset = (int) Math.max(0, Math.min(maxScroll, scrollOffset - verticalAmount * 18));
 
