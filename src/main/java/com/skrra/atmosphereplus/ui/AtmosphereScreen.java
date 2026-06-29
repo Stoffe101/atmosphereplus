@@ -1170,12 +1170,29 @@ private ThemeStudioPage.Actions themeStudioActions() {
 
         @Override
         public void applyTheme(String themeId) {
-            applyTheme(themeId);
+            AtmosphereScreen.this.applyTheme(themeId);
         }
 
         @Override
         public void selectTheme(String themeId) {
             themeStudioState.selectTheme(themeId);
+            rebuildWidgets();
+        }
+
+        @Override
+        public void revertTheme() {
+            revertCustomTheme();
+        }
+
+        @Override
+        public void resetTheme() {
+            resetCustomTheme();
+        }
+
+        @Override
+        public void toggleAdvancedMode() {
+            themeStudioState.setAdvancedMode(!themeStudioState.advancedMode());
+            themeStudioState.clearHexFocus();
             rebuildWidgets();
         }
     };
@@ -1216,14 +1233,42 @@ private void applyTheme(String themeId) {
 }
 
 private void saveCustomTheme(String themeId) {
-    CustomThemeData data = CustomThemeManager.get(themeId);
-    if (data == null) {
+    if (!CustomThemeManager.isCustomTheme(themeId)) {
         NotificationUtil.show("Duplicate a built-in theme before saving");
         return;
     }
 
-    CustomThemeManager.saveTheme(data);
-    NotificationUtil.show("Saved " + data.displayName);
+    CustomThemeData draft = themeStudioState.draft();
+    if (draft == null) {
+        NotificationUtil.show("No custom theme draft to save");
+        return;
+    }
+
+    CustomThemeManager.saveTheme(new CustomThemeData(draft));
+    themeStudioState.revert();
+    NotificationUtil.show("Saved " + draft.displayName);
+    rebuildWidgets();
+}
+
+private void revertCustomTheme() {
+    if (!themeStudioState.selectedIsCustom()) {
+        NotificationUtil.show("Built-in themes are read-only");
+        return;
+    }
+
+    themeStudioState.revert();
+    NotificationUtil.show("Reverted unsaved theme changes");
+    rebuildWidgets();
+}
+
+private void resetCustomTheme() {
+    if (!themeStudioState.selectedIsCustom()) {
+        NotificationUtil.show("Built-in themes are read-only");
+        return;
+    }
+
+    themeStudioState.resetTo(ThemeManager.defaultTheme());
+    NotificationUtil.show("Reset draft to Midnight colors");
     rebuildWidgets();
 }
 
@@ -2884,7 +2929,8 @@ private String trimHeaderText(String text, int maxWidth) {
 
         renamingProfileIndex = -1;
         renamingThemeId = data.id;
-        renameProfileText = data.displayName == null || data.displayName.isBlank() ? "Custom Theme" : data.displayName;
+        String currentName = data.id.equals(themeStudioState.selectedThemeId()) ? themeStudioState.themeName() : data.displayName;
+        renameProfileText = currentName == null || currentName.isBlank() ? "Custom Theme" : currentName;
         searchFocused = false;
         NotificationUtil.show("Type a new theme name, Enter to save, Esc to cancel");
     }
@@ -2905,9 +2951,10 @@ private String trimHeaderText(String text, int maxWidth) {
             return;
         }
 
-        if (CustomThemeManager.renameTheme(renamingThemeId, renameProfileText)) {
+        if (CustomThemeManager.isCustomTheme(renamingThemeId)) {
             themeStudioState.selectTheme(renamingThemeId);
-            NotificationUtil.show("Renamed theme");
+            themeStudioState.setThemeName(renameProfileText);
+            NotificationUtil.show("Renamed theme draft");
         } else {
             NotificationUtil.show("Theme could not be renamed");
         }
@@ -3233,6 +3280,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return true;
         }
 
+        if (handleThemeStudioHexKey(input)) {
+            return true;
+        }
+
         if (searchFocused) {
             if (input.isEscape()) {
                 searchFocused = false;
@@ -3257,6 +3308,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
 
     @Override
     public boolean charTyped(CharInput input) {
+        if (handleThemeStudioHexChar(input)) {
+            return true;
+        }
+
         int maxRenameLength = isRenamingTheme() ? 28 : 24;
         if (isRenaming() && input.isValidChar() && renameProfileText.length() < maxRenameLength) {
             String typed = input.asString();
@@ -3274,6 +3329,53 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
 
         return super.charTyped(input);
+    }
+
+    private boolean handleThemeStudioHexKey(KeyInput input) {
+        if (selected != UiCategory.THEME_STUDIO || themeStudioState.focusedToken() == null) {
+            return false;
+        }
+
+        if (input.isEscape()) {
+            themeStudioState.clearHexFocus();
+            rebuildWidgets();
+            return true;
+        }
+
+        if (input.getKeycode() == GLFW.GLFW_KEY_ENTER) {
+            ThemeStudioState.HexResult result = themeStudioState.commitHex();
+            if (result == ThemeStudioState.HexResult.INVALID) {
+                NotificationUtil.show("Invalid hex color. Use #RRGGBB or #AARRGGBB");
+            }
+            rebuildWidgets();
+            return true;
+        }
+
+        if (input.getKeycode() == GLFW.GLFW_KEY_BACKSPACE) {
+            themeStudioState.backspaceHex();
+            rebuildWidgets();
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean handleThemeStudioHexChar(CharInput input) {
+        if (selected != UiCategory.THEME_STUDIO || themeStudioState.focusedToken() == null || !input.isValidChar()) {
+            return false;
+        }
+
+        String typed = input.asString();
+        if ("#".equals(typed)) {
+            return true;
+        }
+
+        ThemeStudioState.HexResult result = themeStudioState.appendHexChar(typed.charAt(0));
+        if (result == ThemeStudioState.HexResult.INVALID) {
+            NotificationUtil.show("Invalid hex color. Use 0-9 and A-F");
+        }
+        rebuildWidgets();
+        return true;
     }
 
     @Override

@@ -73,7 +73,7 @@ public final class ThemeManager {
     }
 
     public static void setTheme(String id) {
-        if (THEMES.containsKey(id)) {
+        if (id != null && THEMES.containsKey(id) && !id.equals(ConfigManager.get().theme)) {
             ConfigManager.get().theme = id;
             ConfigManager.save();
         }
