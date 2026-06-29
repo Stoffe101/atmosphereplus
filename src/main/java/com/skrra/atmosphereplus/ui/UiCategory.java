@@ -9,7 +9,8 @@ public enum UiCategory {
     FOG("Fog", "Fog distance and density", IconType.FOG),
     LIGHTING("Lighting", "Brightness and atmosphere", IconType.LIGHTING),
     PARTICLES("Particles", "Particle visibility", IconType.PARTICLES),
-    THEMES("Themes", "Customize the Atmosphere+ interface", IconType.THEMES),
+    THEMES("Themes", "Browse and apply interface themes", IconType.THEMES),
+    THEME_STUDIO("Theme Studio", "Create and edit custom themes", IconType.THEMES),
     PRESETS("Presets", "Quick visual moods", IconType.PRESETS),
     PROFILES("Profiles", "Save and load custom atmospheres", IconType.PRESETS),
     ADVANCED("Advanced", "Extra settings and reset tools", IconType.ADVANCED);

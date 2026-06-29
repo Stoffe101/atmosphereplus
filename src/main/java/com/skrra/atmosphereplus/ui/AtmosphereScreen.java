@@ -12,6 +12,7 @@ import com.skrra.atmosphereplus.ui.widgets.ActionButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.AtmosphereWidget;
 import com.skrra.atmosphereplus.ui.widgets.CategoryButton;
 import com.skrra.atmosphereplus.ui.widgets.ChoiceButtonWidget;
+import com.skrra.atmosphereplus.ui.widgets.InfoCardWidget;
 import com.skrra.atmosphereplus.ui.widgets.PresetCardWidget;
 import com.skrra.atmosphereplus.ui.widgets.SectionLabelWidget;
 import com.skrra.atmosphereplus.ui.widgets.SliderWidget;
@@ -260,6 +261,7 @@ private int contentWidgetWidth() {
         case FOG -> finalY = addFogWidgets(contentX, contentY, contentW);
         case PARTICLES -> finalY = addParticlesWidgets(contentX, contentY, contentW);
         case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
+        case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, contentX, contentY, contentW);
         case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
         case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
         case ADVANCED -> finalY = addAdvancedWidgets(contentX, contentY, contentW);
@@ -1036,17 +1038,23 @@ private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
 }
 
     private int addThemeWidgets(int contentX, int contentY, int contentW) {
-        int themeW = (contentW - 10) / 2;
+        int y = contentY;
+        widgets.add(new SectionLabelWidget(contentX, y, contentW, "Built-in Themes", "Browse and apply bundled themes"));
+        y += 30;
+
+        int columns = contentW >= 520 ? 2 : 1;
+        int gap = 10;
+        int themeW = (contentW - gap * (columns - 1)) / columns;
         int index = 0;
 
         for (String themeId : ThemeManager.all().keySet()) {
-            int col = index % 2;
-            int row = index / 2;
-            int x = contentX + col * (themeW + 10);
-            int y = contentY + row * 48;
+            int col = index % columns;
+            int row = index / columns;
+            int x = contentX + col * (themeW + gap);
+            int widgetY = y + row * 48;
             String label = ThemeManager.all().get(themeId).displayName();
 
-            widgets.add(new ToggleWidget(x, y, themeW, label, "Switches the Atmosphere+ interface to the " + label + " theme.", () -> ConfigManager.get().theme.equals(themeId), v -> {
+            widgets.add(new ToggleWidget(x, widgetY, themeW, label, "Switches the Atmosphere+ interface to the " + label + " theme.", () -> ConfigManager.get().theme.equals(themeId), v -> {
                 if (v) {
                     ThemeManager.setTheme(themeId);
                 }
@@ -1055,7 +1063,20 @@ private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
             index++;
         }
 
-        return contentY + ((index + 1) / 2) * 48;
+        y += ((index + columns - 1) / columns) * 48 + 10;
+        widgets.add(new SectionLabelWidget(contentX, y, contentW, "Custom Themes", "Custom theme library"));
+        y += 30;
+        widgets.add(new InfoCardWidget(
+                contentX,
+                y,
+                contentW,
+                62,
+                "No custom themes yet",
+                "Custom theme browsing will appear here after Theme Studio gains editing and persistence support.",
+                IconType.THEMES
+        ));
+
+        return y + 72;
     }
 
 

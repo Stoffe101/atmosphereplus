@@ -1,0 +1,52 @@
+# Atmosphere+ Troubleshooting
+
+## Shaders override the visuals
+
+Iris shader packs may override:
+
+- cloud height
+- star brightness
+- fog appearance
+- sky brightness
+- lightmap/fullbright
+
+Try:
+
+- Advanced → Reset Renderer
+- Advanced → Shader Safe Reset
+- Presets → Sodium/Iris Safe Mode
+
+## Cloud distance is missing
+
+Cloud distance was removed because it caused broken/tiny/local clouds.
+
+Kept renderer features:
+
+- Cloud height
+- Star brightness
+
+## Profile or config feels broken
+
+Delete the config file and restart:
+
+```text
+config/atmosphereplus.json
+```
+
+For Gradle dev runs:
+
+```text
+run/config/atmosphereplus.json
+```
+
+## Mod Menu does not show Atmosphere+
+
+Make sure Mod Menu is installed. For source builds, the Gradle file includes:
+
+```gradle
+modImplementation "com.terraformersmc:modmenu:${project.modmenu_version}"
+```
+
+## Crash on launch after renderer changes
+
+Disable/remove Atmosphere+ and send the crash log. Renderer mixins can be sensitive to Minecraft/Yarn changes.
