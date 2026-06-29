@@ -13,7 +13,9 @@ It lets you change the atmosphere of the game locally without changing the serve
 - Particle amount
 - Cloud mode controls
 - Quick menu
-- Presets
+- Prebuilt Presets
+- My Presets
+- Client-side Biome Atmospheres automation
 - Save/load profiles
 - Profile import/export
 - Responsive UI
@@ -29,7 +31,7 @@ Known useful renderer features:
 - Cloud height
 - Star brightness
 
-Shader packs may override sky/cloud renderer hooks. This is expected with many Iris shader packs.
+Shader packs may override sky/cloud renderer hooks. This is expected with many Iris shader packs. Biome Atmospheres uses the same client-side visual controls, so shader limitations still apply.
 
 ## Recommended companion mods
 
@@ -40,3 +42,4 @@ Shader packs may override sky/cloud renderer hooks. This is expected with many I
 ## Client-side
 
 Atmosphere+ is client-side. It changes what you see, not the server's actual time/weather.
+Biome Atmospheres is also client-side, disabled by default, and applies mapped presets based on detected biome categories.

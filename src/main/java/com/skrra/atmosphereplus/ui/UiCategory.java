@@ -12,6 +12,7 @@ public enum UiCategory {
     THEMES("Themes", "Browse and apply interface themes", IconType.THEMES),
     THEME_STUDIO("Theme Studio", "Create and edit custom themes", IconType.THEMES),
     PRESETS("Presets", "Quick visual moods", IconType.PRESETS),
+    BIOME_ATMOSPHERES("Biome Atmospheres", "Preset automation by biome", IconType.SKY),
     PROFILES("Profiles", "Save and load custom atmospheres", IconType.PRESETS),
     ADVANCED("Advanced", "Extra settings and reset tools", IconType.ADVANCED);
 

@@ -1,5 +1,7 @@
 package com.skrra.atmosphereplus.config;
 
+import com.skrra.atmosphereplus.automation.BiomeAtmosphereConfig;
+import com.skrra.atmosphereplus.automation.BiomeCategory;
 import com.skrra.atmosphereplus.util.NotificationUtil;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -8,9 +10,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Locale;
+import java.util.Map;
 
 public final class ConfigSafety {
-    public static final int LATEST_CONFIG_VERSION = 7;
+    public static final int LATEST_CONFIG_VERSION = 8;
 
     private ConfigSafety() {
     }
@@ -122,9 +125,64 @@ public final class ConfigSafety {
             changed = true;
         }
 
+        if (repairBiomeAtmospheres(config)) {
+            changed = true;
+        }
+
         if (changed) {
             ConfigManager.save();
         }
+    }
+
+    private static boolean repairBiomeAtmospheres(AtmosphereConfig config) {
+        boolean changed = false;
+
+        if (config.biomeAtmospheres == null) {
+            config.biomeAtmospheres = BiomeAtmosphereConfig.defaults();
+            changed = true;
+        }
+
+        if (!isValidTransitionDuration(config.biomeAtmospheres.transitionDurationMs)) {
+            config.biomeAtmospheres.transitionDurationMs = 1000;
+            changed = true;
+        }
+
+        if (config.biomeAtmospheres.lastDetectedCategory == null || !isValidBiomeCategory(config.biomeAtmospheres.lastDetectedCategory, true)) {
+            config.biomeAtmospheres.lastDetectedCategory = "";
+            changed = true;
+        }
+
+        if (config.biomeAtmospheres.lastAppliedCategory == null || !isValidBiomeCategory(config.biomeAtmospheres.lastAppliedCategory, true)) {
+            config.biomeAtmospheres.lastAppliedCategory = "";
+            changed = true;
+        }
+
+        if (config.biomeAtmospheres.lastAppliedPreset == null) {
+            config.biomeAtmospheres.lastAppliedPreset = "";
+            changed = true;
+        }
+
+        Map<String, String> defaults = BiomeAtmosphereConfig.defaultMappings();
+        if (config.biomeAtmospheres.mappings == null) {
+            config.biomeAtmospheres.mappings = defaults;
+            return true;
+        }
+
+        for (BiomeCategory category : BiomeCategory.values()) {
+            if (!config.biomeAtmospheres.mappings.containsKey(category.name())) {
+                config.biomeAtmospheres.mappings.put(category.name(), defaults.getOrDefault(category.name(), ""));
+                changed = true;
+            } else if (config.biomeAtmospheres.mappings.get(category.name()) == null) {
+                config.biomeAtmospheres.mappings.put(category.name(), "");
+                changed = true;
+            }
+        }
+
+        if (config.biomeAtmospheres.mappings.keySet().removeIf(key -> !isValidBiomeCategory(key, false))) {
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static boolean repairProfiles(AtmosphereConfig config) {
@@ -230,10 +288,29 @@ private static boolean isValidCategory(String value) {
     }
 
     return switch (value.toUpperCase(Locale.ROOT)) {
-        case "HOME", "QUICK", "WEATHER", "TIME", "SKY", "FOG", "LIGHTING", "PARTICLES", "THEMES", "PRESETS", "PROFILES", "ADVANCED" -> true;
+        case "HOME", "QUICK", "WEATHER", "TIME", "SKY", "FOG", "LIGHTING", "PARTICLES", "THEMES", "THEME_STUDIO", "PRESETS", "BIOME_ATMOSPHERES", "PROFILES", "ADVANCED" -> true;
         default -> false;
     };
 }
+
+    private static boolean isValidTransitionDuration(int value) {
+        return value == 0 || value == 500 || value == 1000 || value == 2000 || value == 5000;
+    }
+
+    private static boolean isValidBiomeCategory(String value, boolean allowBlank) {
+        if (value == null) {
+            return false;
+        }
+        if (allowBlank && value.isBlank()) {
+            return true;
+        }
+        try {
+            BiomeCategory.valueOf(value.toUpperCase(Locale.ROOT));
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
+    }
 
     private static String sanitizeMode(String value, String fallback, String... allowed) {
         if (value == null) {

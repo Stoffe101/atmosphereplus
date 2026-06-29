@@ -10,6 +10,8 @@ Iris shader packs may override:
 - sky brightness
 - lightmap/fullbright
 
+Biome Atmospheres applies presets through the same visual controls, so shader packs may still override the final look.
+
 Try:
 
 - Advanced → Reset Renderer
@@ -38,6 +40,16 @@ For Gradle dev runs:
 ```text
 run/config/atmosphereplus.json
 ```
+
+## Biome Atmospheres is not changing visuals
+
+Check:
+
+- Biome Atmospheres is enabled.
+- Automation is not paused.
+- The current biome category has a mapped preset.
+- The mapped preset still exists in Prebuilt Presets or My Presets.
+- Shader packs may be overriding the visible result.
 
 ## Mod Menu does not show Atmosphere+
 

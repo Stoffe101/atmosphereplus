@@ -1,5 +1,7 @@
 package com.skrra.atmosphereplus.config;
 
+import com.skrra.atmosphereplus.automation.BiomeAtmosphereConfig;
+
 public class AtmosphereConfig {
     public int configVersion = ConfigSafety.LATEST_CONFIG_VERSION;
 
@@ -51,4 +53,5 @@ public class AtmosphereConfig {
     public boolean favoritePresetCloudsOff = false;
 
     public AtmosphereProfile[] profiles = AtmosphereProfile.defaults();
+    public BiomeAtmosphereConfig biomeAtmospheres = BiomeAtmosphereConfig.defaults();
 }

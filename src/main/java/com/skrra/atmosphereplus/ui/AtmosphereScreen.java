@@ -1,11 +1,17 @@
 package com.skrra.atmosphereplus.ui;
 
+import com.skrra.atmosphereplus.automation.BiomeAtmosphereConfig;
+import com.skrra.atmosphereplus.automation.BiomeAtmosphereManager;
+import com.skrra.atmosphereplus.automation.BiomeCategory;
 import com.skrra.atmosphereplus.client.AtmospherePlusClient;
 import com.skrra.atmosphereplus.compat.CompatibilityUtil;
 import com.skrra.atmosphereplus.config.AtmosphereProfile;
 import com.skrra.atmosphereplus.config.ConfigManager;
 import com.skrra.atmosphereplus.config.ProfileManager;
 import com.skrra.atmosphereplus.keybind.AtmosphereKeybinds;
+import com.skrra.atmosphereplus.presets.CustomPresetData;
+import com.skrra.atmosphereplus.presets.PresetLibraryManager;
+import com.skrra.atmosphereplus.presets.PresetReference;
 import com.skrra.atmosphereplus.themes.CustomThemeData;
 import com.skrra.atmosphereplus.themes.CustomThemeManager;
 import com.skrra.atmosphereplus.themes.Theme;
@@ -46,6 +52,7 @@ public class AtmosphereScreen extends Screen {
     private String renameProfileText = "";
     private int selectedProfileIndex = 0;
     private final ThemeStudioState themeStudioState = new ThemeStudioState();
+    private BiomeCategory biomePresetPickerCategory = null;
 
     private String confirmTitle = "";
     private String confirmMessage = "";
@@ -285,6 +292,7 @@ private int contentWidgetWidth() {
         case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
         case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, themeStudioState, themeStudioActions(), contentX, contentY, contentW);
         case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
+        case BIOME_ATMOSPHERES -> finalY = BiomeAtmospheresPage.addWidgets(widgets, biomeAtmosphereActions(), biomePresetPickerCategory, contentX, contentY, contentW);
         case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
         case ADVANCED -> finalY = addAdvancedWidgets(contentX, contentY, contentW);
         default -> {
@@ -1243,6 +1251,110 @@ private ThemeStudioPage.Actions themeStudioActions() {
     };
 }
 
+private BiomeAtmospheresPage.Actions biomeAtmosphereActions() {
+    return new BiomeAtmospheresPage.Actions() {
+        @Override
+        public void setEnabled(boolean value) {
+            BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+            config.enabled = value;
+            if (value) {
+                config.paused = false;
+            }
+            ConfigManager.save();
+            NotificationUtil.show(value ? "Biome Atmospheres enabled" : "Biome Atmospheres disabled");
+            rebuildWidgets();
+        }
+
+        @Override
+        public void setPaused(boolean value) {
+            ConfigManager.get().biomeAtmospheres.paused = value;
+            ConfigManager.save();
+            NotificationUtil.show(value ? "Biome automation paused" : "Biome automation resumed");
+            rebuildWidgets();
+        }
+
+        @Override
+        public void setManualPause(boolean value) {
+            ConfigManager.get().biomeAtmospheres.manualChangesPause = value;
+            ConfigManager.save();
+            rebuildWidgets();
+        }
+
+        @Override
+        public void cycleTransition() {
+            BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+            config.transitionDurationMs = BiomeAtmosphereManager.nextTransitionDuration(config.transitionDurationMs);
+            ConfigManager.save();
+            rebuildWidgets();
+        }
+
+        @Override
+        public void togglePresetPicker(BiomeCategory category) {
+            biomePresetPickerCategory = category == biomePresetPickerCategory ? null : category;
+            rebuildWidgets();
+        }
+
+        @Override
+        public void selectPreset(BiomeCategory category, String presetId) {
+            setBiomeMapping(category, presetId);
+            biomePresetPickerCategory = null;
+            rebuildWidgets();
+        }
+    };
+}
+
+private void cycleBiomeMapping(BiomeCategory category) {
+    BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+    if (config.mappings == null) {
+        config.mappings = BiomeAtmosphereConfig.defaultMappings();
+    }
+
+    List<PresetReference> refs = PresetLibraryManager.allReferences();
+    String current = config.mappings.getOrDefault(category.name(), "");
+    String next = "";
+
+    if (!refs.isEmpty()) {
+        int index = -1;
+        for (int i = 0; i < refs.size(); i++) {
+            if (refs.get(i).id().equals(current)) {
+                index = i;
+                break;
+            }
+        }
+
+        if (index < refs.size() - 1) {
+            next = refs.get(index + 1).id();
+        }
+    }
+
+    config.mappings.put(category.name(), next);
+    config.lastAppliedCategory = "";
+    ConfigManager.save();
+    rebuildWidgets();
+}
+
+private void openBiomePresetPicker(BiomeCategory category) {
+    selected = UiCategory.BIOME_ATMOSPHERES;
+    ConfigManager.get().lastUiCategory = selected.name();
+    biomePresetPickerCategory = category;
+    searchFocused = false;
+    searchQuery = "";
+    scrollOffset = 0;
+    ConfigManager.save();
+    rebuildWidgets();
+}
+
+private void setBiomeMapping(BiomeCategory category, String presetId) {
+    BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+    if (config.mappings == null) {
+        config.mappings = BiomeAtmosphereConfig.defaultMappings();
+    }
+
+    config.mappings.put(category.name(), presetId == null ? "" : presetId);
+    config.lastAppliedCategory = "";
+    ConfigManager.save();
+}
+
 private void createCustomTheme() {
     if (themeStudioState.dirty()) {
         showConfirmation(
@@ -1461,132 +1573,64 @@ private int addPresetWidgets(int contentX, int contentY, int contentW) {
     int rowH = 64;
     int y = contentY;
 
-    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Cinematic", "New mood presets"));
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Prebuilt Presets", "Read-only bundled atmosphere moods"));
     y += 30;
 
     int index = 0;
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Aurora Night", "Stars and dark sky.", IconType.TIME, this::isAuroraNightActive, () -> {
-        applyAuroraNight();
-        NotificationUtil.show("Applied Aurora Night");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Cinematic Sunset", "Warm sky and clouds.", IconType.SKY, this::isCinematicSunsetActive, () -> {
-        applyCinematicSunset();
-        NotificationUtil.show("Applied Cinematic Sunset");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Low Clouds", "Experimental cloud feel.", IconType.FOG, this::isLowCloudsActive, () -> {
-        applyLowClouds();
-        NotificationUtil.show("Applied Low Clouds");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Misty Morning", "Sunrise and soft fog.", IconType.FOG, this::isMistyMorningActive, () -> {
-        applyMistyMorning();
-        NotificationUtil.show("Applied Misty Morning");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Starlit Night", "Clear night visibility.", IconType.TIME, this::isStarlitNightActive, () -> {
-        applyStarlitNight();
-        NotificationUtil.show("Applied Starlit Night");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Storm Front", "Heavy storm atmosphere.", IconType.WEATHER, this::isStormFrontActive, () -> {
-        applyStormFront();
-        NotificationUtil.show("Applied Storm Front");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Moonlit Fog", "Night with dense fog.", IconType.FOG, this::isMoonlitFogActive, () -> {
-        applyMoonlitFog();
-        NotificationUtil.show("Applied Moonlit Fog");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Screenshot Clear", "Clean sunny setup.", IconType.SKY, this::isScreenshotClearActive, () -> {
-        applyScreenshotClear();
-        NotificationUtil.show("Applied Screenshot Clear");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Shader Friendly", "Safer with Iris shaders.", IconType.ADVANCED, this::isShaderFriendlyActive, () -> {
-        applyShaderFriendly();
-        NotificationUtil.show("Applied Shader Friendly");
-        rebuildWidgets();
-    });
-
-    y += ((index + columns - 1) / columns) * rowH + 10;
-
-    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Classic", "Stable presets"));
-    y += 30;
-    index = 0;
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Golden Hour", "Warm sunny atmosphere.", IconType.SKY, this::isGoldenHourActive, () -> {
-        applyGoldenHour();
-        NotificationUtil.show("Applied Golden Hour");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Midnight Calm", "Clear calm midnight.", IconType.TIME, this::isMidnightCalmActive, () -> {
-        applyMidnightCalm();
-        NotificationUtil.show("Applied Midnight Calm");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Cozy Rain", "Rainy afternoon mood.", IconType.WEATHER, this::isCozyRainActive, () -> {
-        applyCozyRain();
-        NotificationUtil.show("Applied Cozy Rain");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Thunder Night", "Dark stormy night.", IconType.LIGHTING, this::isThunderNightActive, () -> {
-        applyThunderNight();
-        NotificationUtil.show("Applied Thunder Night");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Deep Fog", "Thick screenshot fog.", IconType.FOG, this::isDeepFogActive, () -> {
-        applyDeepFog();
-        NotificationUtil.show("Applied Deep Fog");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Bright Caves", "Fullbright boost.", IconType.LIGHTING, this::isBrightCavesActive, () -> {
-        applyBrightCaves();
-        NotificationUtil.show("Applied Bright Caves");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Performance Clear", "Cleaner gameplay visuals.", IconType.ADVANCED, this::isPerformanceClearActive, () -> {
-        applyPerformanceClear();
-        NotificationUtil.show("Applied Performance Clear");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Soft Mist", "Light calm fog.", IconType.FOG, this::isSoftMistActive, () -> {
-        applySoftMist();
-        NotificationUtil.show("Applied Soft Mist");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Cloudless Clear", "Clear with clouds off.", IconType.SKY, this::isCloudlessClearActive, () -> {
-        applyCloudlessClear();
-        NotificationUtil.show("Applied Cloudless Clear");
-        rebuildWidgets();
-    });
-
-    index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, "Fancy Clouds", "Force fancy clouds.", IconType.SKY, this::isFancyCloudsActive, () -> {
-        applyFancyClouds();
-        NotificationUtil.show("Applied Fancy Clouds");
-        rebuildWidgets();
-    });
+    for (PresetReference preset : PresetLibraryManager.builtIns()) {
+        index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, preset.displayName(), preset.description(), preset.icon(), () -> isPresetActive(preset.id()), () -> applyPresetFromLibrary(preset.id(), preset.displayName()));
+    }
 
     int rows = (index + columns - 1) / columns;
-    return y + rows * rowH;
+    y += rows * rowH + 12;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "My Presets", "Your saved custom atmospheres"));
+    y += 30;
+
+    int actionCols = contentW >= 520 ? 2 : 1;
+    int actionW = (contentW - gap * (actionCols - 1)) / actionCols;
+    widgets.add(new ActionButtonWidget(contentX, y, actionW, "Save Current as Preset", "Create a custom preset from the current atmosphere.", IconType.PRESETS, () -> {
+        CustomPresetData created = PresetLibraryManager.saveCurrentAsPreset();
+        NotificationUtil.show("Saved " + created.displayName);
+        rebuildWidgets();
+    }));
+
+    if (actionCols > 1) {
+        widgets.add(new ActionButtonWidget(contentX + actionW + gap, y, actionW, "Reload Presets", "Reload custom presets from config.", IconType.ADVANCED, () -> {
+            PresetLibraryManager.loadCustomPresets();
+            NotificationUtil.show("Preset library reloaded");
+            rebuildWidgets();
+        }));
+        y += 52;
+    } else {
+        y += 46;
+        widgets.add(new ActionButtonWidget(contentX, y, actionW, "Reload Presets", "Reload custom presets from config.", IconType.ADVANCED, () -> {
+            PresetLibraryManager.loadCustomPresets();
+            NotificationUtil.show("Preset library reloaded");
+            rebuildWidgets();
+        }));
+        y += 52;
+    }
+
+    if (!PresetLibraryManager.hasCustomPresets()) {
+        widgets.add(new InfoCardWidget(
+                contentX,
+                y,
+                contentW,
+                64,
+                "No custom presets yet",
+                "Save your current atmosphere as a preset.",
+                IconType.PRESETS
+        ));
+        return y + 76;
+    }
+
+    index = 0;
+    for (PresetReference preset : PresetLibraryManager.customPresets()) {
+        index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, preset.displayName(), preset.description(), preset.icon(), () -> isPresetActive(preset.id()), () -> applyPresetFromLibrary(preset.id(), preset.displayName()));
+    }
+
+    return y + ((index + columns - 1) / columns) * rowH;
 }
 
 private int addPresetCard(int index, int columns, int contentX, int contentY, int cardW, int gap, int rowH, String title, String description, IconType icon, java.util.function.Supplier<Boolean> activeSupplier, Runnable action) {
@@ -1597,6 +1641,15 @@ private int addPresetCard(int index, int columns, int contentX, int contentY, in
 
     widgets.add(new PresetCardWidget(x, y, cardW, title, description, icon, activeSupplier, action));
     return index + 1;
+}
+
+private void applyPresetFromLibrary(String presetId, String label) {
+    if (PresetLibraryManager.applyPreset(presetId, false)) {
+        NotificationUtil.show("Applied " + label);
+    } else {
+        NotificationUtil.show("Preset unavailable");
+    }
+    rebuildWidgets();
 }
 
 private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
@@ -1612,6 +1665,9 @@ private int addSearchResultWidgets(int contentX, int contentY, int contentW) {
     for (UiCategory category : UiCategory.values()) {
         y = addSearchCategoryJump(y, contentX, contentW, category);
     }
+
+    y = addSearchPresetLibraryEntries(y, contentX, contentW);
+    y = addSearchBiomeAtmosphereEntries(y, contentX, contentW);
 
 
 y = addSearchAction(y, contentX, contentW, "Compatibility · Status", "compatibility sodium iris mod menu shaders status", "Compatibility Status", "Show detected compatibility status.", IconType.ADVANCED, () -> {
@@ -1916,12 +1972,14 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
 
 
     private void setActivePreset(String presetId) {
+        BiomeAtmosphereManager.onManualAtmosphereChange();
         ConfigManager.get().cloudDistanceOverride = false; // alpha 17 preset safety
         ConfigManager.get().cloudDistance = 12;
         ConfigManager.get().activePreset = presetId;
     }
 
     private void clearActivePreset() {
+        BiomeAtmosphereManager.onManualAtmosphereChange();
         ConfigManager.get().activePreset = "";
     }
 
@@ -2617,7 +2675,70 @@ private boolean isRendererTestActive() {
         }));
         searchResultCount++;
         return y + 52;
-    }
+}
+
+
+private int addSearchPresetLibraryEntries(int y, int x, int width) {
+    y = addSearchAction(y, x, width, "Prebuilt Presets", "prebuilt presets bundled read only apply", "Prebuilt Presets", "Open the read-only bundled preset library.", IconType.PRESETS, () -> {
+        selectCategory(UiCategory.PRESETS);
+        scrollOffset = 0;
+    });
+
+    y = addSearchAction(y, x, width, "My Presets", "my presets custom saved user preset library", "My Presets", "Open your saved custom presets.", IconType.PRESETS, () -> {
+        selectCategory(UiCategory.PRESETS);
+        scrollOffset = 0;
+    });
+
+    return y;
+}
+
+private int addSearchBiomeAtmosphereEntries(int y, int x, int width) {
+    BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+
+    y = addSearchAction(y, x, width, "Biome Atmospheres", "biome atmospheres automation presets category", "Biome Atmospheres", "Open biome-based preset automation.", IconType.SKY, () -> {
+        selectCategory(UiCategory.BIOME_ATMOSPHERES);
+        scrollOffset = 0;
+    });
+
+    y = addSearchAction(y, x, width, "Enable Biome Atmospheres", "enable biome atmospheres automation on toggle", config.enabled ? "Disable Biome Atmospheres" : "Enable Biome Atmospheres", "Toggle biome-based preset automation.", IconType.SKY, () -> {
+        config.enabled = !config.enabled;
+        if (config.enabled) {
+            config.paused = false;
+        }
+        ConfigManager.save();
+    });
+
+    y = addSearchAction(y, x, width, config.paused ? "Resume automation" : "Pause automation", "pause resume biome automation", config.paused ? "Resume Automation" : "Pause Automation", "Pause or resume biome preset automation.", IconType.SKY, () -> {
+        config.paused = !config.paused;
+        ConfigManager.save();
+    });
+
+    y = addSearchAction(y, x, width, "Manual changes pause automation", "manual changes pause biome automation toggle", config.manualChangesPause ? "Manual Pause: On" : "Manual Pause: Off", "Toggle pausing automation after manual edits.", IconType.ADVANCED, () -> {
+        config.manualChangesPause = !config.manualChangesPause;
+        ConfigManager.save();
+    });
+
+    y = addSearchAction(y, x, width, "Transition duration", "transition duration instant 0.5 1 2 5 seconds biome", "Transition: " + BiomeAtmosphereManager.transitionLabel(config.transitionDurationMs), "Cycle stored transition duration.", IconType.TIME, () -> {
+        config.transitionDurationMs = BiomeAtmosphereManager.nextTransitionDuration(config.transitionDurationMs);
+        ConfigManager.save();
+    });
+
+    y = addSearchBiomeMapping(y, x, width, BiomeCategory.PLAINS, "Plains preset default overworld golden hour");
+    y = addSearchBiomeMapping(y, x, width, BiomeCategory.DESERT, "Desert preset warm desert");
+    y = addSearchBiomeMapping(y, x, width, BiomeCategory.SNOW, "Snow preset cold blue");
+    y = addSearchBiomeMapping(y, x, width, BiomeCategory.NETHER, "Nether preset dark crimson");
+    y = addSearchBiomeMapping(y, x, width, BiomeCategory.END, "End preset void purple");
+
+    return y;
+}
+
+private int addSearchBiomeMapping(int y, int x, int width, BiomeCategory category, String keywords) {
+    BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+    String presetId = config.mappings == null ? "" : config.mappings.getOrDefault(category.name(), "");
+    PresetReference preset = PresetLibraryManager.reference(presetId);
+    String selectedPreset = preset == null ? "None" : preset.displayName();
+    return addSearchAction(y, x, width, category.label() + " preset", keywords + " biome mapping category", category.label() + ": " + selectedPreset, "Open the preset picker for this biome category.", IconType.PRESETS, () -> openBiomePresetPicker(category));
+}
 
 
 private int addSearchProfiles(int y, int x, int width) {

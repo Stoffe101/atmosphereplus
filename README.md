@@ -2,7 +2,7 @@
 
 **Atmosphere+** is a client-side Fabric visual control suite for Minecraft.
 
-It changes what *you* see: weather, time, fog, lighting, particles, clouds, profiles, presets, and a few renderer controls that work best without shader packs.
+It changes what *you* see: weather, time, fog, lighting, particles, clouds, profiles, presets, biome-based preset automation, and a few renderer controls that work best without shader packs.
 
 ## Target
 
@@ -38,11 +38,24 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 ### Presets and profiles
 
 - Quick menu
+- Prebuilt Presets
+- My Presets
 - Cinematic presets
 - Safe mode presets
+- Optional Biome Atmospheres automation
 - Save/load profiles
 - Rename profiles
 - Import/export profiles
+
+### Biome Atmospheres
+
+- Client-side biome category detection
+- Optional preset automation by biome
+- Disabled by default
+- Default mappings for plains, desert, snow, Nether, and End atmospheres
+- Uses both Prebuilt Presets and My Presets
+
+Biome Atmospheres does not require server installation. It applies mapped presets only when the detected biome category changes.
 
 ### Compatibility tools
 
@@ -93,7 +106,7 @@ Then:
 
 ### Visuals look weird with shaders
 
-Shader packs may override sky/cloud/fog/lightmap rendering.
+Shader packs may override sky/cloud/fog/lightmap rendering. Biome Atmospheres uses the same client-side visual controls, so shader limitations still apply.
 
 Try:
 
