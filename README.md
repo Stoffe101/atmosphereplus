@@ -57,6 +57,8 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - Smooth, interruptible atmosphere transitions
 - Transition speed controls: Instant, Fast, Normal, Slow
 - Minimum biome dwell time to avoid rapid border switching
+- Transition status feedback while automation is moving toward a preset
+- Favorite presets for quick access
 
 Biome Atmospheres does not require server installation. It applies mapped presets only when the detected biome category changes.
 
@@ -65,6 +67,7 @@ Biome Atmospheres does not require server installation. It applies mapped preset
 - Reusable transition system for presets and automation
 - Smooth ease-in-out interpolation for numeric atmosphere values
 - Interruptible transitions that continue from the current interpolated state
+- Shortest-path visual time interpolation across midnight
 - Built for Biome Atmospheres now and future timeline/weather automation later
 
 ### Compatibility tools

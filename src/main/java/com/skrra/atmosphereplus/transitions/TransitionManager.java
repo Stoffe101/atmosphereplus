@@ -22,6 +22,10 @@ public final class TransitionManager {
         return transitionTo(targetPresetId, TransitionSpeed.NORMAL);
     }
 
+    public static boolean applyInstant(String targetPresetId) {
+        return transitionTo(targetPresetId, TransitionSpeed.INSTANT);
+    }
+
     public static boolean transitionTo(String targetPresetId, TransitionSpeed speed) {
         AtmosphereProfile target = PresetLibraryManager.snapshotForPreset(targetPresetId);
         if (target == null) {
@@ -58,6 +62,17 @@ public final class TransitionManager {
 
     public static boolean isTransitioning() {
         return state != null;
+    }
+
+    public static String targetPresetId() {
+        return state == null ? "" : state.targetPresetId();
+    }
+
+    public static int progressPercent() {
+        if (state == null) {
+            return 100;
+        }
+        return Math.round(state.progress() * 100.0f);
     }
 
     public static void update() {

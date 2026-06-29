@@ -1,5 +1,20 @@
 # Atmosphere+ Changelog
 
+## 0.3.0-beta.4
+
+### Added
+
+- Transition status feedback in Biome Atmospheres.
+- Favorite presets for both Prebuilt Presets and My Presets.
+- Favorite Presets section on the Presets page and in preset pickers.
+- Profile loading options: Apply Instantly and Transition To Profile.
+
+### Changed
+
+- Visual time transitions now wrap the shortest direction across midnight.
+- Preset picker ordering is now Favorites, My Presets, then Prebuilt Presets.
+- Preset rows now use separate star buttons so favoriting does not apply a preset.
+
 ## 0.3.0-beta.3
 
 ### Added

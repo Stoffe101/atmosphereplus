@@ -2,6 +2,10 @@ package com.skrra.atmosphereplus.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.skrra.atmosphereplus.automation.BiomeAtmosphereManager;
+import com.skrra.atmosphereplus.transitions.TransitionManager;
+import com.skrra.atmosphereplus.transitions.TransitionRequest;
+import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import com.skrra.atmosphereplus.util.NotificationUtil;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -47,10 +51,27 @@ public final class ProfileManager {
             return;
         }
 
+        BiomeAtmosphereManager.onManualAtmosphereChange();
+        TransitionManager.cancelTransition();
         profile.applyTo(ConfigManager.get());
         ConfigManager.get().activePreset = "profile_" + index;
         ConfigManager.save();
         NotificationUtil.show("Loaded " + profile.name);
+    }
+
+    public static void transitionTo(int index) {
+        AtmosphereProfile profile = profile(index);
+        if (!profile.saved) {
+            NotificationUtil.show(profile.name + " is empty");
+            return;
+        }
+
+        BiomeAtmosphereManager.onManualAtmosphereChange();
+        if (TransitionManager.transitionTo(new TransitionRequest("profile_" + index, AtmosphereProfile.copyOf(profile), TransitionSpeed.NORMAL))) {
+            ConfigManager.get().lastQuickProfile = index;
+            ConfigManager.save();
+            NotificationUtil.show("Transitioning to " + profile.name);
+        }
     }
 
     public static void rename(int index, String newName) {

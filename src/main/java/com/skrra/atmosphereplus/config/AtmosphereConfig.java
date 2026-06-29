@@ -2,6 +2,9 @@ package com.skrra.atmosphereplus.config;
 
 import com.skrra.atmosphereplus.automation.BiomeAtmosphereConfig;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class AtmosphereConfig {
     public int configVersion = ConfigSafety.LATEST_CONFIG_VERSION;
 
@@ -54,4 +57,5 @@ public class AtmosphereConfig {
 
     public AtmosphereProfile[] profiles = AtmosphereProfile.defaults();
     public BiomeAtmosphereConfig biomeAtmospheres = BiomeAtmosphereConfig.defaults();
+    public List<String> favoritePresetIds = new ArrayList<>();
 }

@@ -24,6 +24,7 @@ import com.skrra.atmosphereplus.ui.widgets.CategoryButton;
 import com.skrra.atmosphereplus.ui.widgets.ChoiceButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.InfoCardWidget;
 import com.skrra.atmosphereplus.ui.widgets.PresetCardWidget;
+import com.skrra.atmosphereplus.ui.widgets.PresetRowWidget;
 import com.skrra.atmosphereplus.ui.widgets.SectionLabelWidget;
 import com.skrra.atmosphereplus.ui.widgets.SliderWidget;
 import com.skrra.atmosphereplus.ui.widgets.TimePresetButtonWidget;
@@ -350,35 +351,19 @@ private String quickProfileDescription(int slot) {
 }
 
 private boolean isPresetFavorite(String presetId) {
-    return switch (presetId) {
-        case "golden_hour" -> ConfigManager.get().favoritePresetGoldenHour;
-        case "midnight" -> ConfigManager.get().favoritePresetMidnight;
-        case "cozy_rain" -> ConfigManager.get().favoritePresetCozyRain;
-        case "deep_fog" -> ConfigManager.get().favoritePresetDeepFog;
-        case "bright_caves" -> ConfigManager.get().favoritePresetBrightCaves;
-        case "clouds_off" -> ConfigManager.get().favoritePresetCloudsOff;
-        default -> false;
-    };
+    return PresetLibraryManager.isFavorite(presetId);
 }
 
 private void setPresetFavorite(String presetId, boolean value) {
-    switch (presetId) {
-        case "golden_hour" -> ConfigManager.get().favoritePresetGoldenHour = value;
-        case "midnight" -> ConfigManager.get().favoritePresetMidnight = value;
-        case "cozy_rain" -> ConfigManager.get().favoritePresetCozyRain = value;
-        case "deep_fog" -> ConfigManager.get().favoritePresetDeepFog = value;
-        case "bright_caves" -> ConfigManager.get().favoritePresetBrightCaves = value;
-        case "clouds_off" -> ConfigManager.get().favoritePresetCloudsOff = value;
-        default -> {
-        }
+    boolean current = PresetLibraryManager.isFavorite(presetId);
+    if (current != value) {
+        PresetLibraryManager.toggleFavorite(presetId);
     }
-    ConfigManager.save();
 }
 
 private void togglePresetFavorite(String presetId, String label) {
-    boolean newValue = !isPresetFavorite(presetId);
-    setPresetFavorite(presetId, newValue);
-    NotificationUtil.toggled(label + " favorite", newValue);
+    PresetLibraryManager.toggleFavorite(presetId);
+    NotificationUtil.toggled(label + " favorite", PresetLibraryManager.isFavorite(presetId));
     rebuildWidgets();
 }
 
@@ -837,19 +822,29 @@ private int addProfilesWidgets(int contentX, int contentY, int contentW) {
     int halfW = (rightW - 10) / 2;
     int actionY = y + 86;
 
-    widgets.add(new ActionButtonWidget(rightX, actionY, halfW, "Load", selectedProfile.saved ? "Load this saved atmosphere profile." : "This slot is empty. Save it first.", IconType.PRESETS, () -> {
+    widgets.add(new ActionButtonWidget(rightX, actionY, halfW, "Apply Instantly", selectedProfile.saved ? "Apply this profile without a transition." : "This slot is empty. Save it first.", IconType.PRESETS, () -> {
         if (ProfileManager.profile(selectedProfileIndex).saved) {
             ProfileManager.load(selectedProfileIndex);
             ConfigManager.get().lastQuickProfile = selectedProfileIndex;
             ConfigManager.save();
-            NotificationUtil.applied(quickProfileLabel(selectedProfileIndex));
         } else {
             NotificationUtil.show("Profile " + (selectedProfileIndex + 1) + " is empty");
         }
         rebuildWidgets();
     }));
 
-    widgets.add(new ActionButtonWidget(rightX + halfW + 10, actionY, halfW, "Save Current", "Overwrite this slot with your current Atmosphere+ settings.", IconType.PRESETS, () -> {
+    widgets.add(new ActionButtonWidget(rightX + halfW + 10, actionY, halfW, "Transition To Profile", selectedProfile.saved ? "Smoothly transition to this saved atmosphere profile." : "This slot is empty. Save it first.", IconType.SKY, () -> {
+        if (ProfileManager.profile(selectedProfileIndex).saved) {
+            ProfileManager.transitionTo(selectedProfileIndex);
+        } else {
+            NotificationUtil.show("Profile " + (selectedProfileIndex + 1) + " is empty");
+        }
+        rebuildWidgets();
+    }));
+
+    actionY += 46;
+
+    widgets.add(new ActionButtonWidget(rightX, actionY, halfW, "Save Current", "Overwrite this slot with your current Atmosphere+ settings.", IconType.PRESETS, () -> {
         ProfileManager.saveCurrentTo(selectedProfileIndex);
         ConfigManager.get().lastQuickProfile = selectedProfileIndex;
         ConfigManager.save();
@@ -1310,6 +1305,12 @@ private BiomeAtmospheresPage.Actions biomeAtmosphereActions() {
             biomePresetPickerCategory = null;
             rebuildWidgets();
         }
+
+        @Override
+        public void toggleFavorite(String presetId) {
+            PresetLibraryManager.toggleFavorite(presetId);
+            rebuildWidgets();
+        }
     };
 }
 
@@ -1578,24 +1579,28 @@ private int presetCardWidth(int contentW, int columns, int gap) {
 
 private int addPresetWidgets(int contentX, int contentY, int contentW) {
     int gap = 10;
-    int columns = presetGridColumns(contentW);
-    int cardW = presetCardWidth(contentW, columns, gap);
-    int rowH = 64;
+    int columns = contentW >= 760 ? 2 : 1;
+    int rowW = (contentW - gap * (columns - 1)) / columns;
     int y = contentY;
 
-    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Prebuilt Presets", "Read-only bundled atmosphere moods"));
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Favorite Presets", "Your starred presets"));
     y += 30;
-
-    int index = 0;
-    for (PresetReference preset : PresetLibraryManager.builtIns()) {
-        index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, preset.displayName(), preset.description(), preset.icon(), () -> isPresetActive(preset.id()), () -> applyPresetFromLibrary(preset.id(), preset.displayName()));
+    List<PresetReference> favorites = PresetLibraryManager.favorites();
+    if (favorites.isEmpty()) {
+        widgets.add(new InfoCardWidget(
+                contentX,
+                y,
+                contentW,
+                56,
+                "No favorite presets yet",
+                "Use the star button beside a preset to add it here.",
+                IconType.PRESETS
+        ));
+        y += 68;
+    } else {
+        y = addPresetRows(favorites, columns, contentX, y, rowW, gap);
+        y += 12;
     }
-
-    int rows = (index + columns - 1) / columns;
-    y += rows * rowH + 12;
-
-    widgets.add(new SectionLabelWidget(contentX, y, contentW, "My Presets", "Your saved custom atmospheres"));
-    y += 30;
 
     int actionCols = contentW >= 520 ? 2 : 1;
     int actionW = (contentW - gap * (actionCols - 1)) / actionCols;
@@ -1622,6 +1627,10 @@ private int addPresetWidgets(int contentX, int contentY, int contentW) {
         y += 52;
     }
 
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "My Presets", "Your saved custom atmospheres"));
+    y += 30;
+
+    List<PresetReference> custom = nonFavorite(PresetLibraryManager.customPresetsSorted());
     if (!PresetLibraryManager.hasCustomPresets()) {
         widgets.add(new InfoCardWidget(
                 contentX,
@@ -1632,15 +1641,55 @@ private int addPresetWidgets(int contentX, int contentY, int contentW) {
                 "Save your current atmosphere as a preset.",
                 IconType.PRESETS
         ));
-        return y + 76;
+        y += 76;
+    } else if (!custom.isEmpty()) {
+        y = addPresetRows(custom, columns, contentX, y, rowW, gap);
+        y += 12;
     }
 
-    index = 0;
-    for (PresetReference preset : PresetLibraryManager.customPresets()) {
-        index = addPresetCard(index, columns, contentX, y, cardW, gap, rowH, preset.displayName(), preset.description(), preset.icon(), () -> isPresetActive(preset.id()), () -> applyPresetFromLibrary(preset.id(), preset.displayName()));
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Prebuilt Presets", "Read-only bundled atmosphere moods"));
+    y += 30;
+    List<PresetReference> builtIns = nonFavorite(PresetLibraryManager.builtInsSorted());
+    if (!builtIns.isEmpty()) {
+        y = addPresetRows(builtIns, columns, contentX, y, rowW, gap);
     }
 
-    return y + ((index + columns - 1) / columns) * rowH;
+    return y;
+}
+
+private List<PresetReference> nonFavorite(List<PresetReference> presets) {
+    List<PresetReference> result = new ArrayList<>();
+    for (PresetReference preset : presets) {
+        if (!PresetLibraryManager.isFavorite(preset.id())) {
+            result.add(preset);
+        }
+    }
+    return result;
+}
+
+private int addPresetRows(List<PresetReference> presets, int columns, int contentX, int contentY, int rowW, int gap) {
+    int index = 0;
+    int rowH = 48;
+    for (PresetReference preset : presets) {
+        int col = index % columns;
+        int row = index / columns;
+        int x = contentX + col * (rowW + gap);
+        int y = contentY + row * rowH;
+        widgets.add(new PresetRowWidget(
+                x,
+                y,
+                rowW,
+                preset.displayName(),
+                preset.description(),
+                preset.icon(),
+                () -> isPresetActive(preset.id()),
+                () -> PresetLibraryManager.isFavorite(preset.id()),
+                () -> applyPresetFromLibrary(preset.id(), preset.displayName()),
+                () -> togglePresetFavorite(preset.id(), preset.displayName())
+        ));
+        index++;
+    }
+    return contentY + ((index + columns - 1) / columns) * rowH;
 }
 
 private int addPresetCard(int index, int columns, int contentX, int contentY, int cardW, int gap, int rowH, String title, String description, IconType icon, java.util.function.Supplier<Boolean> activeSupplier, Runnable action) {

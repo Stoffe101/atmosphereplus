@@ -15,7 +15,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -36,6 +38,7 @@ public final class PresetLibraryManager {
     public static void init() {
         registerBuiltIns();
         loadCustomPresets();
+        cleanFavoritePresetIds();
     }
 
     public static Collection<PresetReference> builtIns() {
@@ -59,6 +62,54 @@ public final class PresetLibraryManager {
         refs.addAll(builtIns());
         refs.addAll(customPresets());
         return refs;
+    }
+
+    public static List<PresetReference> favorites() {
+        List<PresetReference> refs = new ArrayList<>();
+        cleanFavoritePresetIds();
+        for (String id : ConfigManager.get().favoritePresetIds) {
+            PresetReference ref = reference(id);
+            if (ref != null) {
+                refs.add(ref);
+            }
+        }
+        refs.sort(Comparator.comparing(PresetReference::displayName, String.CASE_INSENSITIVE_ORDER));
+        return refs;
+    }
+
+    public static List<PresetReference> customPresetsSorted() {
+        List<PresetReference> refs = new ArrayList<>(customPresets());
+        refs.sort(Comparator.comparing(PresetReference::displayName, String.CASE_INSENSITIVE_ORDER));
+        return refs;
+    }
+
+    public static List<PresetReference> builtInsSorted() {
+        List<PresetReference> refs = new ArrayList<>(builtIns());
+        refs.sort(Comparator.comparing(PresetReference::displayName, String.CASE_INSENSITIVE_ORDER));
+        return refs;
+    }
+
+    public static boolean isFavorite(String id) {
+        return id != null && ConfigManager.get().favoritePresetIds != null && ConfigManager.get().favoritePresetIds.contains(id);
+    }
+
+    public static void toggleFavorite(String id) {
+        if (id == null || id.isBlank() || reference(id) == null) {
+            return;
+        }
+
+        if (ConfigManager.get().favoritePresetIds == null) {
+            ConfigManager.get().favoritePresetIds = new ArrayList<>();
+        }
+
+        if (ConfigManager.get().favoritePresetIds.contains(id)) {
+            ConfigManager.get().favoritePresetIds.remove(id);
+        } else {
+            ConfigManager.get().favoritePresetIds.add(id);
+        }
+
+        cleanFavoritePresetIds();
+        ConfigManager.save();
     }
 
     public static PresetReference reference(String id) {
@@ -245,6 +296,24 @@ public final class PresetLibraryManager {
             file.presets = new ArrayList<>(CUSTOM_PRESETS.values());
             Files.writeString(CUSTOM_PRESETS_PATH, GSON.toJson(file));
         } catch (IOException ignored) {
+        }
+    }
+
+    public static void cleanFavoritePresetIds() {
+        if (ConfigManager.get().favoritePresetIds == null) {
+            ConfigManager.get().favoritePresetIds = new ArrayList<>();
+        }
+
+        LinkedHashSet<String> cleaned = new LinkedHashSet<>();
+        for (String id : ConfigManager.get().favoritePresetIds) {
+            if (id != null && reference(id) != null) {
+                cleaned.add(id);
+            }
+        }
+
+        if (!ConfigManager.get().favoritePresetIds.equals(new ArrayList<>(cleaned))) {
+            ConfigManager.get().favoritePresetIds = new ArrayList<>(cleaned);
+            ConfigManager.save();
         }
     }
 

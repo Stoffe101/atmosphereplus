@@ -6,14 +6,17 @@ import com.skrra.atmosphereplus.automation.BiomeCategory;
 import com.skrra.atmosphereplus.config.ConfigManager;
 import com.skrra.atmosphereplus.presets.PresetLibraryManager;
 import com.skrra.atmosphereplus.presets.PresetReference;
+import com.skrra.atmosphereplus.transitions.TransitionManager;
 import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import com.skrra.atmosphereplus.ui.widgets.AtmosphereWidget;
 import com.skrra.atmosphereplus.ui.widgets.BiomeMappingRowWidget;
 import com.skrra.atmosphereplus.ui.widgets.ChoiceButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.InfoCardWidget;
+import com.skrra.atmosphereplus.ui.widgets.PresetRowWidget;
 import com.skrra.atmosphereplus.ui.widgets.SectionLabelWidget;
 import com.skrra.atmosphereplus.ui.widgets.ToggleWidget;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public final class BiomeAtmospheresPage {
@@ -34,6 +37,8 @@ public final class BiomeAtmospheresPage {
         void togglePresetPicker(BiomeCategory category);
 
         void selectPreset(BiomeCategory category, String presetId);
+
+        void toggleFavorite(String presetId);
     }
 
     public static int addWidgets(List<AtmosphereWidget> widgets, Actions actions, BiomeCategory pickerCategory, int contentX, int contentY, int contentW) {
@@ -110,13 +115,17 @@ public final class BiomeAtmospheresPage {
 
         PresetReference last = PresetLibraryManager.reference(config.lastAppliedPreset);
         String lastPreset = last == null ? "None" : last.displayName();
+        PresetReference transitionTarget = PresetLibraryManager.reference(TransitionManager.targetPresetId());
+        String status = TransitionManager.isTransitioning()
+                ? "Transitioning to " + (transitionTarget == null ? "preset" : transitionTarget.displayName()) + " · " + TransitionManager.progressPercent() + "%"
+                : "Last applied preset: " + lastPreset;
         widgets.add(new InfoCardWidget(
                 x,
                 y,
                 width,
                 68,
                 "Biome: " + BiomeAtmosphereManager.currentCategoryLabel(),
-                "Last applied preset: " + lastPreset,
+                status,
                 IconType.PRESETS
         ));
 
@@ -195,20 +204,12 @@ public final class BiomeAtmospheresPage {
         ));
         y += 42;
 
-        widgets.add(new SectionLabelWidget(x, y, width, "Prebuilt Presets", "Read-only"));
-        y += 28;
-        for (PresetReference preset : PresetLibraryManager.builtIns()) {
-            widgets.add(new ChoiceButtonWidget(
-                    x,
-                    y,
-                    width,
-                    preset.displayName(),
-                    preset.description(),
-                    preset.icon(),
-                    () -> preset.id().equals(selectedPresetId),
-                    () -> actions.selectPreset(category, preset.id())
-            ));
-            y += 42;
+        List<PresetReference> favorites = PresetLibraryManager.favorites();
+        if (!favorites.isEmpty()) {
+            widgets.add(new SectionLabelWidget(x, y, width, "Favorite Presets", "Starred"));
+            y += 28;
+            y = addPickerRows(widgets, actions, category, selectedPresetId, favorites, x, y, width);
+            y += 6;
         }
 
         widgets.add(new SectionLabelWidget(x, y, width, "My Presets", "Saved custom presets"));
@@ -225,22 +226,47 @@ public final class BiomeAtmospheresPage {
             ));
             y += 58;
         } else {
-            for (PresetReference preset : PresetLibraryManager.customPresets()) {
-                widgets.add(new ChoiceButtonWidget(
-                        x,
-                        y,
-                        width,
-                        preset.displayName(),
-                        preset.description(),
-                        preset.icon(),
-                        () -> preset.id().equals(selectedPresetId),
-                        () -> actions.selectPreset(category, preset.id())
-                ));
-                y += 42;
+            List<PresetReference> custom = nonFavorite(PresetLibraryManager.customPresetsSorted());
+            if (!custom.isEmpty()) {
+                y = addPickerRows(widgets, actions, category, selectedPresetId, custom, x, y, width);
+                y += 6;
             }
         }
 
+        widgets.add(new SectionLabelWidget(x, y, width, "Prebuilt Presets", "Read-only"));
+        y += 28;
+        y = addPickerRows(widgets, actions, category, selectedPresetId, nonFavorite(PresetLibraryManager.builtInsSorted()), x, y, width);
+
         return y;
+    }
+
+    private static int addPickerRows(List<AtmosphereWidget> widgets, Actions actions, BiomeCategory category, String selectedPresetId, List<PresetReference> presets, int x, int y, int width) {
+        for (PresetReference preset : presets) {
+            widgets.add(new PresetRowWidget(
+                    x,
+                    y,
+                    width,
+                    preset.displayName(),
+                    preset.description(),
+                    preset.icon(),
+                    () -> preset.id().equals(selectedPresetId),
+                    () -> PresetLibraryManager.isFavorite(preset.id()),
+                    () -> actions.selectPreset(category, preset.id()),
+                    () -> actions.toggleFavorite(preset.id())
+            ));
+            y += 44;
+        }
+        return y;
+    }
+
+    private static List<PresetReference> nonFavorite(List<PresetReference> presets) {
+        List<PresetReference> result = new ArrayList<>();
+        for (PresetReference preset : presets) {
+            if (!PresetLibraryManager.isFavorite(preset.id())) {
+                result.add(preset);
+            }
+        }
+        return result;
     }
 
     private static IconType iconForCategory(BiomeCategory category) {

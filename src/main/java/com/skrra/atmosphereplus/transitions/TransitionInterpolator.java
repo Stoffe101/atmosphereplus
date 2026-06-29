@@ -21,7 +21,7 @@ public final class TransitionInterpolator {
         config.thunderSounds = target.thunderSounds || (!endBooleans && start.thunderSounds);
 
         config.timeOverride = target.timeOverride || (!endBooleans && start.timeOverride);
-        config.visualTime = Math.round(lerp(start.visualTime, target.visualTime, easedProgress));
+        config.visualTime = interpolateMinecraftTime(start.visualTime, target.visualTime, easedProgress);
         config.freezeVisualTime = target.freezeVisualTime || (!endBooleans && start.freezeVisualTime);
 
         config.fullbright = target.fullbright || (!endBooleans && start.fullbright);
@@ -53,5 +53,19 @@ public final class TransitionInterpolator {
 
     private static float lerp(float start, float target, float progress) {
         return start + (target - start) * progress;
+    }
+
+    private static int interpolateMinecraftTime(int start, int target, float progress) {
+        int normalizedStart = Math.floorMod(start, 24000);
+        int normalizedTarget = Math.floorMod(target, 24000);
+        int delta = normalizedTarget - normalizedStart;
+
+        if (delta > 12000) {
+            delta -= 24000;
+        } else if (delta < -12000) {
+            delta += 24000;
+        }
+
+        return Math.floorMod(Math.round(normalizedStart + delta * progress), 24000);
     }
 }

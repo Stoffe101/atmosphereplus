@@ -12,9 +12,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 
 public final class ConfigSafety {
-    public static final int LATEST_CONFIG_VERSION = 9;
+    public static final int LATEST_CONFIG_VERSION = 10;
 
     private ConfigSafety() {
     }
@@ -130,9 +132,36 @@ public final class ConfigSafety {
             changed = true;
         }
 
+        if (repairFavoritePresets(config)) {
+            changed = true;
+        }
+
         if (changed) {
             ConfigManager.save();
         }
+    }
+
+    private static boolean repairFavoritePresets(AtmosphereConfig config) {
+        boolean changed = false;
+
+        if (config.favoritePresetIds == null) {
+            config.favoritePresetIds = new ArrayList<>();
+            changed = true;
+        }
+
+        LinkedHashSet<String> cleaned = new LinkedHashSet<>();
+        for (String id : config.favoritePresetIds) {
+            if (id != null && !id.isBlank()) {
+                cleaned.add(id.trim());
+            }
+        }
+
+        if (cleaned.size() != config.favoritePresetIds.size() || !config.favoritePresetIds.equals(new ArrayList<>(cleaned))) {
+            config.favoritePresetIds = new ArrayList<>(cleaned);
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static boolean repairBiomeAtmospheres(AtmosphereConfig config) {
