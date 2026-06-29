@@ -6,6 +6,8 @@ import com.skrra.atmosphereplus.config.AtmosphereProfile;
 import com.skrra.atmosphereplus.config.ConfigManager;
 import com.skrra.atmosphereplus.config.ProfileManager;
 import com.skrra.atmosphereplus.keybind.AtmosphereKeybinds;
+import com.skrra.atmosphereplus.themes.CustomThemeData;
+import com.skrra.atmosphereplus.themes.CustomThemeManager;
 import com.skrra.atmosphereplus.themes.Theme;
 import com.skrra.atmosphereplus.themes.ThemeManager;
 import com.skrra.atmosphereplus.ui.widgets.ActionButtonWidget;
@@ -40,8 +42,10 @@ public class AtmosphereScreen extends Screen {
     private String searchQuery = "";
     private boolean searchFocused = false;
     private int renamingProfileIndex = -1;
+    private String renamingThemeId = "";
     private String renameProfileText = "";
     private int selectedProfileIndex = 0;
+    private final ThemeStudioState themeStudioState = new ThemeStudioState();
 
     private String confirmTitle = "";
     private String confirmMessage = "";
@@ -186,12 +190,16 @@ private int contentPadding() {
     return layout().contentPadding();
 }
 
+private int contentScrollbarReserve() {
+    return 10;
+}
+
 private int contentWidgetLeft() {
     return contentLeft() + contentPadding();
 }
 
 private int contentWidgetWidth() {
-    return Math.max(100, contentWidth() - contentPadding() * 2);
+    return Math.max(100, contentWidth() - contentPadding() * 2 - contentScrollbarReserve());
 }
 
 
@@ -210,7 +218,7 @@ private int contentWidgetWidth() {
     windowH = Math.max(1, layoutProfile.maxWindowHeight());
     windowX = (width - windowW) / 2;
     windowY = (height - windowH) / 2;
-    contentBottom = windowY + windowH - layout().outerMargin();
+    contentBottom = windowY + windowH - layout().outerMargin() - contentPadding();
 
     searchW = Math.min(260, Math.max(120, windowW / 3));
     searchH = 20;
@@ -261,7 +269,7 @@ private int contentWidgetWidth() {
         case FOG -> finalY = addFogWidgets(contentX, contentY, contentW);
         case PARTICLES -> finalY = addParticlesWidgets(contentX, contentY, contentW);
         case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
-        case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, contentX, contentY, contentW);
+        case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, themeStudioState, themeStudioActions(), contentX, contentY, contentW);
         case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
         case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
         case ADVANCED -> finalY = addAdvancedWidgets(contentX, contentY, contentW);
@@ -540,32 +548,40 @@ private int addWeatherWidgets(int contentX, int contentY, int contentW) {
         rebuildWidgets();
     }));
 
-    int modeW = (contentW - 20) / 3;
-    int row1Y = contentY + 54;
-    int row2Y = contentY + 104;
+    int gap = layout().sectionGap();
+    int modeCols = responsiveColumns(contentW, 3, 150);
+    int modeW = responsiveCardWidth(contentW, modeCols, gap);
+    int modeY = contentY + 54;
+    int weatherIndex = 0;
 
-    addWeatherChoice(contentX, row1Y, modeW, "Server", "Use normal server weather.", IconType.WEATHER, "SERVER");
-    addWeatherChoice(contentX + modeW + 10, row1Y, modeW, "Sunny", "Force clear visual weather.", IconType.SKY, "SUNNY");
-    addWeatherChoice(contentX + (modeW + 10) * 2, row1Y, modeW, "Rain", "Force rainy visual mood.", IconType.WEATHER, "RAIN");
+    addWeatherChoice(contentX + (weatherIndex % modeCols) * (modeW + gap), modeY + (weatherIndex / modeCols) * 50, modeW, "Server", "Use normal server weather.", IconType.WEATHER, "SERVER");
+    weatherIndex++;
+    addWeatherChoice(contentX + (weatherIndex % modeCols) * (modeW + gap), modeY + (weatherIndex / modeCols) * 50, modeW, "Sunny", "Force clear visual weather.", IconType.SKY, "SUNNY");
+    weatherIndex++;
+    addWeatherChoice(contentX + (weatherIndex % modeCols) * (modeW + gap), modeY + (weatherIndex / modeCols) * 50, modeW, "Rain", "Force rainy visual mood.", IconType.WEATHER, "RAIN");
+    weatherIndex++;
+    addWeatherChoice(contentX + (weatherIndex % modeCols) * (modeW + gap), modeY + (weatherIndex / modeCols) * 50, modeW, "Thunder", "Force stormy visual mood.", IconType.LIGHTING, "THUNDER");
+    weatherIndex++;
+    addWeatherChoice(contentX + (weatherIndex % modeCols) * (modeW + gap), modeY + (weatherIndex / modeCols) * 50, modeW, "Snow", "Force snowy visual mood later.", IconType.FOG, "SNOW");
+    weatherIndex++;
 
-    addWeatherChoice(contentX, row2Y, modeW, "Thunder", "Force stormy visual mood.", IconType.LIGHTING, "THUNDER");
-    addWeatherChoice(contentX + modeW + 10, row2Y, modeW, "Snow", "Force snowy visual mood later.", IconType.FOG, "SNOW");
+    int sliderY = modeY + ((weatherIndex + modeCols - 1) / modeCols) * 50 + 4;
 
-    widgets.add(new SliderWidget(contentX, contentY + 158, contentW, "Rain intensity", "Adjusts how strong rain visuals should appear.", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
+    widgets.add(new SliderWidget(contentX, sliderY, contentW, "Rain intensity", "Adjusts how strong rain visuals should appear.", 0f, 1f, () -> ConfigManager.get().rainIntensity, v -> {
         ConfigManager.get().rainIntensity = v;
             clearActivePreset();
         ConfigManager.save();
     }, value -> Math.round(value * 100f) + "%"));
 
-    widgets.add(new ToggleWidget(contentX, contentY + 220, contentW, "Thunder sounds", "Controls whether thunder audio should be allowed by Atmosphere+.", () -> ConfigManager.get().thunderSounds, v -> {
+    widgets.add(new ToggleWidget(contentX, sliderY + 62, contentW, "Thunder sounds", "Controls whether thunder audio should be allowed by Atmosphere+.", () -> ConfigManager.get().thunderSounds, v -> {
         ConfigManager.get().thunderSounds = v;
             clearActivePreset();
         ConfigManager.save();
     }));
 
-    addResetButton(contentX, contentY + 274, contentW, "Reset Weather", "Server weather, full rain intensity, thunder sounds on.", IconType.WEATHER, this::resetWeather);
+    addResetButton(contentX, sliderY + 116, contentW, "Reset Weather", "Server weather, full rain intensity, thunder sounds on.", IconType.WEATHER, this::resetWeather);
 
-    return contentY + 320;
+    return sliderY + 162;
 }
 
     private void addWeatherChoice(int x, int y, int width, String label, String description, IconType icon, String mode) {
@@ -585,33 +601,42 @@ private int addTimeWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.save();
     }));
 
-    int buttonW = (contentW - 20) / 3;
-    int row1Y = contentY + 54;
-    int row2Y = contentY + 98;
+    int gap = layout().sectionGap();
+    int timeCols = responsiveColumns(contentW, 3, 132);
+    int buttonW = responsiveCardWidth(contentW, timeCols, gap);
+    int buttonY = contentY + 54;
+    int timeIndex = 0;
 
-    addTimePresetButton(contentX, row1Y, buttonW, "Sunrise", "0", 0);
-    addTimePresetButton(contentX + buttonW + 10, row1Y, buttonW, "Morning", "1000", 1000);
-    addTimePresetButton(contentX + (buttonW + 10) * 2, row1Y, buttonW, "Day", "6000", 6000);
+    addTimePresetButton(contentX + (timeIndex % timeCols) * (buttonW + gap), buttonY + (timeIndex / timeCols) * 44, buttonW, "Sunrise", "0", 0);
+    timeIndex++;
+    addTimePresetButton(contentX + (timeIndex % timeCols) * (buttonW + gap), buttonY + (timeIndex / timeCols) * 44, buttonW, "Morning", "1000", 1000);
+    timeIndex++;
+    addTimePresetButton(contentX + (timeIndex % timeCols) * (buttonW + gap), buttonY + (timeIndex / timeCols) * 44, buttonW, "Day", "6000", 6000);
+    timeIndex++;
+    addTimePresetButton(contentX + (timeIndex % timeCols) * (buttonW + gap), buttonY + (timeIndex / timeCols) * 44, buttonW, "Sunset", "12000", 12000);
+    timeIndex++;
+    addTimePresetButton(contentX + (timeIndex % timeCols) * (buttonW + gap), buttonY + (timeIndex / timeCols) * 44, buttonW, "Night", "15000", 15000);
+    timeIndex++;
+    addTimePresetButton(contentX + (timeIndex % timeCols) * (buttonW + gap), buttonY + (timeIndex / timeCols) * 44, buttonW, "Midnight", "18000", 18000);
+    timeIndex++;
 
-    addTimePresetButton(contentX, row2Y, buttonW, "Sunset", "12000", 12000);
-    addTimePresetButton(contentX + buttonW + 10, row2Y, buttonW, "Night", "15000", 15000);
-    addTimePresetButton(contentX + (buttonW + 10) * 2, row2Y, buttonW, "Midnight", "18000", 18000);
+    int sliderY = buttonY + ((timeIndex + timeCols - 1) / timeCols) * 44 + 6;
 
-    widgets.add(new SliderWidget(contentX, contentY + 148, contentW, "Visual time", "0 sunrise, 6000 day, 12000 sunset, 18000 midnight.", 0f, 24000f, () -> (float) ConfigManager.get().visualTime, v -> {
+    widgets.add(new SliderWidget(contentX, sliderY, contentW, "Visual time", "0 sunrise, 6000 day, 12000 sunset, 18000 midnight.", 0f, 24000f, () -> (float) ConfigManager.get().visualTime, v -> {
         ConfigManager.get().visualTime = Math.round(v);
             clearActivePreset();
         ConfigManager.save();
     }, this::formatMinecraftTime));
 
-    widgets.add(new ToggleWidget(contentX, contentY + 210, contentW, "Freeze visual time", "Reserved for future smooth time animation modes.", () -> ConfigManager.get().freezeVisualTime, v -> {
+    widgets.add(new ToggleWidget(contentX, sliderY + 62, contentW, "Freeze visual time", "Reserved for future smooth time animation modes.", () -> ConfigManager.get().freezeVisualTime, v -> {
         ConfigManager.get().freezeVisualTime = v;
             clearActivePreset();
         ConfigManager.save();
     }));
 
-    addResetButton(contentX, contentY + 264, contentW, "Reset Time", "Return to server time and default visual time.", IconType.TIME, this::resetTime);
+    addResetButton(contentX, sliderY + 116, contentW, "Reset Time", "Return to server time and default visual time.", IconType.TIME, this::resetTime);
 
-    return contentY + 310;
+    return sliderY + 162;
 }
 
     private void addTimePresetButton(int x, int y, int width, String label, String timeLabel, int time) {
@@ -636,14 +661,21 @@ private int addSkyWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.save();
     }));
 
-    int modeW = (contentW - 20) / 3;
+    int gap = layout().sectionGap();
+    int cloudCols = responsiveColumns(contentW, 3, 150);
+    int modeW = responsiveCardWidth(contentW, cloudCols, gap);
     int rowY = y + 54;
-    addCloudChoice(contentX, rowY, modeW, "Server", "Use normal Minecraft cloud settings.", "SERVER");
-    addCloudChoice(contentX + modeW + 10, rowY, modeW, "Off", "Hide clouds visually.", "OFF");
-    addCloudChoice(contentX + (modeW + 10) * 2, rowY, modeW, "Fast", "Force fast clouds visually.", "FAST");
-    addCloudChoice(contentX, rowY + 50, modeW, "Fancy", "Force fancy cloud rendering mode.", "FANCY");
+    int cloudIndex = 0;
+    addCloudChoice(contentX + (cloudIndex % cloudCols) * (modeW + gap), rowY + (cloudIndex / cloudCols) * 50, modeW, "Server", "Use normal Minecraft cloud settings.", "SERVER");
+    cloudIndex++;
+    addCloudChoice(contentX + (cloudIndex % cloudCols) * (modeW + gap), rowY + (cloudIndex / cloudCols) * 50, modeW, "Off", "Hide clouds visually.", "OFF");
+    cloudIndex++;
+    addCloudChoice(contentX + (cloudIndex % cloudCols) * (modeW + gap), rowY + (cloudIndex / cloudCols) * 50, modeW, "Fast", "Force fast clouds visually.", "FAST");
+    cloudIndex++;
+    addCloudChoice(contentX + (cloudIndex % cloudCols) * (modeW + gap), rowY + (cloudIndex / cloudCols) * 50, modeW, "Fancy", "Force fancy cloud rendering mode.", "FANCY");
+    cloudIndex++;
 
-    y += 158;
+    y = rowY + ((cloudIndex + cloudCols - 1) / cloudCols) * 50 + 4;
 
     widgets.add(new SectionLabelWidget(contentX, y, contentW, "Renderer", "Known working"));
     y += 30;
@@ -659,7 +691,8 @@ private int addSkyWidgets(int contentX, int contentY, int contentW) {
 
     y += 54;
 
-    int halfW = (contentW - 10) / 2;
+    int rendererCols = responsiveColumns(contentW, 2, 210);
+    int halfW = responsiveCardWidth(contentW, rendererCols, gap);
 
     widgets.add(new SliderWidget(contentX, y, halfW, "Cloud height", "Working without shaders. Changes cloud layer height.", 0.25f, 2.0f, () -> ConfigManager.get().cloudHeight, v -> {
         ConfigManager.get().cloudHeight = v;
@@ -669,7 +702,7 @@ private int addSkyWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.save();
     }, value -> Math.round(value * 100f) + "%"));
 
-    widgets.add(new SliderWidget(contentX + halfW + 10, y, halfW, "Star brightness", "Working without shaders. Shader packs may override stars.", 0f, 2f, () -> ConfigManager.get().starBrightness, v -> {
+    widgets.add(new SliderWidget(contentX + (rendererCols > 1 ? halfW + gap : 0), y + (rendererCols > 1 ? 0 : 62), halfW, "Star brightness", "Working without shaders. Shader packs may override stars.", 0f, 2f, () -> ConfigManager.get().starBrightness, v -> {
         ConfigManager.get().starBrightness = v;
         ConfigManager.get().experimentalRendererControls = true;
         ConfigManager.get().cloudDistanceOverride = false;
@@ -677,7 +710,7 @@ private int addSkyWidgets(int contentX, int contentY, int contentW) {
         ConfigManager.save();
     }, value -> Math.round(value * 100f) + "%"));
 
-    y += 62;
+    y += rendererCols > 1 ? 62 : 124;
 
     widgets.add(new ActionButtonWidget(contentX, y, halfW, "Reset Renderer", "Reset cloud height, stars and experimental renderer values.", IconType.ADVANCED, () -> {
         resetRendererSettings();
@@ -685,11 +718,11 @@ private int addSkyWidgets(int contentX, int contentY, int contentW) {
         rebuildWidgets();
     }));
 
-    widgets.add(new ActionButtonWidget(contentX + halfW + 10, y, halfW, "Shader note", CompatibilityUtil.isIrisLoaded() ? "Iris detected. Shaders can override these hooks." : "Vanilla/Sodium path detected.", IconType.SKY, () -> {
+    widgets.add(new ActionButtonWidget(contentX + (rendererCols > 1 ? halfW + gap : 0), y + (rendererCols > 1 ? 0 : 46), halfW, "Shader note", CompatibilityUtil.isIrisLoaded() ? "Iris detected. Shaders can override these hooks." : "Vanilla/Sodium path detected.", IconType.SKY, () -> {
         NotificationUtil.show(CompatibilityUtil.isIrisLoaded() ? "Shaders may override cloud height and stars" : "Renderer hooks should be easiest to test without shaders");
     }));
 
-    y += 46;
+    y += rendererCols > 1 ? 46 : 92;
 
     widgets.add(new SectionLabelWidget(contentX, y, contentW, "Notes", "Renderer limits"));
     y += 30;
@@ -1047,16 +1080,17 @@ private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
         int themeW = (contentW - gap * (columns - 1)) / columns;
         int index = 0;
 
-        for (String themeId : ThemeManager.all().keySet()) {
+        for (String themeId : ThemeManager.builtIns().keySet()) {
             int col = index % columns;
             int row = index / columns;
             int x = contentX + col * (themeW + gap);
             int widgetY = y + row * 48;
-            String label = ThemeManager.all().get(themeId).displayName();
+            String label = ThemeManager.builtIns().get(themeId).displayName();
 
             widgets.add(new ToggleWidget(x, widgetY, themeW, label, "Switches the Atmosphere+ interface to the " + label + " theme.", () -> ConfigManager.get().theme.equals(themeId), v -> {
                 if (v) {
                     ThemeManager.setTheme(themeId);
+                    themeStudioState.selectCurrentTheme();
                 }
             }));
 
@@ -1066,18 +1100,165 @@ private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
         y += ((index + columns - 1) / columns) * 48 + 10;
         widgets.add(new SectionLabelWidget(contentX, y, contentW, "Custom Themes", "Custom theme library"));
         y += 30;
-        widgets.add(new InfoCardWidget(
-                contentX,
-                y,
-                contentW,
-                62,
-                "No custom themes yet",
-                "Custom theme browsing will appear here after Theme Studio gains editing and persistence support.",
-                IconType.THEMES
-        ));
 
-        return y + 72;
+        if (!CustomThemeManager.hasCustomThemes()) {
+            widgets.add(new InfoCardWidget(
+                    contentX,
+                    y,
+                    contentW,
+                    66,
+                    "No custom themes yet",
+                    "Open Theme Studio to create a theme or duplicate an existing one.",
+                    IconType.THEMES
+            ));
+
+            return y + 76;
+        }
+
+        index = 0;
+        for (CustomThemeData data : CustomThemeManager.all().values()) {
+            int col = index % columns;
+            int row = index / columns;
+            int x = contentX + col * (themeW + gap);
+            int widgetY = y + row * 48;
+            String themeId = data.id;
+
+            widgets.add(new ToggleWidget(x, widgetY, themeW, data.displayName, "Apply this custom theme.", () -> ConfigManager.get().theme.equals(themeId), v -> {
+                if (v) {
+                    ThemeManager.setTheme(themeId);
+                    themeStudioState.selectTheme(themeId);
+                }
+            }));
+
+            index++;
+        }
+
+        return y + ((index + columns - 1) / columns) * 48 + 10;
     }
+
+private ThemeStudioPage.Actions themeStudioActions() {
+    return new ThemeStudioPage.Actions() {
+        @Override
+        public void createTheme() {
+            createCustomTheme();
+        }
+
+        @Override
+        public void duplicateTheme(String sourceId) {
+            duplicateCustomTheme(sourceId);
+        }
+
+        @Override
+        public void renameTheme(String themeId) {
+            startRenamingTheme(themeId);
+        }
+
+        @Override
+        public void deleteTheme(String themeId) {
+            confirmDeleteTheme(themeId);
+        }
+
+        @Override
+        public void saveTheme(String themeId) {
+            saveCustomTheme(themeId);
+        }
+
+        @Override
+        public void reloadThemes() {
+            reloadCustomThemes();
+        }
+
+        @Override
+        public void applyTheme(String themeId) {
+            applyTheme(themeId);
+        }
+
+        @Override
+        public void selectTheme(String themeId) {
+            themeStudioState.selectTheme(themeId);
+            rebuildWidgets();
+        }
+    };
+}
+
+private void createCustomTheme() {
+    CustomThemeData created = CustomThemeManager.createTheme("Custom Theme", ThemeManager.current());
+    ThemeManager.setTheme(created.id);
+    themeStudioState.selectTheme(created.id);
+    NotificationUtil.show("Created " + created.displayName);
+    rebuildWidgets();
+}
+
+private void duplicateCustomTheme(String sourceId) {
+    Theme source = ThemeManager.byId(sourceId);
+    if (source == null) {
+        source = ThemeManager.current();
+    }
+
+    CustomThemeData created = CustomThemeManager.duplicateTheme(source.id(), source.displayName() + " Copy");
+    ThemeManager.setTheme(created.id);
+    themeStudioState.selectTheme(created.id);
+    NotificationUtil.show("Duplicated " + source.displayName());
+    rebuildWidgets();
+}
+
+private void applyTheme(String themeId) {
+    if (ThemeManager.byId(themeId) == null) {
+        NotificationUtil.show("Theme is unavailable");
+        reloadCustomThemes();
+        return;
+    }
+
+    ThemeManager.setTheme(themeId);
+    themeStudioState.selectTheme(themeId);
+    NotificationUtil.applied(ThemeManager.current().displayName());
+    rebuildWidgets();
+}
+
+private void saveCustomTheme(String themeId) {
+    CustomThemeData data = CustomThemeManager.get(themeId);
+    if (data == null) {
+        NotificationUtil.show("Duplicate a built-in theme before saving");
+        return;
+    }
+
+    CustomThemeManager.saveTheme(data);
+    NotificationUtil.show("Saved " + data.displayName);
+    rebuildWidgets();
+}
+
+private void reloadCustomThemes() {
+    CustomThemeManager.load();
+    ThemeManager.refreshCustomThemes();
+
+    if (ThemeManager.byId(ConfigManager.get().theme) == null) {
+        ConfigManager.get().theme = ThemeManager.defaultTheme().id();
+        ConfigManager.save();
+    }
+
+    themeStudioState.selectCurrentTheme();
+    NotificationUtil.show("Reloaded custom themes");
+    rebuildWidgets();
+}
+
+private void confirmDeleteTheme(String themeId) {
+    CustomThemeData data = CustomThemeManager.get(themeId);
+    if (data == null) {
+        NotificationUtil.show("Built-in themes are read-only");
+        return;
+    }
+
+    showConfirmation(
+            "Delete " + data.displayName + "?",
+            "This removes the custom theme from config/atmosphereplus-themes.json.",
+            () -> {
+                CustomThemeManager.deleteTheme(data.id);
+                themeStudioState.selectCurrentTheme();
+                NotificationUtil.show("Deleted " + data.displayName);
+                rebuildWidgets();
+            }
+    );
+}
 
 
 private int presetGridColumns(int contentW) {
@@ -1632,6 +1813,7 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
         confirmAction = action;
         searchFocused = false;
         renamingProfileIndex = -1;
+        renamingThemeId = "";
         renameProfileText = "";
     }
 
@@ -2452,7 +2634,7 @@ private String trimHeaderText(String text, int maxWidth) {
     renderBackdrop(context);
 
     Theme theme = ThemeManager.current();
-    boolean modalOpen = isRenamingProfile() || isConfirmingAction();
+    boolean modalOpen = isRenaming() || isConfirmingAction();
     int uiMouseX = modalOpen ? -100000 : mouseX;
     int uiMouseY = modalOpen ? -100000 : mouseY;
 
@@ -2473,7 +2655,8 @@ private String trimHeaderText(String text, int maxWidth) {
     renderSidebarScrollIndicator(context, theme);
 
     int contentClipLeft = contentWidgetLeft();
-    context.enableScissor(contentClipLeft, windowY + layout().contentTopOffset() - 12, contentRight() - contentPadding(), sidebarPanelBottom() - 2);
+    int contentClipRight = contentWidgetLeft() + contentWidgetWidth();
+    context.enableScissor(contentClipLeft, windowY + layout().contentTopOffset() - 12, contentClipRight, sidebarPanelBottom() - contentPadding());
     renderContentWidgets(context, uiMouseX, uiMouseY, delta);
     context.disableScissor();
 
@@ -2686,9 +2869,24 @@ private String trimHeaderText(String text, int maxWidth) {
         selectedProfileIndex = Math.max(0, Math.min(ProfileManager.PROFILE_COUNT - 1, slot));
         AtmosphereProfile profile = ProfileManager.profile(slot);
         renamingProfileIndex = slot;
+        renamingThemeId = "";
         renameProfileText = profile.name == null || profile.name.isBlank() ? "Profile " + (slot + 1) : profile.name;
         searchFocused = false;
         NotificationUtil.show("Type a new name, Enter to save, Esc to cancel");
+    }
+
+    private void startRenamingTheme(String themeId) {
+        CustomThemeData data = CustomThemeManager.get(themeId);
+        if (data == null) {
+            NotificationUtil.show("Built-in themes are read-only");
+            return;
+        }
+
+        renamingProfileIndex = -1;
+        renamingThemeId = data.id;
+        renameProfileText = data.displayName == null || data.displayName.isBlank() ? "Custom Theme" : data.displayName;
+        searchFocused = false;
+        NotificationUtil.show("Type a new theme name, Enter to save, Esc to cancel");
     }
 
     private void finishRenamingProfile() {
@@ -2702,8 +2900,26 @@ private String trimHeaderText(String text, int maxWidth) {
         rebuildWidgets();
     }
 
+    private void finishRenamingTheme() {
+        if (!isRenamingTheme()) {
+            return;
+        }
+
+        if (CustomThemeManager.renameTheme(renamingThemeId, renameProfileText)) {
+            themeStudioState.selectTheme(renamingThemeId);
+            NotificationUtil.show("Renamed theme");
+        } else {
+            NotificationUtil.show("Theme could not be renamed");
+        }
+
+        renamingThemeId = "";
+        renameProfileText = "";
+        rebuildWidgets();
+    }
+
     private void cancelRenamingProfile() {
         renamingProfileIndex = -1;
+        renamingThemeId = "";
         renameProfileText = "";
         NotificationUtil.show("Rename cancelled");
         rebuildWidgets();
@@ -2711,6 +2927,14 @@ private String trimHeaderText(String text, int maxWidth) {
 
     private boolean isRenamingProfile() {
         return renamingProfileIndex >= 0;
+    }
+
+    private boolean isRenamingTheme() {
+        return renamingThemeId != null && !renamingThemeId.isBlank();
+    }
+
+    private boolean isRenaming() {
+        return isRenamingProfile() || isRenamingTheme();
     }
 
 
@@ -2788,7 +3012,7 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
     }
 
     private void renderProfileRenameOverlay(DrawContext context, Theme theme) {
-        if (!isRenamingProfile()) {
+        if (!isRenaming()) {
             return;
         }
 
@@ -2800,7 +3024,10 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
         context.fill(0, 0, width, height, 0xAA000000);
         UiRender.borderedRect(context, x, y, modalW, modalH, theme.panel(), theme.accent());
 
-        UiRender.text(context, textRenderer, "Rename Profile " + (renamingProfileIndex + 1), x + 16, y + 14, theme.text());
+        String title = isRenamingTheme() ? "Rename Theme" : "Rename Profile " + (renamingProfileIndex + 1);
+        int maxNameLength = isRenamingTheme() ? 28 : 24;
+
+        UiRender.text(context, textRenderer, title, x + 16, y + 14, theme.text());
         UiRender.text(context, textRenderer, "Enter saves · Esc cancels · Backspace deletes", x + 16, y + 29, theme.mutedText());
         UiRender.rect(context, x + 16, y + 42, modalW - 32, 1, theme.border());
 
@@ -2821,7 +3048,7 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
             context.fill(caretX + 2, fieldY + 6, caretX + 3, fieldY + 19, theme.accent());
         }
 
-        UiRender.centeredText(context, textRenderer, "New name: " + renameProfileText.length() + "/24", x + modalW / 2, y + 92, theme.mutedText());
+        UiRender.centeredText(context, textRenderer, "New name: " + renameProfileText.length() + "/" + maxNameLength, x + modalW / 2, y + 92, theme.mutedText());
     }
 
 
@@ -2845,9 +3072,9 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return;
         }
 
-        int trackX = windowX + windowW - 21;
-        int trackY = windowY + 108;
-        int trackH = windowH - 128;
+        int trackX = contentWidgetLeft() + contentWidgetWidth() + 4;
+        int trackY = windowY + layout().contentTopOffset() - 10;
+        int trackH = Math.max(24, sidebarPanelBottom() - contentPadding() - trackY);
         int thumbH = Math.max(24, trackH * trackH / (trackH + maxScroll));
         int thumbY = trackY + (trackH - thumbH) * scrollOffset / maxScroll;
 
@@ -2856,7 +3083,7 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
     }
 
     private void renderTooltip(DrawContext context, int mouseX, int mouseY) {
-        if (isRenamingProfile() || isConfirmingAction()) {
+        if (isRenaming() || isConfirmingAction()) {
             return;
         }
 
@@ -2884,7 +3111,7 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return handleConfirmClick(click.x(), click.y());
         }
 
-        if (isRenamingProfile()) {
+        if (isRenaming()) {
             return true;
         }
 
@@ -2983,14 +3210,18 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return true;
         }
 
-        if (isRenamingProfile()) {
+        if (isRenaming()) {
             if (input.isEscape()) {
                 cancelRenamingProfile();
                 return true;
             }
 
             if (input.getKeycode() == GLFW.GLFW_KEY_ENTER) {
-                finishRenamingProfile();
+                if (isRenamingTheme()) {
+                    finishRenamingTheme();
+                } else {
+                    finishRenamingProfile();
+                }
                 return true;
             }
 
@@ -3026,7 +3257,8 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
 
     @Override
     public boolean charTyped(CharInput input) {
-        if (isRenamingProfile() && input.isValidChar() && renameProfileText.length() < 24) {
+        int maxRenameLength = isRenamingTheme() ? 28 : 24;
+        if (isRenaming() && input.isValidChar() && renameProfileText.length() < maxRenameLength) {
             String typed = input.asString();
             if (!typed.equals("\n") && !typed.equals("\r")) {
                 renameProfileText += typed;
