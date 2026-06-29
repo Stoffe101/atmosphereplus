@@ -2,6 +2,8 @@ package com.skrra.atmosphereplus.visual;
 
 import com.skrra.atmosphereplus.config.ConfigManager;
 import net.minecraft.client.option.CloudRenderMode;
+import net.minecraft.client.render.fog.FogData;
+import org.joml.Vector4f;
 
 public final class VisualSettings {
     private static boolean savingGameOptions = false;
@@ -77,6 +79,20 @@ public final class VisualSettings {
         return ConfigManager.get().fogOverride;
     }
 
+    public static boolean isFogOffEnabled() {
+        return ConfigManager.get().fogOverride
+                && ConfigManager.get().fogDistance >= 1.95F
+                && ConfigManager.get().fogDensity <= 0.05F;
+    }
+
+    public static boolean isSubmersionFogOffEnabled() {
+        return ConfigManager.get().submersionFogOff;
+    }
+
+    public static boolean isLowFireEnabled() {
+        return ConfigManager.get().lowFire;
+    }
+
     public static float fogDistanceMultiplier() {
         return clamp(ConfigManager.get().fogDistance, 0.05F, 3.0F);
     }
@@ -147,6 +163,82 @@ public final class VisualSettings {
         float distance = fogDistanceMultiplier();
         float density = fogDensityMultiplier();
         return Math.max(adjustedStart + 1.0F, original * distance / density);
+    }
+
+    public static float disabledSubmersionFogStart(float original) {
+        return Math.max(Math.max(original, 32.0F), fogDistanceMultiplier() * 64.0F);
+    }
+
+    public static float disabledSubmersionFogEnd(float original, float adjustedStart) {
+        return Math.max(Math.max(original, 192.0F), adjustedStart + 160.0F);
+    }
+
+    public static float disabledWorldFogStart(float original, float viewDistance) {
+        float safeViewDistance = Math.max(96.0F, viewDistance);
+        return Math.max(original, safeViewDistance * 0.85F);
+    }
+
+    public static float disabledWorldFogEnd(float original, float adjustedStart, float viewDistance) {
+        float safeViewDistance = Math.max(192.0F, viewDistance);
+        return Math.max(Math.max(original, safeViewDistance * 1.5F), adjustedStart + 96.0F);
+    }
+
+    public static void applyAtmosphericFogOff(FogData data, float viewDistance) {
+        if (data == null || !isFogOffEnabled()) {
+            return;
+        }
+
+        float start = disabledWorldFogStart(data.environmentalStart, viewDistance);
+        float end = disabledWorldFogEnd(data.environmentalEnd, start, viewDistance);
+        data.environmentalStart = start;
+        data.environmentalEnd = end;
+        data.renderDistanceStart = Math.max(data.renderDistanceStart, start);
+        data.renderDistanceEnd = Math.max(data.renderDistanceEnd, end);
+        data.skyEnd = Math.max(data.skyEnd, end);
+        data.cloudEnd = Math.max(data.cloudEnd, end);
+    }
+
+    public static void applySubmersionFogOff(FogData data, float viewDistance) {
+        if (data == null || !isSubmersionFogOffEnabled()) {
+            return;
+        }
+
+        float start = disabledSubmersionFogStart(Math.max(data.environmentalStart, viewDistance * 0.5F));
+        float end = disabledSubmersionFogEnd(Math.max(data.environmentalEnd, viewDistance), start);
+        data.environmentalStart = start;
+        data.environmentalEnd = end;
+        data.renderDistanceStart = Math.max(data.renderDistanceStart, start);
+        data.renderDistanceEnd = Math.max(data.renderDistanceEnd, end);
+        data.skyEnd = Math.max(data.skyEnd, end);
+        data.cloudEnd = Math.max(data.cloudEnd, end);
+    }
+
+    public static Vector4f adjustFogColor(Vector4f color) {
+        if (color == null) {
+            return color;
+        }
+
+        float multiplier = 1.0F;
+        if (isFullbrightEnabled()) {
+            multiplier = Math.max(multiplier, 1.25F);
+        } else {
+            multiplier *= 0.75F + gammaMultiplier() * 0.25F;
+        }
+
+        if (experimentalRendererControlsEnabled()) {
+            multiplier *= skyBrightnessMultiplier();
+        }
+
+        if (Math.abs(multiplier - 1.0F) < 0.001F) {
+            return color;
+        }
+
+        return new Vector4f(
+                clamp(color.x() * multiplier, 0.0F, 1.0F),
+                clamp(color.y() * multiplier, 0.0F, 1.0F),
+                clamp(color.z() * multiplier, 0.0F, 1.0F),
+                color.w()
+        );
     }
 
 

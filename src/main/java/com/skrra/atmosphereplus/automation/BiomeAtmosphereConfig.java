@@ -7,6 +7,7 @@ public class BiomeAtmosphereConfig {
     public boolean enabled = false;
     public boolean paused = false;
     public boolean manualChangesPause = true;
+    public boolean showAutomationToasts = true;
     public int transitionDurationMs = 1000;
     public String transitionSpeed = "NORMAL";
     public int minimumBiomeTimeMs = 1000;

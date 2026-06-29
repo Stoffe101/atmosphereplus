@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 
 public final class ConfigSafety {
-    public static final int LATEST_CONFIG_VERSION = 11;
+    public static final int LATEST_CONFIG_VERSION = 14;
 
     private ConfigSafety() {
     }
@@ -362,6 +362,9 @@ private static boolean isValidCategory(String value) {
             return false;
         }
         if (allowBlank && value.isBlank()) {
+            return true;
+        }
+        if ("CAVE_HANDLING".equalsIgnoreCase(value)) {
             return true;
         }
         try {

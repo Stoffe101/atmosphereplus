@@ -4,11 +4,14 @@ import com.skrra.atmosphereplus.config.ConfigManager;
 import com.skrra.atmosphereplus.environment.EnvironmentDetector;
 import com.skrra.atmosphereplus.environment.EnvironmentSnapshot;
 import com.skrra.atmosphereplus.presets.PresetLibraryManager;
+import com.skrra.atmosphereplus.presets.PresetReference;
 import com.skrra.atmosphereplus.transitions.TransitionManager;
 import com.skrra.atmosphereplus.transitions.TransitionSpeed;
+import com.skrra.atmosphereplus.util.NotificationUtil;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
 
 import java.util.Locale;
 
@@ -19,6 +22,9 @@ public final class BiomeAtmosphereManager {
     private static BiomeCategory pendingCategory = null;
     private static int pendingCategoryTicks = 0;
     private static String automationState = "Inactive";
+    private static String lastNotificationKey = "";
+    private static int notificationCooldownTicks = 0;
+    private static boolean caveHandlingActive = false;
 
     private BiomeAtmosphereManager() {
     }
@@ -28,6 +34,10 @@ public final class BiomeAtmosphereManager {
     }
 
     public static void tick(MinecraftClient client) {
+        if (notificationCooldownTicks > 0) {
+            notificationCooldownTicks--;
+        }
+
         if (client == null || client.player == null || client.world == null) {
             pendingCategory = null;
             pendingCategoryTicks = 0;
@@ -59,15 +69,23 @@ public final class BiomeAtmosphereManager {
 
         String categoryId = category.name();
         config.lastDetectedCategory = categoryId;
-
-        if (categoryId.equals(config.lastAppliedCategory)) {
-            pendingCategory = category;
-            pendingCategoryTicks = 0;
+        String presetId = config.mappings == null ? "" : config.mappings.getOrDefault(categoryId, "");
+        if (presetId == null || presetId.isBlank() || !PresetLibraryManager.exists(presetId)) {
             automationState = "Active";
             return;
         }
 
-        int minimumBiomeTimeMs = Math.max(0, config.minimumBiomeTimeMs);
+        if (categoryId.equals(config.lastAppliedCategory) && presetIsCurrentOrTransitioning(presetId)) {
+            pendingCategory = category;
+            pendingCategoryTicks = 0;
+            config.lastAppliedCategory = categoryId;
+            automationState = "Active";
+            ConfigManager.save();
+            return;
+        }
+
+        boolean dimensionCategory = category == BiomeCategory.NETHER || category == BiomeCategory.END;
+        int minimumBiomeTimeMs = dimensionCategory ? 0 : Math.max(0, config.minimumBiomeTimeMs);
         if (pendingCategory != category) {
             pendingCategory = category;
             pendingCategoryTicks = 0;
@@ -83,19 +101,6 @@ public final class BiomeAtmosphereManager {
             }
         }
 
-        String presetId = config.mappings == null ? "" : config.mappings.getOrDefault(categoryId, "");
-        if (presetId == null || presetId.isBlank() || !PresetLibraryManager.exists(presetId)) {
-            automationState = "Active";
-            return;
-        }
-
-        if (presetId.equals(config.lastAppliedPreset)) {
-            config.lastAppliedCategory = categoryId;
-            automationState = "Active";
-            ConfigManager.save();
-            return;
-        }
-
         applyingAutomation = true;
         try {
             if (transitionToPreset(presetId, config)) {
@@ -104,6 +109,7 @@ public final class BiomeAtmosphereManager {
                 config.lastAppliedPreset = presetId;
                 pendingCategoryTicks = 0;
                 automationState = "Active";
+                notifyAutomation(config, "biome:" + categoryId + ":" + presetId, "Biome Atmospheres: " + category.label() + " -> " + presetName(presetId));
                 ConfigManager.save();
             }
         } finally {
@@ -172,20 +178,27 @@ public final class BiomeAtmosphereManager {
                 && (environment.underground() || environment.caveLike());
 
         if (!caveContext || caveHandling == CaveHandlingMode.IGNORE) {
+            if (caveHandlingActive && caveHandling != CaveHandlingMode.IGNORE) {
+                notifyAutomation(config, "surface_resumed", "Returned to surface: biome automation resumed");
+            }
+            caveHandlingActive = false;
             return false;
         }
 
         pendingCategory = null;
         pendingCategoryTicks = 0;
+        caveHandlingActive = true;
 
         if (caveHandling == CaveHandlingMode.KEEP_CURRENT) {
             automationState = "Underground paused";
+            notifyAutomation(config, "underground_paused", "Underground: biome automation paused");
             return true;
         }
 
         String cavePreset = config.cavePresetId == null ? "" : config.cavePresetId;
         if (cavePreset.isBlank() || !PresetLibraryManager.exists(cavePreset)) {
             automationState = "Underground paused";
+            notifyAutomation(config, "underground_paused_no_cave_preset", "Underground: biome automation paused");
             return true;
         }
 
@@ -200,6 +213,7 @@ public final class BiomeAtmosphereManager {
                 config.lastAppliedCategory = "CAVE_HANDLING";
                 config.lastAppliedPreset = cavePreset;
                 automationState = "Cave preset active";
+                notifyAutomation(config, "cave_preset:" + cavePreset, "Cave preset active: " + presetName(cavePreset));
                 ConfigManager.save();
             }
         } finally {
@@ -216,6 +230,11 @@ public final class BiomeAtmosphereManager {
         return TransitionManager.transitionTo(presetId, TransitionSpeed.parse(config.transitionSpeed));
     }
 
+    private static boolean presetIsCurrentOrTransitioning(String presetId) {
+        return presetId != null
+                && (presetId.equals(ConfigManager.get().activePreset) || presetId.equals(TransitionManager.targetPresetId()));
+    }
+
     private static BiomeCategory detectCategory(MinecraftClient client, EnvironmentSnapshot environment, CaveHandlingMode caveHandling) {
         if (environment != null && environment.nether()) {
             return BiomeCategory.NETHER;
@@ -227,11 +246,10 @@ public final class BiomeAtmosphereManager {
             return BiomeCategory.CAVE;
         }
 
-        String dimension = String.valueOf(client.world.getRegistryKey().getValue()).toLowerCase(Locale.ROOT);
-        if (dimension.contains("the_nether")) {
+        if (World.NETHER.equals(client.world.getRegistryKey())) {
             return BiomeCategory.NETHER;
         }
-        if (dimension.contains("the_end")) {
+        if (World.END.equals(client.world.getRegistryKey())) {
             return BiomeCategory.END;
         }
 
@@ -257,5 +275,20 @@ public final class BiomeAtmosphereManager {
         }
 
         return BiomeCategory.PLAINS;
+    }
+
+    private static String presetName(String presetId) {
+        PresetReference reference = PresetLibraryManager.reference(presetId);
+        return reference == null ? "Preset" : reference.displayName();
+    }
+
+    private static void notifyAutomation(BiomeAtmosphereConfig config, String key, String message) {
+        if (config == null || !config.showAutomationToasts || key == null || key.equals(lastNotificationKey) || notificationCooldownTicks > 0) {
+            return;
+        }
+
+        lastNotificationKey = key;
+        notificationCooldownTicks = 40;
+        NotificationUtil.show(message);
     }
 }

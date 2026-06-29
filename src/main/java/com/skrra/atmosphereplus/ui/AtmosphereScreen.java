@@ -31,6 +31,7 @@ import com.skrra.atmosphereplus.ui.widgets.SliderWidget;
 import com.skrra.atmosphereplus.ui.widgets.TimePresetButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.ToggleWidget;
 import com.skrra.atmosphereplus.util.NotificationUtil;
+import com.skrra.atmosphereplus.visual.FogDebugState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
@@ -906,39 +907,102 @@ private int addLightingWidgets(int contentX, int contentY, int contentW) {
 }
 
 private int addFogWidgets(int contentX, int contentY, int contentW) {
-    widgets.add(new ToggleWidget(contentX, contentY, contentW, "Override fog visually", "Enables client-side fog distance and density controls.", () -> ConfigManager.get().fogOverride, v -> {
-        ConfigManager.get().fogOverride = v;
-            clearActivePreset();
+    int gap = 10;
+    int columns = responsiveColumns(contentW, 3, 150);
+    int modeW = responsiveCardWidth(contentW, columns, gap);
+    int y = contentY;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Fog Mode", "Server, custom, or off"));
+    y += 30;
+
+    widgets.add(new ChoiceButtonWidget(contentX, y, modeW, "Default / Server Fog", "Use vanilla world and dimension fog.", IconType.FOG, () -> !ConfigManager.get().fogOverride, () -> {
+        ConfigManager.get().fogOverride = false;
+        ConfigManager.get().fogDistance = 1.0f;
+        ConfigManager.get().fogDensity = 1.0f;
+        ConfigManager.get().submersionFogOff = false;
+        clearActivePreset();
+        ConfigManager.save();
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ChoiceButtonWidget(contentX + (columns > 1 ? modeW + gap : 0), y + (columns > 1 ? 0 : 46), modeW, "Custom Fog", "Use fog distance and density sliders below.", IconType.FOG, () -> ConfigManager.get().fogOverride && !(ConfigManager.get().fogDistance >= 1.95f && ConfigManager.get().fogDensity <= 0.05f), () -> {
+        ConfigManager.get().fogOverride = true;
+        if (ConfigManager.get().fogDensity <= 0.05f) {
+            ConfigManager.get().fogDensity = 1.0f;
+        }
+        clearActivePreset();
+        ConfigManager.save();
+        rebuildWidgets();
+    }));
+
+    widgets.add(new ChoiceButtonWidget(contentX + (columns > 2 ? (modeW + gap) * 2 : 0), y + (columns > 2 ? 0 : columns > 1 ? 46 : 92), modeW, "Fog Off", "Reduces normal world and dimension fog.", IconType.SKY, () -> ConfigManager.get().fogOverride && ConfigManager.get().fogDistance >= 1.95f && ConfigManager.get().fogDensity <= 0.05f, () -> {
+        ConfigManager.get().fogOverride = true;
+        ConfigManager.get().fogDistance = 2.0f;
+        ConfigManager.get().fogDensity = 0.0f;
+        ConfigManager.get().submersionFogOff = true;
+        clearActivePreset();
+        ConfigManager.save();
+        rebuildWidgets();
+    }));
+
+    y += columns >= 3 ? 50 : columns == 2 ? 96 : 142;
+
+    widgets.add(new ToggleWidget(contentX, y, contentW, "Lava/Submersion Fog Off", "Reduces lava, water, and powder snow fog when submerged.", () -> ConfigManager.get().submersionFogOff, v -> {
+        ConfigManager.get().submersionFogOff = v;
+        clearActivePreset();
         ConfigManager.save();
     }));
 
-    widgets.add(new SliderWidget(contentX, contentY + 54, contentW, "Fog distance", "Lower means closer fog. Higher pushes fog farther away.", 0f, 2f, () -> ConfigManager.get().fogDistance, v -> {
+    y += 62;
+
+    widgets.add(new ActionButtonWidget(contentX, y, contentW, "Fog Debug", "Show current dimension, submersion type, active fog modifier, and fog settings.", IconType.ADVANCED, this::showFogDebug));
+
+    y += 50;
+
+    widgets.add(new SliderWidget(contentX, y, contentW, "Fog distance", "Lower means closer fog. Higher pushes fog farther away.", 0f, 2f, () -> ConfigManager.get().fogDistance, v -> {
+        ConfigManager.get().fogOverride = true;
         ConfigManager.get().fogDistance = v;
             clearActivePreset();
         ConfigManager.save();
     }, value -> Math.round(value * 100f) + "%"));
 
-    widgets.add(new SliderWidget(contentX, contentY + 116, contentW, "Fog density", "Higher values make fog feel thicker and closer.", 0f, 2f, () -> ConfigManager.get().fogDensity, v -> {
+    y += 62;
+
+    widgets.add(new SliderWidget(contentX, y, contentW, "Fog density", "Higher values make fog feel thicker and closer.", 0f, 2f, () -> ConfigManager.get().fogDensity, v -> {
+        ConfigManager.get().fogOverride = true;
         ConfigManager.get().fogDensity = v;
             clearActivePreset();
         ConfigManager.save();
     }, value -> Math.round(value * 100f) + "%"));
 
-    addResetButton(contentX, contentY + 178, contentW, "Reset Fog", "Disable fog override and restore normal fog values.", IconType.FOG, this::resetFog);
+    y += 62;
 
-    return contentY + 224;
+    addResetButton(contentX, y, contentW, "Reset Fog", "Disable fog override and restore normal fog values.", IconType.FOG, this::resetFog);
+
+    return y + 52;
 }
 
 private int addParticlesWidgets(int contentX, int contentY, int contentW) {
-    widgets.add(new SliderWidget(contentX, contentY, contentW, "Particle amount", "Controls the visual amount of new client particles Atmosphere+ will allow.", 0f, 2f, () -> ConfigManager.get().particleAmount, v -> {
+    int y = contentY;
+    widgets.add(new SliderWidget(contentX, y, contentW, "Particle amount", "Controls the visual amount of new client particles Atmosphere+ will allow.", 0f, 2f, () -> ConfigManager.get().particleAmount, v -> {
         ConfigManager.get().particleAmount = v;
             clearActivePreset();
         ConfigManager.save();
     }, value -> Math.round(value * 100f) + "%"));
 
-    addResetButton(contentX, contentY + 62, contentW, "Reset Particles", "Restore normal particle amount.", IconType.PARTICLES, this::resetParticles);
+    y += 62;
 
-    return contentY + 108;
+    widgets.add(new ToggleWidget(contentX, y, contentW, "Low Fire", "Lower the first-person fire overlay without removing it.", () -> ConfigManager.get().lowFire, v -> {
+        ConfigManager.get().lowFire = v;
+        clearActivePreset();
+        ConfigManager.save();
+    }));
+
+    y += 62;
+
+    addResetButton(contentX, y, contentW, "Reset Particles", "Restore normal particle amount and fire overlay height.", IconType.PARTICLES, this::resetParticles);
+
+    return y + 52;
 }
 
 
@@ -1268,13 +1332,20 @@ private BiomeAtmospheresPage.Actions biomeAtmosphereActions() {
         public void setPaused(boolean value) {
             ConfigManager.get().biomeAtmospheres.paused = value;
             ConfigManager.save();
-            NotificationUtil.show(value ? "Biome automation paused" : "Biome automation resumed");
+            NotificationUtil.show(value ? "Biome Atmospheres paused" : "Biome Atmospheres resumed");
             rebuildWidgets();
         }
 
         @Override
         public void setManualPause(boolean value) {
             ConfigManager.get().biomeAtmospheres.manualChangesPause = value;
+            ConfigManager.save();
+            rebuildWidgets();
+        }
+
+        @Override
+        public void setShowAutomationToasts(boolean value) {
+            ConfigManager.get().biomeAtmospheres.showAutomationToasts = value;
             ConfigManager.save();
             rebuildWidgets();
         }
@@ -1940,13 +2011,50 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
         ConfigManager.save();
     });
 
+    y = addSearchAction(y, contentX, contentW, "Fog · Default / Server Fog", "server fog default reset vanilla", "Default / Server Fog", "Use default server/vanilla fog.", IconType.FOG, () -> {
+        ConfigManager.get().fogOverride = false;
+        ConfigManager.get().fogDistance = 1.0f;
+        ConfigManager.get().fogDensity = 1.0f;
+        ConfigManager.get().submersionFogOff = false;
+        clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchAction(y, contentX, contentW, "Fog · Custom Fog", "custom fog override sliders distance density", "Custom Fog", "Enable custom fog slider controls.", IconType.FOG, () -> {
+        ConfigManager.get().fogOverride = true;
+        if (ConfigManager.get().fogDensity <= 0.05f) {
+            ConfigManager.get().fogDensity = 1.0f;
+        }
+        clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchAction(y, contentX, contentW, "Fog · Fog Off", "fog off disable fog no fog clear distance density nether fog dimension fog", "Fog Off", "Reduce normal world and dimension fog.", IconType.SKY, () -> {
+        ConfigManager.get().fogOverride = true;
+        ConfigManager.get().fogDistance = 2.0f;
+        ConfigManager.get().fogDensity = 0.0f;
+        ConfigManager.get().submersionFogOff = true;
+        clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchToggle(y, contentX, contentW, "Fog · Lava/Submersion Fog Off", "lava fog disable lava fog submersion fog water fog powder snow fog off", () -> ConfigManager.get().submersionFogOff, v -> {
+        ConfigManager.get().submersionFogOff = v;
+            clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchAction(y, contentX, contentW, "Fog · Fog Debug", "fog debug status nether fog modifier atmospheric lava water powder snow dimension submersion", "Fog Debug", "Show current fog path and fog ranges.", IconType.ADVANCED, this::showFogDebug);
+
     y = addSearchSlider(y, contentX, contentW, "Fog · Fog distance", "fog distance density view mist haze nether end water lava", 0f, 2f, () -> ConfigManager.get().fogDistance, v -> {
+        ConfigManager.get().fogOverride = true;
         ConfigManager.get().fogDistance = v;
             clearActivePreset();
         ConfigManager.save();
     }, value -> Math.round(value * 100f) + "%");
 
     y = addSearchSlider(y, contentX, contentW, "Fog · Fog density", "fog density strength thickness mist haze", 0f, 2f, () -> ConfigManager.get().fogDensity, v -> {
+        ConfigManager.get().fogOverride = true;
         ConfigManager.get().fogDensity = v;
             clearActivePreset();
         ConfigManager.save();
@@ -1957,6 +2065,12 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
             clearActivePreset();
         ConfigManager.save();
     }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchToggle(y, contentX, contentW, "Particles · Low Fire", "low fire fire overlay smaller fire on fire", () -> ConfigManager.get().lowFire, v -> {
+        ConfigManager.get().lowFire = v;
+            clearActivePreset();
+        ConfigManager.save();
+    });
 
     y = addSearchPresetCard(y, contentX, contentW, "Preset · Golden Hour", "preset golden hour sunny warm noon lighting atmosphere", "Golden Hour", "Sunny, warm noon lighting and soft atmosphere.", IconType.SKY, this::isGoldenHourActive, this::applyGoldenHour);
     y = addSearchPresetCard(y, contentX, contentW, "Preset · Midnight Calm", "preset midnight calm night clear quiet", "Midnight Calm", "Permanent midnight visuals with calm weather.", IconType.TIME, this::isMidnightCalmActive, this::applyMidnightCalm);
@@ -2191,9 +2305,14 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
         ConfigManager.get().fogOverride = false;
         ConfigManager.get().fogDistance = 1.0f;
         ConfigManager.get().fogDensity = 1.0f;
+        ConfigManager.get().submersionFogOff = false;
         clearActivePreset();
         ConfigManager.save();
         NotificationUtil.show("Reset Fog");
+    }
+
+    private void showFogDebug() {
+        NotificationUtil.show(FogDebugState.summary());
     }
 
     private void resetLighting() {
@@ -2206,6 +2325,7 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
 
     private void resetParticles() {
         ConfigManager.get().particleAmount = 1.0f;
+        ConfigManager.get().lowFire = false;
         clearActivePreset();
         ConfigManager.save();
         NotificationUtil.show("Reset Particles");
@@ -2219,9 +2339,11 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
         ConfigManager.get().fogOverride = false;
         ConfigManager.get().fogDistance = 1.0f;
         ConfigManager.get().fogDensity = 1.0f;
+        ConfigManager.get().submersionFogOff = false;
         ConfigManager.get().fullbright = false;
         ConfigManager.get().gamma = 1.0f;
         ConfigManager.get().particleAmount = 1.0f;
+        ConfigManager.get().lowFire = false;
         ConfigManager.get().cloudOverride = false;
         ConfigManager.get().cloudMode = "SERVER";
         ConfigManager.get().cloudDistance = 12;
@@ -2283,6 +2405,7 @@ private void applyVanillaSafeMode() {
     resetLightingSilently();
     resetSkySilently();
     ConfigManager.get().particleAmount = 1.0f;
+    ConfigManager.get().lowFire = false;
     resetRendererSettingsSilently();
     setActivePreset("vanilla_safe");
     ConfigManager.save();
@@ -2330,6 +2453,7 @@ private void resetFogSilently() {
     ConfigManager.get().fogOverride = false;
     ConfigManager.get().fogDistance = 1.0f;
     ConfigManager.get().fogDensity = 1.0f;
+    ConfigManager.get().submersionFogOff = false;
 }
 
 private void resetLightingSilently() {
@@ -2807,6 +2931,11 @@ private int addSearchBiomeAtmosphereEntries(int y, int x, int width) {
 
     y = addSearchAction(y, x, width, "Manual changes pause automation", "manual changes pause biome automation toggle", config.manualChangesPause ? "Manual Pause: On" : "Manual Pause: Off", "Toggle pausing automation after manual edits.", IconType.ADVANCED, () -> {
         config.manualChangesPause = !config.manualChangesPause;
+        ConfigManager.save();
+    });
+
+    y = addSearchAction(y, x, width, "Show Automation Toasts", "show automation toasts notifications biome atmosphere feedback", config.showAutomationToasts ? "Automation Toasts: On" : "Automation Toasts: Off", "Toggle Biome Atmospheres automation notifications.", IconType.PRESETS, () -> {
+        config.showAutomationToasts = !config.showAutomationToasts;
         ConfigManager.save();
     });
 

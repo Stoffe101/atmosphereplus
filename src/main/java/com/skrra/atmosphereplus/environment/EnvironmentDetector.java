@@ -4,8 +4,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
-
-import java.util.Locale;
+import net.minecraft.world.World;
 
 public final class EnvironmentDetector {
     private static final int UPDATE_INTERVAL_TICKS = 10;
@@ -61,11 +60,10 @@ public final class EnvironmentDetector {
             return EnvironmentSnapshot.unknown();
         }
 
-        String dimension = String.valueOf(client.world.getRegistryKey().getValue()).toLowerCase(Locale.ROOT);
-        if (dimension.contains("the_nether")) {
+        if (World.NETHER.equals(client.world.getRegistryKey())) {
             return new EnvironmentSnapshot(EnvironmentType.NETHER, false, false, false, false, true, false);
         }
-        if (dimension.contains("the_end")) {
+        if (World.END.equals(client.world.getRegistryKey())) {
             return new EnvironmentSnapshot(EnvironmentType.END, true, true, false, false, false, true);
         }
 

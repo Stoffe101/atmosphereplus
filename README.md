@@ -18,8 +18,12 @@ It changes what *you* see: weather, time, fog, lighting, particles, clouds, prof
 - Client-side weather visuals
 - Client-side time visuals
 - Fog distance and density
+- Fog modes: Default / Server Fog, Custom Fog, Fog Off
+- Lava/Submersion Fog Off for lava, water, and powder snow fog
+- Fog Debug status for the active dimension, submersion type, and Minecraft fog modifier
 - Fullbright and gamma
 - Particle amount
+- Low Fire first-person overlay option
 - Cloud mode: Server / Off / Fast / Fancy
 
 ### Renderer controls
@@ -61,6 +65,10 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - Favorite presets for quick access
 - EnvironmentDetector-powered surface, underground, cave, Nether, and End awareness
 - Cave Handling options for pausing automation underground or applying a dedicated cave preset
+- Reliable Nether and End dimension detection
+- Optional Biome Atmospheres automation toasts
+- Nether and End mappings apply supported fog, gamma/fullbright, particle, and renderer controls; vanilla dimensions and shader packs can still limit sky or weather visuals
+- Minecraft 1.21.11 fog hooks target `AtmosphericFogModifier`, `LavaFogModifier`, `WaterFogModifier`, and `PowderSnowFogModifier`
 
 Biome Atmospheres does not require server installation. It applies mapped presets only when the detected biome category changes.
 

@@ -33,6 +33,8 @@ public final class BiomeAtmospheresPage {
 
         void setManualPause(boolean value);
 
+        void setShowAutomationToasts(boolean value);
+
         void cycleTransitionSpeed();
 
         void cycleMinimumBiomeTime();
@@ -80,8 +82,8 @@ public final class BiomeAtmospheresPage {
                 y,
                 width,
                 76,
-                config.enabled ? (config.paused ? "Automation paused" : "Automation ready") : "Automation disabled",
-                "Disabled by default. When enabled, Atmosphere+ applies mapped presets only when the detected biome category changes.",
+                "Automation: " + automationStatusTitle(config),
+                automationStatusDescription(config),
                 IconType.SKY
         ));
         y += 88;
@@ -93,6 +95,9 @@ public final class BiomeAtmospheresPage {
         y += 46;
 
         widgets.add(new ToggleWidget(x, y, width, "Manual changes pause automation", "Pause automation when you manually change atmosphere settings.", () -> config.manualChangesPause, actions::setManualPause));
+        y += 46;
+
+        widgets.add(new ToggleWidget(x, y, width, "Show Automation Toasts", "Show brief Biome Atmospheres status notifications.", () -> config.showAutomationToasts, actions::setShowAutomationToasts));
         y += 46;
 
         widgets.add(new ChoiceButtonWidget(
@@ -194,6 +199,29 @@ public final class BiomeAtmospheresPage {
             case APPLY_CAVE_PRESET -> "Transition to a chosen cave preset while underground.";
             case IGNORE -> "Continue biome automation everywhere.";
         };
+    }
+
+    private static String automationStatusTitle(BiomeAtmosphereConfig config) {
+        if (!config.enabled) {
+            return "Disabled";
+        }
+        if (config.paused) {
+            return "Manually paused";
+        }
+        if (TransitionManager.isTransitioning()) {
+            return "Transitioning";
+        }
+        return BiomeAtmosphereManager.automationStateLabel();
+    }
+
+    private static String automationStatusDescription(BiomeAtmosphereConfig config) {
+        if (!config.enabled) {
+            return "Enable automation to apply mapped presets as the environment changes.";
+        }
+        if (config.paused) {
+            return "Manual pause is persisted. Use Resume Automation to continue.";
+        }
+        return "Current state: " + BiomeAtmosphereManager.automationStateLabel();
     }
 
     private static int addMappings(List<AtmosphereWidget> widgets, Actions actions, BiomeAtmosphereConfig config, BiomeCategory pickerCategory, int x, int y, int width) {

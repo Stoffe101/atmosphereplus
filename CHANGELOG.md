@@ -1,5 +1,69 @@
 # Atmosphere+ Changelog
 
+## 0.3.0-beta.9
+
+### Fixed
+
+- Fog Off now targets Minecraft 1.21.11's `AtmosphericFogModifier` and pushes both fog start and end distances outward.
+- Lava/Submersion Fog Off now targets `LavaFogModifier`, `WaterFogModifier`, and `PowderSnowFogModifier` directly.
+- Nether and End fog changes should be more visible because dimension fog is adjusted at the active `FogData` modifier path instead of only at the final fog buffer write.
+
+### Added
+
+- Fog Debug action showing current dimension, camera submersion, active fog modifier, fog toggles, and latest fog ranges.
+
+### Notes
+
+- Low Fire remains separate from fog and only changes the first-person fire overlay.
+- Shader packs may still replace or post-process Minecraft fog after Atmosphere+ adjusts vanilla fog data.
+
+## 0.3.0-beta.8
+
+### Added
+
+- Lava/Submersion Fog Off control for lava, water, and powder snow fog.
+- Low Fire option that lowers the first-person fire overlay without removing it.
+- Search entries for lava fog, submersion fog, water fog, and low fire.
+
+### Changed
+
+- Nether and End presets now use stronger supported visual values so mapped dimension presets are more visibly distinct.
+- Fog rendering now also applies Atmosphere+ brightness/renderer mood to fog color where Minecraft exposes the fog path.
+
+### Notes
+
+- Vanilla dimensions and shader packs can still limit sky, weather, and some fog behavior. Atmosphere+ now applies supported fog, gamma/fullbright, particle, and renderer controls, but shader packs may override the final image.
+
+## 0.3.0-beta.7
+
+### Fixed
+
+- Nether and End mappings now force a transition when the mapped preset is not actually active.
+- Nether and End category changes bypass Overworld biome dwell timing.
+- Cave Handling no longer masks dimension preset application.
+- Biome Atmospheres status wording is clearer for disabled, active, paused, underground, dwell, and transition states.
+
+### Added
+
+- Fog Mode controls: Server Fog, Custom Fog, and Fog Off.
+- Search entries for fog off, disable fog, custom fog, server fog, and reset fog.
+
+## 0.3.0-beta.6
+
+### Added
+
+- Biome Atmospheres automation toast feedback.
+- Show Automation Toasts setting for Biome Atmospheres.
+
+### Fixed
+
+- Nether and End dimension detection now use Minecraft world registry keys.
+- Cave Handling no longer overrides Nether or End mappings.
+
+### Changed
+
+- Biome Atmospheres notifications are debounced to avoid toast spam.
+
 ## 0.3.0-beta.5
 
 ### Added

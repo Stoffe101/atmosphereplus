@@ -7,6 +7,7 @@ Iris shader packs may override:
 - cloud height
 - star brightness
 - fog appearance
+- lava/water/submersion fog
 - sky brightness
 - lightmap/fullbright
 
@@ -50,7 +51,22 @@ Check:
 - Cave Handling may be pausing automation while you are underground.
 - The current biome category has a mapped preset.
 - The mapped preset still exists in Prebuilt Presets or My Presets.
+- If you expect popup feedback, Show Automation Toasts is enabled.
 - Shader packs may be overriding the visible result.
+
+## Nether or End mappings do not apply
+
+Make sure the Nether or End category has a mapped preset. Atmosphere+ detects these dimensions directly before cave handling, so Cave Handling should not block Nether or End mappings.
+
+If the category changes but the scene still looks similar, open Fog -> Fog Debug. In normal Nether/End air, the active modifier should usually be `AtmosphericFogModifier`. Atmosphere+ targets that modifier in Minecraft 1.21.11, but vanilla Nether/End sky and shader packs can still limit weather, time, sky, and some fog visuals even when the preset is applied.
+
+## Lava or water fog is still visible
+
+Enable Fog -> Lava/Submersion Fog Off. This targets `LavaFogModifier`, `WaterFogModifier`, and `PowderSnowFogModifier` and pushes the submersion fog range outward. Use Fog -> Fog Debug while submerged to confirm which modifier is active. Shader packs or future Minecraft renderer changes may still override part of this effect.
+
+## Fire overlay covers too much of the screen
+
+Enable Particles -> Low Fire. It lowers the first-person fire overlay while keeping the fire warning visible.
 
 ## Biome Atmospheres changes presets while mining
 

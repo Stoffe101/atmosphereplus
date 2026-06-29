@@ -403,20 +403,22 @@ public final class PresetLibraryManager {
             c.timeOverride = false;
             c.weatherOverride = false;
             c.fogOverride = true;
-            c.fogDistance = 0.55f;
-            c.fogDensity = 1.45f;
-            c.gamma = 0.95f;
-            mood(c, 0.65f, 0.70f, 0.65f, 0.45f, 0.35f);
+            c.fogDistance = 0.42f;
+            c.fogDensity = 1.75f;
+            c.gamma = 0.80f;
+            c.particleAmount = 0.85f;
+            mood(c, 0.58f, 0.70f, 0.50f, 0.45f, 0.30f);
         });
         add("void_purple", "Void Purple", "Sparse, dim End ambience.", IconType.TIME, c -> {
             c.timeOverride = true;
             c.visualTime = 18000;
             c.weatherOverride = false;
             c.fogOverride = true;
-            c.fogDistance = 1.15f;
-            c.fogDensity = 0.75f;
-            c.gamma = 1.0f;
-            mood(c, 0.35f, 1.0f, 0.55f, 1.8f, 0.25f);
+            c.fogDistance = 1.35f;
+            c.fogDensity = 0.55f;
+            c.gamma = 1.15f;
+            c.particleAmount = 0.70f;
+            mood(c, 0.35f, 1.0f, 0.72f, 1.8f, 0.25f);
         });
         add("misty_morning", "Misty Morning", "Sunrise and soft fog.", IconType.FOG, c -> {
             c.weatherOverride = true;
