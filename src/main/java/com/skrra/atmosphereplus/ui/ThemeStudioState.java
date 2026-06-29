@@ -29,9 +29,28 @@ public class ThemeStudioState {
         }
     }
 
+    public enum EditorSection {
+        ACCENT("Accent", "Primary interaction colors", new Token[]{Token.ACCENT, Token.ACCENT_SOFT}),
+        BACKGROUND("Background", "Main backdrop color", new Token[]{Token.BACKGROUND}),
+        PANELS("Panels", "Cards, panels and borders", new Token[]{Token.PANEL, Token.PANEL_ALT, Token.BORDER}),
+        TEXT("Text", "Readable foreground colors", new Token[]{Token.TEXT, Token.MUTED_TEXT}),
+        ADVANCED_COLORS("Advanced Colors", "All color tokens", Token.values());
+
+        public final String label;
+        public final String description;
+        public final Token[] tokens;
+
+        EditorSection(String label, String description, Token[] tokens) {
+            this.label = label;
+            this.description = description;
+            this.tokens = tokens;
+        }
+    }
+
     private String selectedThemeId = "";
     private CustomThemeData draft;
     private boolean advancedMode = false;
+    private EditorSection expandedSection = EditorSection.ACCENT;
     private String focusedHexToken = "";
     private final Map<String, String> hexInputs = new HashMap<>();
 
@@ -65,6 +84,19 @@ public class ThemeStudioState {
 
     public void setAdvancedMode(boolean advancedMode) {
         this.advancedMode = advancedMode;
+        if (!advancedMode) {
+            expandedSection = EditorSection.ACCENT;
+        }
+    }
+
+    public EditorSection expandedSection() {
+        return expandedSection;
+    }
+
+    public void setExpandedSection(EditorSection section) {
+        if (section != null) {
+            expandedSection = section;
+        }
     }
 
     public CustomThemeData draft() {

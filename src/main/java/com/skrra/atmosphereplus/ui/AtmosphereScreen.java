@@ -1195,6 +1195,13 @@ private ThemeStudioPage.Actions themeStudioActions() {
             themeStudioState.clearHexFocus();
             rebuildWidgets();
         }
+
+        @Override
+        public void expandSection(ThemeStudioState.EditorSection section) {
+            themeStudioState.setExpandedSection(section);
+            themeStudioState.clearHexFocus();
+            rebuildWidgets();
+        }
     };
 }
 

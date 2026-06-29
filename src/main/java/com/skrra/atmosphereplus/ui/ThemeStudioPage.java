@@ -18,8 +18,14 @@ import net.minecraft.client.gui.DrawContext;
 import java.util.List;
 
 public final class ThemeStudioPage {
-    private static final int SECTION_GAP = 10;
-    private static final int CARD_GAP = 8;
+    private static final int GAP = 10;
+    private static final int SMALL_GAP = 8;
+
+    private enum LayoutMode {
+        WIDE,
+        MEDIUM,
+        NARROW
+    }
 
     private ThemeStudioPage() {
     }
@@ -46,82 +52,60 @@ public final class ThemeStudioPage {
         void resetTheme();
 
         void toggleAdvancedMode();
+
+        void expandSection(ThemeStudioState.EditorSection section);
     }
 
     public static int addWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int contentX, int contentY, int contentW) {
-        if (contentW >= 680) {
-            return addWideWidgets(widgets, state, actions, contentX, contentY, contentW);
-        }
+        LayoutMode mode = layoutMode(contentW);
 
-        return addStackedWidgets(widgets, state, actions, contentX, contentY, contentW);
+        return switch (mode) {
+            case WIDE -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, contentW, 58);
+            case MEDIUM -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, contentW, 50);
+            case NARROW -> addStackedWidgets(widgets, state, actions, contentX, contentY, contentW);
+        };
     }
 
-    private static int addWideWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int contentX, int contentY, int contentW) {
-        int gap = 12;
-        int leftW = Math.max(300, (contentW - gap) * 60 / 100);
-        int rightW = contentW - gap - leftW;
+    private static LayoutMode layoutMode(int width) {
+        if (width >= 820) {
+            return LayoutMode.WIDE;
+        }
+        if (width >= 620) {
+            return LayoutMode.MEDIUM;
+        }
+        return LayoutMode.NARROW;
+    }
 
-        int leftY = contentY;
-        int rightY = contentY;
+    private static int addTwoColumnWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, int leftPercent) {
+        int leftW = Math.max(280, (w - GAP) * leftPercent / 100);
+        int rightW = w - GAP - leftW;
 
-        leftY = addCurrentThemeSection(widgets, state, actions, contentX, leftY, leftW);
-        leftY = addLibrarySection(widgets, state, actions, contentX, leftY, leftW);
-        leftY = addEditorSection(widgets, state, actions, contentX, leftY, leftW);
+        int leftY = y;
+        int rightY = y;
 
-        int rightX = contentX + leftW + gap;
+        leftY = addLibrarySection(widgets, state, actions, x, leftY, leftW);
+        leftY = addEditorSection(widgets, state, actions, x, leftY, leftW);
+
+        int rightX = x + leftW + GAP;
         rightY = addLivePreviewSection(widgets, state, rightX, rightY, rightW);
-        rightY = addThemeActionsSection(widgets, state, actions, rightX, rightY, rightW);
+        rightY = addPrimaryActions(widgets, state, actions, rightX, rightY, rightW);
+        rightY = addSecondaryActions(widgets, state, actions, rightX, rightY, rightW);
 
         return Math.max(leftY, rightY);
     }
 
-    private static int addStackedWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int contentX, int contentY, int contentW) {
-        int y = contentY;
-        y = addCurrentThemeSection(widgets, state, actions, contentX, y, contentW);
-        y = addLibrarySection(widgets, state, actions, contentX, y, contentW);
-        y = addEditorSection(widgets, state, actions, contentX, y, contentW);
-        y = addLivePreviewSection(widgets, state, contentX, y, contentW);
-        y = addThemeActionsSection(widgets, state, actions, contentX, y, contentW);
+    private static int addStackedWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
+        y = addLibrarySection(widgets, state, actions, x, y, w);
+        y = addLivePreviewSection(widgets, state, x, y, w);
+        y = addEditorSection(widgets, state, actions, x, y, w);
+        y = addPrimaryActions(widgets, state, actions, x, y, w);
+        y = addSecondaryActions(widgets, state, actions, x, y, w);
         return y;
     }
 
-    private static int addCurrentThemeSection(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
-        Theme current = ThemeManager.current();
-        Theme selected = ThemeManager.byId(state.selectedThemeId());
-        widgets.add(new SectionLabelWidget(x, y, w, "Current Theme", state.dirty() ? "Unsaved edits" : "Selected interface theme"));
-        y += 28;
-
-        String selectedText = selected == null ? "No selection" : "Selected: " + selected.displayName();
-        if (state.dirty()) {
-            selectedText += " (unsaved)";
-        }
-
-        widgets.add(new InfoCardWidget(
-                x,
-                y,
-                w,
-                58,
-                current.displayName(),
-                selectedText + ". Active id: " + ConfigManager.get().theme,
-                IconType.THEMES
-        ));
-
-        y += 66;
-        widgets.add(new ActionButtonWidget(
-                x,
-                y,
-                w,
-                selected == null ? "Apply Theme" : "Apply " + selected.displayName(),
-                "Apply changes only after saving; preview updates immediately while editing.",
-                IconType.THEMES,
-                () -> actions.applyTheme(state.selectedThemeId())
-        ));
-
-        return y + 44 + SECTION_GAP;
-    }
-
     private static int addLibrarySection(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Custom Themes", "Editable library"));
+        Theme selected = ThemeManager.byId(state.selectedThemeId());
+        widgets.add(new SectionLabelWidget(x, y, w, "Theme Studio", state.dirty() ? "Unsaved edits" : "Custom themes"));
         y += 28;
 
         if (!CustomThemeManager.hasCustomThemes()) {
@@ -129,27 +113,27 @@ public final class ThemeStudioPage {
                     x,
                     y,
                     w,
-                    74,
+                    72,
                     "No custom themes yet",
-                    "Create a theme from the active look or duplicate a built-in theme to unlock editing.",
+                    "Create a custom theme from the active look or duplicate the selected theme.",
                     IconType.THEMES
             ));
-            return y + 74 + SECTION_GAP;
+            return y + 72 + GAP;
         }
 
         int columns = w >= 520 ? 2 : 1;
-        int cardW = (w - CARD_GAP * (columns - 1)) / columns;
+        int cardW = (w - SMALL_GAP * (columns - 1)) / columns;
         int index = 0;
 
         for (CustomThemeData data : CustomThemeManager.all().values()) {
-            int cardX = x + (index % columns) * (cardW + CARD_GAP);
-            int cardY = y + (index / columns) * 46;
+            int cardX = x + (index % columns) * (cardW + SMALL_GAP);
+            int cardY = y + (index / columns) * 42;
             widgets.add(new ChoiceButtonWidget(
                     cardX,
                     cardY,
                     cardW,
                     data.displayName,
-                    data.id.equals(ConfigManager.get().theme) ? "Applied custom theme" : "Custom theme",
+                    data.id.equals(ConfigManager.get().theme) ? "Applied" : "Custom theme",
                     IconType.THEMES,
                     () -> data.id.equals(state.selectedThemeId()),
                     () -> actions.selectTheme(data.id)
@@ -157,11 +141,25 @@ public final class ThemeStudioPage {
             index++;
         }
 
-        return y + ((index + columns - 1) / columns) * 46 + SECTION_GAP;
+        int bottom = y + ((index + columns - 1) / columns) * 42 + GAP;
+        if (selected != null && !state.selectedIsCustom()) {
+            widgets.add(new InfoCardWidget(
+                    x,
+                    bottom,
+                    w,
+                    54,
+                    "Read-only selection",
+                    "Duplicate " + selected.displayName() + " to edit it in Theme Studio.",
+                    IconType.ADVANCED
+            ));
+            bottom += 54 + GAP;
+        }
+
+        return bottom;
     }
 
     private static int addEditorSection(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
-        widgets.add(new SectionLabelWidget(x, y, w, state.advancedMode() ? "Advanced Mode" : "Simple Mode", "Custom theme editor"));
+        widgets.add(new SectionLabelWidget(x, y, w, state.advancedMode() ? "Advanced Mode" : "Simple Mode", state.advancedMode() ? "One group expanded" : "Name and accent"));
         y += 28;
 
         if (!state.selectedIsCustom()) {
@@ -169,12 +167,12 @@ public final class ThemeStudioPage {
                     x,
                     y,
                     w,
-                    76,
-                    "Read-only theme",
-                    "Built-in themes cannot be edited. Duplicate this theme to create a custom editable copy.",
+                    68,
+                    "Editor locked",
+                    "Built-in themes stay read-only. Create or duplicate a theme to edit colors.",
                     IconType.ADVANCED
             ));
-            return y + 76 + SECTION_GAP;
+            return y + 68 + GAP;
         }
 
         widgets.add(new ActionButtonWidget(
@@ -186,36 +184,54 @@ public final class ThemeStudioPage {
                 IconType.PRESETS,
                 () -> actions.renameTheme(state.selectedThemeId())
         ));
-        y += 42;
+        y += 44;
 
-        widgets.add(new ActionButtonWidget(
-                x,
-                y,
-                w,
-                state.advancedMode() ? "Advanced: On" : "Advanced: Off",
-                state.advancedMode() ? "Showing all editable color tokens." : "Simple mode edits only the accent family.",
-                IconType.ADVANCED,
-                actions::toggleAdvancedMode
-        ));
-        y += 46;
-
-        ThemeStudioState.Token[] tokens = state.advancedMode()
-                ? ThemeStudioState.Token.values()
-                : new ThemeStudioState.Token[]{ThemeStudioState.Token.ACCENT};
-
-        for (ThemeStudioState.Token token : tokens) {
-            y = addColorControl(widgets, state, x, y, w, token);
+        if (!state.advancedMode()) {
+            y = addColorControl(widgets, state, x, y, w, ThemeStudioState.Token.ACCENT, true);
+            y = addInlineSaveReset(widgets, state, actions, x, y, w);
+            return y + GAP;
         }
 
-        return y + SECTION_GAP;
+        for (ThemeStudioState.EditorSection section : ThemeStudioState.EditorSection.values()) {
+            boolean expanded = section == state.expandedSection();
+            widgets.add(new ActionButtonWidget(
+                    x,
+                    y,
+                    w,
+                    (expanded ? "- " : "+ ") + section.label,
+                    expanded ? section.description : "Open " + section.label.toLowerCase() + " controls.",
+                    expanded ? IconType.THEMES : IconType.PRESETS,
+                    () -> actions.expandSection(section)
+            ));
+            y += 40;
+
+            if (expanded) {
+                for (ThemeStudioState.Token token : section.tokens) {
+                    y = addColorControl(widgets, state, x, y, w, token, false);
+                }
+            }
+        }
+
+        y = addInlineSaveReset(widgets, state, actions, x, y, w);
+        return y + GAP;
     }
 
-    private static int addColorControl(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w, ThemeStudioState.Token token) {
+    private static int addInlineSaveReset(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
+        int columns = w >= 430 ? 2 : 1;
+        int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
+
+        widgets.add(new ActionButtonWidget(x, y, buttonW, state.dirty() ? "Save Changes" : "Save Theme", "Persist custom theme edits.", IconType.THEMES, () -> actions.saveTheme(state.selectedThemeId())));
+        widgets.add(new ActionButtonWidget(x + (columns > 1 ? buttonW + SMALL_GAP : 0), y + (columns > 1 ? 0 : 40), buttonW, "Reset Theme", "Reset this custom draft to Midnight colors.", IconType.FOG, actions::resetTheme));
+
+        return y + (columns > 1 ? 40 : 80) + GAP;
+    }
+
+    private static int addColorControl(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w, ThemeStudioState.Token token, boolean compact) {
         widgets.add(new ColorHexWidget(
                 x,
                 y,
                 w,
-                token.label,
+                compact ? "Accent Color" : token.label,
                 () -> state.color(token),
                 () -> state.hexInput(token),
                 () -> state.isHexFocused(token),
@@ -223,50 +239,57 @@ public final class ThemeStudioPage {
         ));
         y += 38;
 
-        int columns = w >= 520 ? 3 : 1;
-        int sliderW = (w - CARD_GAP * (columns - 1)) / columns;
+        int columns = w >= 560 ? 3 : w >= 390 ? 2 : 1;
+        int sliderW = (w - SMALL_GAP * (columns - 1)) / columns;
         widgets.add(new SliderWidget(sliderX(x, sliderW, columns, 0), y + sliderY(0, columns), sliderW, "Red", null, 0f, 255f, () -> (float) red(state.color(token)), value -> state.setColor(token, replaceRed(state.color(token), Math.round(value))), value -> String.valueOf(Math.round(value))));
         widgets.add(new SliderWidget(sliderX(x, sliderW, columns, 1), y + sliderY(1, columns), sliderW, "Green", null, 0f, 255f, () -> (float) green(state.color(token)), value -> state.setColor(token, replaceGreen(state.color(token), Math.round(value))), value -> String.valueOf(Math.round(value))));
         widgets.add(new SliderWidget(sliderX(x, sliderW, columns, 2), y + sliderY(2, columns), sliderW, "Blue", null, 0f, 255f, () -> (float) blue(state.color(token)), value -> state.setColor(token, replaceBlue(state.color(token), Math.round(value))), value -> String.valueOf(Math.round(value))));
 
-        return y + (columns == 1 ? 148 : 54) + SECTION_GAP;
+        return y + ((3 + columns - 1) / columns) * 50 + (compact ? 6 : GAP);
     }
 
     private static int addLivePreviewSection(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Live Preview", state.dirty() ? "Unsaved preview" : "Saved preview"));
+        widgets.add(new SectionLabelWidget(x, y, w, "Live Preview", state.dirty() ? "Unsaved preview" : "Current preview"));
         y += 28;
-        widgets.add(new ThemePreviewWidget(x, y, w, 184, state));
-        return y + 184 + SECTION_GAP;
+        widgets.add(new ThemePreviewWidget(x, y, w, w >= 360 ? 168 : 156, state));
+        return y + (w >= 360 ? 168 : 156) + GAP;
     }
 
-    private static int addThemeActionsSection(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Theme Actions", "Create, save and manage"));
+    private static int addPrimaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
+        widgets.add(new SectionLabelWidget(x, y, w, "Mode", "Simple or advanced"));
         y += 28;
 
         int columns = w >= 430 ? 2 : 1;
-        int buttonW = (w - CARD_GAP * (columns - 1)) / columns;
+        int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
+
+        widgets.add(new ActionButtonWidget(x, y, buttonW, state.advancedMode() ? "Simple Mode" : "Advanced Mode", state.advancedMode() ? "Return to the compact editor." : "Show grouped color controls.", IconType.ADVANCED, actions::toggleAdvancedMode));
+        widgets.add(new ActionButtonWidget(x + (columns > 1 ? buttonW + SMALL_GAP : 0), y + (columns > 1 ? 0 : 40), buttonW, "Revert", "Discard unsaved edits.", IconType.PRESETS, actions::revertTheme));
+
+        return y + (columns > 1 ? 40 : 80) + GAP;
+    }
+
+    private static int addSecondaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
+        widgets.add(new SectionLabelWidget(x, y, w, "Manage", "Theme library"));
+        y += 28;
+
+        int columns = w >= 430 ? 2 : 1;
+        int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
         int index = 0;
 
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Create Theme", "Create a custom theme from the active theme.", IconType.THEMES, actions::createTheme));
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Create", "Create a custom theme from the active theme.", IconType.THEMES, actions::createTheme));
         index++;
         widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Duplicate", "Duplicate the selected theme.", IconType.PRESETS, () -> actions.duplicateTheme(state.selectedThemeId())));
         index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, state.dirty() ? "Save Changes" : "Save Theme", "Persist custom theme edits to disk.", IconType.THEMES, () -> actions.saveTheme(state.selectedThemeId())));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Revert Changes", "Discard unsaved edits and reload the saved custom theme.", IconType.ADVANCED, actions::revertTheme));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Reset Theme", "Reset this custom draft to the default Midnight colors.", IconType.FOG, actions::resetTheme));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Delete", "Delete the selected custom theme after confirmation.", IconType.ADVANCED, () -> actions.deleteTheme(state.selectedThemeId())));
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Delete", "Delete the selected custom theme.", IconType.ADVANCED, () -> actions.deleteTheme(state.selectedThemeId())));
         index++;
         widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Reload", "Reload custom themes from disk.", IconType.ADVANCED, actions::reloadThemes));
         index++;
 
-        return y + ((index + columns - 1) / columns) * 42 + SECTION_GAP;
+        return y + ((index + columns - 1) / columns) * 40 + GAP;
     }
 
     private static int sliderX(int x, int sliderW, int columns, int index) {
-        return x + (index % columns) * (sliderW + CARD_GAP);
+        return x + (index % columns) * (sliderW + SMALL_GAP);
     }
 
     private static int sliderY(int index, int columns) {
@@ -274,11 +297,11 @@ public final class ThemeStudioPage {
     }
 
     private static int actionX(int x, int buttonW, int columns, int index) {
-        return x + (index % columns) * (buttonW + CARD_GAP);
+        return x + (index % columns) * (buttonW + SMALL_GAP);
     }
 
     private static int actionY(int y, int index, int columns) {
-        return y + (index / columns) * 42;
+        return y + (index / columns) * 40;
     }
 
     private static int red(int color) {
@@ -322,12 +345,12 @@ public final class ThemeStudioPage {
             UiRender.gradientHorizontal(context, x + 8, y + 8, width - 16, 24, theme.panel(), theme.panelAlt());
             UiRender.text(context, textRenderer, trim(textRenderer, "Preview: " + theme.displayName(), width - 28), x + 14, y + 15, theme.text());
 
-            int sampleY = y + 44;
-            UiRender.borderedRect(context, x + 12, sampleY, width - 24, 48, theme.panel(), theme.border());
+            int sampleY = y + 42;
+            UiRender.borderedRect(context, x + 12, sampleY, width - 24, 42, theme.panel(), theme.border());
             UiRender.text(context, textRenderer, "Panel card", x + 22, sampleY + 8, theme.text());
-            UiRender.text(context, textRenderer, trim(textRenderer, "Muted text, borders and panels update immediately.", width - 48), x + 22, sampleY + 24, theme.mutedText());
+            UiRender.text(context, textRenderer, trim(textRenderer, "Muted copy and border sample.", width - 48), x + 22, sampleY + 24, theme.mutedText());
 
-            int buttonY = sampleY + 60;
+            int buttonY = sampleY + 52;
             int buttonW = Math.min(116, Math.max(76, (width - 34) / 2));
             UiRender.borderedRect(context, x + 12, buttonY, buttonW, 24, theme.accentSoft(), theme.accent());
             UiRender.centeredText(context, textRenderer, "Selected", x + 12 + buttonW / 2, buttonY + 8, theme.text());
@@ -336,15 +359,14 @@ public final class ThemeStudioPage {
             UiRender.borderedRect(context, secondaryX, buttonY, buttonW, 24, theme.panelAlt(), theme.border());
             UiRender.centeredText(context, textRenderer, "Button", secondaryX + buttonW / 2, buttonY + 8, theme.mutedText());
 
-            int toggleY = buttonY + 40;
-            UiRender.borderedRect(context, x + 12, toggleY, width - 24, 24, theme.panelAlt(), theme.border());
-            UiRender.rect(context, x + 22, toggleY + 11, width - 84, 3, theme.border());
-            UiRender.gradientHorizontal(context, x + 22, toggleY + 11, Math.max(12, (width - 84) * 2 / 3), 3, theme.accentSoft(), theme.accent());
-            UiRender.borderedRect(context, x + width - 54, toggleY + 5, 32, 14, theme.accentSoft(), theme.accent());
-            context.fill(x + width - 32, toggleY + 8, x + width - 22, toggleY + 18, theme.text());
+            int controlY = buttonY + 38;
+            UiRender.rect(context, x + 22, controlY + 10, width - 84, 3, theme.border());
+            UiRender.gradientHorizontal(context, x + 22, controlY + 10, Math.max(12, (width - 84) * 2 / 3), 3, theme.accentSoft(), theme.accent());
+            UiRender.borderedRect(context, x + width - 54, controlY + 3, 32, 14, theme.accentSoft(), theme.accent());
+            context.fill(x + width - 32, controlY + 6, x + width - 22, controlY + 16, theme.text());
 
-            int swatchSize = 12;
-            int swatchY = y + height - 20;
+            int swatchSize = 10;
+            int swatchY = y + height - 18;
             int swatchX = x + width - 12 - swatchSize;
             int[] colors = {theme.accent(), theme.accentSoft(), theme.border(), theme.text(), theme.mutedText()};
             for (int i = colors.length - 1; i >= 0; i--) {
