@@ -59,6 +59,8 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - Minimum biome dwell time to avoid rapid border switching
 - Transition status feedback while automation is moving toward a preset
 - Favorite presets for quick access
+- EnvironmentDetector-powered surface, underground, cave, Nether, and End awareness
+- Cave Handling options for pausing automation underground or applying a dedicated cave preset
 
 Biome Atmospheres does not require server installation. It applies mapped presets only when the detected biome category changes.
 
@@ -69,6 +71,12 @@ Biome Atmospheres does not require server installation. It applies mapped preset
 - Interruptible transitions that continue from the current interpolated state
 - Shortest-path visual time interpolation across midnight
 - Built for Biome Atmospheres now and future timeline/weather automation later
+
+### Environment Detection
+
+- Reusable EnvironmentDetector for automation systems
+- Uses sky visibility, overhead enclosure, depth, and dimension context
+- Helps Biome Atmospheres avoid disruptive preset changes while mining or caving
 
 ### Compatibility tools
 

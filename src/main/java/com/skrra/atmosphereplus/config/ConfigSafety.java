@@ -2,6 +2,7 @@ package com.skrra.atmosphereplus.config;
 
 import com.skrra.atmosphereplus.automation.BiomeAtmosphereConfig;
 import com.skrra.atmosphereplus.automation.BiomeCategory;
+import com.skrra.atmosphereplus.automation.CaveHandlingMode;
 import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import com.skrra.atmosphereplus.util.NotificationUtil;
 import net.fabricmc.loader.api.FabricLoader;
@@ -16,7 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 
 public final class ConfigSafety {
-    public static final int LATEST_CONFIG_VERSION = 10;
+    public static final int LATEST_CONFIG_VERSION = 11;
 
     private ConfigSafety() {
     }
@@ -188,6 +189,17 @@ public final class ConfigSafety {
 
         if (!isValidMinimumBiomeTime(config.biomeAtmospheres.minimumBiomeTimeMs)) {
             config.biomeAtmospheres.minimumBiomeTimeMs = 1000;
+            changed = true;
+        }
+
+        CaveHandlingMode caveHandlingMode = CaveHandlingMode.parse(config.biomeAtmospheres.caveHandlingMode);
+        if (config.biomeAtmospheres.caveHandlingMode == null || !caveHandlingMode.name().equals(config.biomeAtmospheres.caveHandlingMode)) {
+            config.biomeAtmospheres.caveHandlingMode = caveHandlingMode.name();
+            changed = true;
+        }
+
+        if (config.biomeAtmospheres.cavePresetId == null) {
+            config.biomeAtmospheres.cavePresetId = "";
             changed = true;
         }
 

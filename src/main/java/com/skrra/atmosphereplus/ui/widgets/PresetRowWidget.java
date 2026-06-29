@@ -31,7 +31,7 @@ public class PresetRowWidget extends AtmosphereWidget {
             Runnable applyAction,
             Runnable favoriteAction
     ) {
-        super(x, y, width, 40);
+        super(x, y, width, 38);
         this.title = title;
         this.description = description;
         this.icon = icon;
@@ -48,7 +48,7 @@ public class PresetRowWidget extends AtmosphereWidget {
         boolean active = activeSupplier.get();
         boolean favorite = favoriteSupplier.get();
         boolean hover = isHovered(mouseX, mouseY);
-        boolean starHover = UiRender.hovered(mouseX, mouseY, starX(), y + 7, 24, 24);
+        boolean starHover = UiRender.hovered(mouseX, mouseY, starX(), y + 9, 20, 20);
 
         int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
         int border = active ? theme.accent() : hover ? theme.accentSoft() : theme.border();
@@ -59,19 +59,19 @@ public class PresetRowWidget extends AtmosphereWidget {
         }
 
         int starFill = starHover ? theme.panel() : theme.panelAlt();
-        UiRender.borderedRect(context, starX(), y + 7, 24, 24, starFill, favorite ? theme.accent() : theme.border());
-        UiRender.centeredText(context, textRenderer, favorite ? "★" : "☆", starX() + 12, y + 14, favorite ? theme.accent() : theme.mutedText());
+        UiRender.borderedRect(context, starX(), y + 9, 20, 20, starFill, favorite ? theme.accent() : theme.border());
+        UiRender.centeredText(context, textRenderer, favorite ? "\u2605" : "\u2606", starX() + 10, y + 15, favorite ? theme.accent() : theme.mutedText());
 
         int tileSize = 18;
-        int tileX = x + 40;
-        int tileY = y + 11;
+        int tileX = x + 36;
+        int tileY = y + 10;
         UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, active ? theme.accentSoft() : theme.panelAlt(), active ? theme.accent() : theme.border());
         IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 13);
 
         int textX = tileX + tileSize + 8;
         int textW = Math.max(16, width - (textX - x) - 10);
-        UiRender.text(context, textRenderer, trim(textRenderer, title, textW), textX, y + 7, theme.text());
-        UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 22, active ? theme.accent() : theme.mutedText());
+        UiRender.text(context, textRenderer, trim(textRenderer, title, textW), textX, y + 6, theme.text());
+        UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 20, active ? theme.accent() : theme.mutedText());
     }
 
     @Override
@@ -80,7 +80,7 @@ public class PresetRowWidget extends AtmosphereWidget {
             return false;
         }
 
-        if (UiRender.hovered(mouseX, mouseY, starX(), y + 7, 24, 24)) {
+        if (UiRender.hovered(mouseX, mouseY, starX(), y + 9, 20, 20)) {
             favoriteAction.run();
             return true;
         }

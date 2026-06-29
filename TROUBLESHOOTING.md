@@ -47,9 +47,18 @@ Check:
 
 - Biome Atmospheres is enabled.
 - Automation is not paused.
+- Cave Handling may be pausing automation while you are underground.
 - The current biome category has a mapped preset.
 - The mapped preset still exists in Prebuilt Presets or My Presets.
 - Shader packs may be overriding the visible result.
+
+## Biome Atmospheres changes presets while mining
+
+Use Biome Atmospheres -> Cave Handling:
+
+- Keep Current / Pause Automation keeps the active atmosphere underground.
+- Apply Cave Preset transitions to your selected cave preset underground.
+- Ignore Cave Handling keeps biome automation active everywhere.
 
 ## Mod Menu does not show Atmosphere+
 

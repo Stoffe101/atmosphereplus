@@ -3,6 +3,7 @@ package com.skrra.atmosphereplus.ui;
 import com.skrra.atmosphereplus.automation.BiomeAtmosphereConfig;
 import com.skrra.atmosphereplus.automation.BiomeAtmosphereManager;
 import com.skrra.atmosphereplus.automation.BiomeCategory;
+import com.skrra.atmosphereplus.automation.CaveHandlingMode;
 import com.skrra.atmosphereplus.client.AtmospherePlusClient;
 import com.skrra.atmosphereplus.compat.CompatibilityUtil;
 import com.skrra.atmosphereplus.config.AtmosphereProfile;
@@ -56,6 +57,7 @@ public class AtmosphereScreen extends Screen {
     private int selectedProfileIndex = 0;
     private final ThemeStudioState themeStudioState = new ThemeStudioState();
     private BiomeCategory biomePresetPickerCategory = null;
+    private boolean cavePresetPickerOpen = false;
 
     private String confirmTitle = "";
     private String confirmMessage = "";
@@ -295,7 +297,7 @@ private int contentWidgetWidth() {
         case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
         case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, themeStudioState, themeStudioActions(), contentX, contentY, contentW);
         case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
-        case BIOME_ATMOSPHERES -> finalY = BiomeAtmospheresPage.addWidgets(widgets, biomeAtmosphereActions(), biomePresetPickerCategory, contentX, contentY, contentW);
+        case BIOME_ATMOSPHERES -> finalY = BiomeAtmospheresPage.addWidgets(widgets, biomeAtmosphereActions(), biomePresetPickerCategory, cavePresetPickerOpen, contentX, contentY, contentW);
         case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
         case ADVANCED -> finalY = addAdvancedWidgets(contentX, contentY, contentW);
         default -> {
@@ -1294,8 +1296,20 @@ private BiomeAtmospheresPage.Actions biomeAtmosphereActions() {
         }
 
         @Override
+        public void cycleCaveHandlingMode() {
+            BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+            config.caveHandlingMode = CaveHandlingMode.parse(config.caveHandlingMode).next().name();
+            if (CaveHandlingMode.parse(config.caveHandlingMode) != CaveHandlingMode.APPLY_CAVE_PRESET) {
+                cavePresetPickerOpen = false;
+            }
+            ConfigManager.save();
+            rebuildWidgets();
+        }
+
+        @Override
         public void togglePresetPicker(BiomeCategory category) {
             biomePresetPickerCategory = category == biomePresetPickerCategory ? null : category;
+            cavePresetPickerOpen = false;
             rebuildWidgets();
         }
 
@@ -1303,6 +1317,23 @@ private BiomeAtmospheresPage.Actions biomeAtmosphereActions() {
         public void selectPreset(BiomeCategory category, String presetId) {
             setBiomeMapping(category, presetId);
             biomePresetPickerCategory = null;
+            rebuildWidgets();
+        }
+
+        @Override
+        public void toggleCavePresetPicker() {
+            cavePresetPickerOpen = !cavePresetPickerOpen;
+            biomePresetPickerCategory = null;
+            rebuildWidgets();
+        }
+
+        @Override
+        public void selectCavePreset(String presetId) {
+            BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+            config.cavePresetId = presetId == null ? "" : presetId;
+            config.lastAppliedCategory = "";
+            cavePresetPickerOpen = false;
+            ConfigManager.save();
             rebuildWidgets();
         }
 

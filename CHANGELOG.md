@@ -1,5 +1,20 @@
 # Atmosphere+ Changelog
 
+## 0.3.0-beta.5
+
+### Added
+
+- Reusable EnvironmentDetector for future automation systems.
+- Cave Handling controls for Biome Atmospheres.
+- Underground pause mode that keeps the current atmosphere while caving.
+- Optional Cave Preset mode that transitions to a selected preset underground.
+- Compact environment status in Biome Atmospheres.
+
+### Changed
+
+- Biome Atmospheres now uses environment context instead of Y-level-only cave handling.
+- Preset picker star buttons are smaller and cleaner.
+
 ## 0.3.0-beta.4
 
 ### Added

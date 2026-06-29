@@ -3,7 +3,10 @@ package com.skrra.atmosphereplus.ui;
 import com.skrra.atmosphereplus.automation.BiomeAtmosphereConfig;
 import com.skrra.atmosphereplus.automation.BiomeAtmosphereManager;
 import com.skrra.atmosphereplus.automation.BiomeCategory;
+import com.skrra.atmosphereplus.automation.CaveHandlingMode;
 import com.skrra.atmosphereplus.config.ConfigManager;
+import com.skrra.atmosphereplus.environment.EnvironmentDetector;
+import com.skrra.atmosphereplus.environment.EnvironmentSnapshot;
 import com.skrra.atmosphereplus.presets.PresetLibraryManager;
 import com.skrra.atmosphereplus.presets.PresetReference;
 import com.skrra.atmosphereplus.transitions.TransitionManager;
@@ -34,14 +37,20 @@ public final class BiomeAtmospheresPage {
 
         void cycleMinimumBiomeTime();
 
+        void cycleCaveHandlingMode();
+
         void togglePresetPicker(BiomeCategory category);
 
         void selectPreset(BiomeCategory category, String presetId);
 
+        void toggleCavePresetPicker();
+
+        void selectCavePreset(String presetId);
+
         void toggleFavorite(String presetId);
     }
 
-    public static int addWidgets(List<AtmosphereWidget> widgets, Actions actions, BiomeCategory pickerCategory, int contentX, int contentY, int contentW) {
+    public static int addWidgets(List<AtmosphereWidget> widgets, Actions actions, BiomeCategory pickerCategory, boolean cavePresetPickerOpen, int contentX, int contentY, int contentW) {
         BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
         int gap = 12;
         boolean twoColumn = contentW >= 760;
@@ -52,7 +61,7 @@ public final class BiomeAtmospheresPage {
         int leftY = contentY;
         int rightY = contentY;
 
-        leftY = addControls(widgets, actions, config, contentX, leftY, leftW);
+        leftY = addControls(widgets, actions, config, cavePresetPickerOpen, contentX, leftY, leftW);
         if (twoColumn) {
             rightY = addMappings(widgets, actions, config, pickerCategory, rightX, rightY, rightW);
             return Math.max(leftY, rightY);
@@ -62,7 +71,7 @@ public final class BiomeAtmospheresPage {
         return rightY;
     }
 
-    private static int addControls(List<AtmosphereWidget> widgets, Actions actions, BiomeAtmosphereConfig config, int x, int y, int width) {
+    private static int addControls(List<AtmosphereWidget> widgets, Actions actions, BiomeAtmosphereConfig config, boolean cavePresetPickerOpen, int x, int y, int width) {
         widgets.add(new SectionLabelWidget(x, y, width, "Biome Atmospheres", "Client-side preset automation"));
         y += 30;
 
@@ -110,14 +119,61 @@ public final class BiomeAtmospheresPage {
         ));
         y += 54;
 
+        widgets.add(new SectionLabelWidget(x, y, width, "Cave Handling", "Underground automation behavior"));
+        y += 30;
+
+        CaveHandlingMode caveMode = CaveHandlingMode.parse(config.caveHandlingMode);
+        widgets.add(new ChoiceButtonWidget(
+                x,
+                y,
+                width,
+                "Cave Handling: " + caveMode.label(),
+                caveModeDescription(caveMode),
+                IconType.FOG,
+                () -> caveMode != CaveHandlingMode.IGNORE,
+                actions::cycleCaveHandlingMode
+        ));
+        y += 46;
+
+        if (caveMode == CaveHandlingMode.APPLY_CAVE_PRESET) {
+            PresetReference cavePreset = PresetLibraryManager.reference(config.cavePresetId);
+            widgets.add(new BiomeMappingRowWidget(
+                    x,
+                    y,
+                    width,
+                    "Cave Preset",
+                    cavePreset == null ? "None / Disabled" : cavePreset.displayName(),
+                    IconType.LIGHTING,
+                    cavePresetPickerOpen,
+                    actions::toggleCavePresetPicker
+            ));
+            y += 42;
+
+            if (cavePresetPickerOpen) {
+                y = addCavePresetPicker(widgets, actions, config.cavePresetId, x, y, width) + 8;
+            }
+        }
+
         widgets.add(new SectionLabelWidget(x, y, width, "Current Status", "Detected category and applied preset"));
         y += 30;
+
+        EnvironmentSnapshot environment = EnvironmentDetector.current();
+        widgets.add(new InfoCardWidget(
+                x,
+                y,
+                width,
+                62,
+                "Environment: " + environment.type().label(),
+                "Can See Sky: " + (environment.canSeeSky() ? "Yes" : "No") + " - Automation: " + BiomeAtmosphereManager.automationStateLabel(),
+                IconType.SKY
+        ));
+        y += 74;
 
         PresetReference last = PresetLibraryManager.reference(config.lastAppliedPreset);
         String lastPreset = last == null ? "None" : last.displayName();
         PresetReference transitionTarget = PresetLibraryManager.reference(TransitionManager.targetPresetId());
         String status = TransitionManager.isTransitioning()
-                ? "Transitioning to " + (transitionTarget == null ? "preset" : transitionTarget.displayName()) + " · " + TransitionManager.progressPercent() + "%"
+                ? "Transitioning to " + (transitionTarget == null ? "preset" : transitionTarget.displayName()) + " - " + TransitionManager.progressPercent() + "%"
                 : "Last applied preset: " + lastPreset;
         widgets.add(new InfoCardWidget(
                 x,
@@ -130,6 +186,14 @@ public final class BiomeAtmospheresPage {
         ));
 
         return y + 80;
+    }
+
+    private static String caveModeDescription(CaveHandlingMode mode) {
+        return switch (mode) {
+            case KEEP_CURRENT -> "Pause biome changes while underground and keep the current atmosphere.";
+            case APPLY_CAVE_PRESET -> "Transition to a chosen cave preset while underground.";
+            case IGNORE -> "Continue biome automation everywhere.";
+        };
     }
 
     private static int addMappings(List<AtmosphereWidget> widgets, Actions actions, BiomeAtmosphereConfig config, BiomeCategory pickerCategory, int x, int y, int width) {
@@ -237,6 +301,72 @@ public final class BiomeAtmospheresPage {
         y += 28;
         y = addPickerRows(widgets, actions, category, selectedPresetId, nonFavorite(PresetLibraryManager.builtInsSorted()), x, y, width);
 
+        return y;
+    }
+
+    private static int addCavePresetPicker(List<AtmosphereWidget> widgets, Actions actions, String selectedPresetId, int x, int y, int width) {
+        widgets.add(new ChoiceButtonWidget(
+                x,
+                y,
+                width,
+                "None / Disabled",
+                "Keep the current atmosphere while underground.",
+                IconType.ADVANCED,
+                () -> selectedPresetId == null || selectedPresetId.isBlank() || PresetLibraryManager.reference(selectedPresetId) == null,
+                () -> actions.selectCavePreset("")
+        ));
+        y += 42;
+
+        List<PresetReference> favorites = PresetLibraryManager.favorites();
+        if (!favorites.isEmpty()) {
+            widgets.add(new SectionLabelWidget(x, y, width, "Favorite Presets", "Starred"));
+            y += 28;
+            y = addCavePickerRows(widgets, actions, selectedPresetId, favorites, x, y, width);
+            y += 6;
+        }
+
+        widgets.add(new SectionLabelWidget(x, y, width, "My Presets", "Saved custom presets"));
+        y += 28;
+        if (!PresetLibraryManager.hasCustomPresets()) {
+            widgets.add(new InfoCardWidget(
+                    x,
+                    y,
+                    width,
+                    48,
+                    "No custom presets",
+                    "Save a custom preset from the Presets page.",
+                    IconType.PRESETS
+            ));
+            y += 58;
+        } else {
+            List<PresetReference> custom = nonFavorite(PresetLibraryManager.customPresetsSorted());
+            if (!custom.isEmpty()) {
+                y = addCavePickerRows(widgets, actions, selectedPresetId, custom, x, y, width);
+                y += 6;
+            }
+        }
+
+        widgets.add(new SectionLabelWidget(x, y, width, "Prebuilt Presets", "Read-only"));
+        y += 28;
+        return addCavePickerRows(widgets, actions, selectedPresetId, nonFavorite(PresetLibraryManager.builtInsSorted()), x, y, width);
+    }
+
+    private static int addCavePickerRows(List<AtmosphereWidget> widgets, Actions actions, String selectedPresetId, List<PresetReference> presets, int x, int y, int width) {
+        for (PresetReference preset : presets) {
+            widgets.add(new PresetRowWidget(
+                    x,
+                    y,
+                    width,
+                    preset.displayName(),
+                    preset.description(),
+                    preset.icon(),
+                    () -> preset.id().equals(selectedPresetId),
+                    () -> PresetLibraryManager.isFavorite(preset.id()),
+                    () -> actions.selectCavePreset(preset.id()),
+                    () -> actions.toggleFavorite(preset.id())
+            ));
+            y += 44;
+        }
         return y;
     }
 

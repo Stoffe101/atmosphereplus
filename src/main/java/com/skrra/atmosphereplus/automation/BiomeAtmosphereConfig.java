@@ -10,6 +10,8 @@ public class BiomeAtmosphereConfig {
     public int transitionDurationMs = 1000;
     public String transitionSpeed = "NORMAL";
     public int minimumBiomeTimeMs = 1000;
+    public String caveHandlingMode = "KEEP_CURRENT";
+    public String cavePresetId = "";
     public String lastDetectedCategory = "";
     public String lastAppliedCategory = "";
     public String lastAppliedPreset = "";
