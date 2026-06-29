@@ -251,8 +251,19 @@ public final class ThemeStudioPage {
     private static int addLivePreviewSection(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w) {
         widgets.add(new SectionLabelWidget(x, y, w, "Live Preview", state.dirty() ? "Unsaved preview" : "Current preview"));
         y += 28;
-        widgets.add(new ThemePreviewWidget(x, y, w, w >= 360 ? 168 : 156, state));
-        return y + (w >= 360 ? 168 : 156) + GAP;
+        int previewH = previewHeight(w);
+        widgets.add(new ThemePreviewWidget(x, y, w, previewH, state));
+        return y + previewH + GAP;
+    }
+
+    private static int previewHeight(int width) {
+        if (width >= 430) {
+            return 176;
+        }
+        if (width >= 320) {
+            return 188;
+        }
+        return 202;
     }
 
     private static int addPrimaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
@@ -359,19 +370,63 @@ public final class ThemeStudioPage {
             UiRender.borderedRect(context, secondaryX, buttonY, buttonW, 24, theme.panelAlt(), theme.border());
             UiRender.centeredText(context, textRenderer, "Button", secondaryX + buttonW / 2, buttonY + 8, theme.mutedText());
 
-            int controlY = buttonY + 38;
-            UiRender.rect(context, x + 22, controlY + 10, width - 84, 3, theme.border());
-            UiRender.gradientHorizontal(context, x + 22, controlY + 10, Math.max(12, (width - 84) * 2 / 3), 3, theme.accentSoft(), theme.accent());
-            UiRender.borderedRect(context, x + width - 54, controlY + 3, 32, 14, theme.accentSoft(), theme.accent());
-            context.fill(x + width - 32, controlY + 6, x + width - 22, controlY + 16, theme.text());
+            int nextY = drawPreviewControls(context, theme, buttonY + 38);
 
-            int swatchSize = 10;
-            int swatchY = y + height - 18;
-            int swatchX = x + width - 12 - swatchSize;
             int[] colors = {theme.accent(), theme.accentSoft(), theme.border(), theme.text(), theme.mutedText()};
-            for (int i = colors.length - 1; i >= 0; i--) {
-                UiRender.borderedRect(context, swatchX, swatchY, swatchSize, swatchSize, colors[i], theme.border());
-                swatchX -= swatchSize + 4;
+            drawSwatches(context, theme, colors, nextY + 8);
+        }
+
+        private int drawPreviewControls(DrawContext context, Theme theme, int topY) {
+            int innerX = x + 14;
+            int innerW = width - 28;
+            int sliderMinW = 92;
+            int toggleW = 36;
+            int gap = 12;
+
+            if (innerW >= sliderMinW + toggleW + gap) {
+                int toggleX = innerX + innerW - toggleW;
+                int sliderW = Math.max(24, toggleX - innerX - gap);
+                drawSlider(context, theme, innerX, topY + 8, sliderW);
+                drawToggle(context, theme, toggleX, topY + 2, toggleW);
+                return topY + 24;
+            }
+
+            drawSlider(context, theme, innerX, topY + 6, innerW);
+            drawToggle(context, theme, innerX, topY + 22, toggleW);
+            return topY + 40;
+        }
+
+        private void drawSlider(DrawContext context, Theme theme, int sliderX, int sliderY, int sliderW) {
+            UiRender.rect(context, sliderX, sliderY + 6, sliderW, 3, theme.border());
+            UiRender.gradientHorizontal(context, sliderX, sliderY + 6, Math.max(8, sliderW * 2 / 3), 3, theme.accentSoft(), theme.accent());
+        }
+
+        private void drawToggle(DrawContext context, Theme theme, int toggleX, int toggleY, int toggleW) {
+            UiRender.borderedRect(context, toggleX, toggleY, toggleW, 16, theme.accentSoft(), theme.accent());
+            int knobSize = 10;
+            int knobX = toggleX + toggleW - knobSize - 3;
+            context.fill(knobX, toggleY + 3, knobX + knobSize, toggleY + 13, theme.text());
+        }
+
+        private void drawSwatches(DrawContext context, Theme theme, int[] colors, int startY) {
+            int swatchSize = width >= 320 ? 12 : 10;
+            int gap = 8;
+            int innerX = x + 14;
+            int innerRight = x + width - 14;
+            int swatchX = innerX;
+            int swatchY = startY;
+
+            for (int color : colors) {
+                if (swatchX + swatchSize > innerRight) {
+                    swatchX = innerX;
+                    swatchY += swatchSize + gap;
+                }
+
+                if (swatchY + swatchSize <= y + height - 10) {
+                    UiRender.borderedRect(context, swatchX, swatchY, swatchSize, swatchSize, color, theme.border());
+                }
+
+                swatchX += swatchSize + gap;
             }
         }
 
