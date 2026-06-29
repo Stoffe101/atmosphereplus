@@ -54,8 +54,18 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - Disabled by default
 - Default mappings for plains, desert, snow, Nether, and End atmospheres
 - Uses both Prebuilt Presets and My Presets
+- Smooth, interruptible atmosphere transitions
+- Transition speed controls: Instant, Fast, Normal, Slow
+- Minimum biome dwell time to avoid rapid border switching
 
 Biome Atmospheres does not require server installation. It applies mapped presets only when the detected biome category changes.
+
+### Transition Engine
+
+- Reusable transition system for presets and automation
+- Smooth ease-in-out interpolation for numeric atmosphere values
+- Interruptible transitions that continue from the current interpolated state
+- Built for Biome Atmospheres now and future timeline/weather automation later
 
 ### Compatibility tools
 

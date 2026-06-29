@@ -1,5 +1,20 @@
 # Atmosphere+ Changelog
 
+## 0.3.0-beta.3
+
+### Added
+
+- Reusable Transition Engine for preset and automation changes.
+- Smooth ease-in-out interpolation for numeric atmosphere values.
+- Interruptible transitions that retarget from the current interpolated state.
+- Transition Speed options: Instant, Fast, Normal, Slow.
+- Minimum Biome Time options to avoid rapid biome-border switching.
+
+### Changed
+
+- Biome Atmospheres now transitions through the shared Transition Engine instead of applying presets instantly.
+- Manual preset switching now uses the default smooth transition path.
+
 ## 0.3.0-beta.2
 
 ### Changed
@@ -28,7 +43,7 @@
 
 ### Notes
 
-- Transition duration is stored in config, but preset application is instant in this phase.
+- Transition duration from this phase was superseded by Transition Speed in `0.3.0-beta.3`.
 - Shader limitations still apply because shader packs may override sky, fog, cloud, and lighting hooks.
 
 ## 0.1.0-alpha.18

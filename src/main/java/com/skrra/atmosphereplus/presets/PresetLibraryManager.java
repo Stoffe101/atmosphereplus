@@ -4,7 +4,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.skrra.atmosphereplus.automation.BiomeAtmosphereManager;
 import com.skrra.atmosphereplus.config.AtmosphereConfig;
+import com.skrra.atmosphereplus.config.AtmosphereProfile;
 import com.skrra.atmosphereplus.config.ConfigManager;
+import com.skrra.atmosphereplus.transitions.TransitionManager;
 import com.skrra.atmosphereplus.ui.IconType;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -90,11 +92,21 @@ public final class PresetLibraryManager {
             return false;
         }
 
+        if (!automation) {
+            BiomeAtmosphereManager.onManualAtmosphereChange();
+            return TransitionManager.transitionTo(id);
+        }
+
+        return applyPresetInstant(id);
+    }
+
+    public static boolean applyPresetInstant(String id) {
+        if (id == null || id.isBlank()) {
+            return false;
+        }
+
         BuiltInPreset builtIn = BUILT_INS.get(id);
         if (builtIn != null) {
-            if (!automation) {
-                BiomeAtmosphereManager.onManualAtmosphereChange();
-            }
             AtmosphereConfig config = ConfigManager.get();
             builtIn.applyTo(config);
             config.activePreset = id;
@@ -104,9 +116,6 @@ public final class PresetLibraryManager {
 
         CustomPresetData custom = CUSTOM_PRESETS.get(id);
         if (custom != null) {
-            if (!automation) {
-                BiomeAtmosphereManager.onManualAtmosphereChange();
-            }
             custom.applyTo(ConfigManager.get());
             ConfigManager.get().activePreset = id;
             ConfigManager.save();
@@ -114,6 +123,29 @@ public final class PresetLibraryManager {
         }
 
         return false;
+    }
+
+    public static AtmosphereProfile snapshotForPreset(String id) {
+        if (id == null || id.isBlank()) {
+            return null;
+        }
+
+        BuiltInPreset builtIn = BUILT_INS.get(id);
+        if (builtIn != null) {
+            AtmosphereConfig scratch = new AtmosphereConfig();
+            scratch.theme = ConfigManager.get().theme;
+            builtIn.applyTo(scratch);
+            AtmosphereProfile profile = new AtmosphereProfile(builtIn.displayName());
+            profile.capture(scratch);
+            return profile;
+        }
+
+        CustomPresetData custom = CUSTOM_PRESETS.get(id);
+        if (custom != null && custom.snapshot != null) {
+            return AtmosphereProfile.copyOf(custom.snapshot);
+        }
+
+        return null;
     }
 
     public static CustomPresetData saveCurrentAsPreset() {

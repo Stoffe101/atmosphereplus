@@ -6,6 +6,7 @@ import com.skrra.atmosphereplus.automation.BiomeCategory;
 import com.skrra.atmosphereplus.config.ConfigManager;
 import com.skrra.atmosphereplus.presets.PresetLibraryManager;
 import com.skrra.atmosphereplus.presets.PresetReference;
+import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import com.skrra.atmosphereplus.ui.widgets.AtmosphereWidget;
 import com.skrra.atmosphereplus.ui.widgets.BiomeMappingRowWidget;
 import com.skrra.atmosphereplus.ui.widgets.ChoiceButtonWidget;
@@ -26,7 +27,9 @@ public final class BiomeAtmospheresPage {
 
         void setManualPause(boolean value);
 
-        void cycleTransition();
+        void cycleTransitionSpeed();
+
+        void cycleMinimumBiomeTime();
 
         void togglePresetPicker(BiomeCategory category);
 
@@ -82,11 +85,23 @@ public final class BiomeAtmospheresPage {
                 x,
                 y,
                 width,
-                "Transition: " + BiomeAtmosphereManager.transitionLabel(config.transitionDurationMs),
-                "Stored for smooth transitions; current preset application is instant.",
+                "Transition Speed: " + TransitionSpeed.parse(config.transitionSpeed).label(),
+                "Ease-in-out speed used when applying mapped presets.",
                 IconType.TIME,
-                () -> config.transitionDurationMs > 0,
-                actions::cycleTransition
+                () -> TransitionSpeed.parse(config.transitionSpeed) != TransitionSpeed.INSTANT,
+                actions::cycleTransitionSpeed
+        ));
+        y += 46;
+
+        widgets.add(new ChoiceButtonWidget(
+                x,
+                y,
+                width,
+                "Minimum Biome Time: " + BiomeAtmosphereManager.minimumBiomeTimeLabel(config.minimumBiomeTimeMs),
+                "Wait this long in a biome category before transitioning.",
+                IconType.SKY,
+                () -> config.minimumBiomeTimeMs > 0,
+                actions::cycleMinimumBiomeTime
         ));
         y += 54;
 

@@ -8,6 +8,8 @@ public class BiomeAtmosphereConfig {
     public boolean paused = false;
     public boolean manualChangesPause = true;
     public int transitionDurationMs = 1000;
+    public String transitionSpeed = "NORMAL";
+    public int minimumBiomeTimeMs = 1000;
     public String lastDetectedCategory = "";
     public String lastAppliedCategory = "";
     public String lastAppliedPreset = "";

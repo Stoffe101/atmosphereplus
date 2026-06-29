@@ -2,6 +2,8 @@ package com.skrra.atmosphereplus.automation;
 
 import com.skrra.atmosphereplus.config.ConfigManager;
 import com.skrra.atmosphereplus.presets.PresetLibraryManager;
+import com.skrra.atmosphereplus.transitions.TransitionManager;
+import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
@@ -9,9 +11,11 @@ import net.minecraft.util.math.BlockPos;
 import java.util.Locale;
 
 public final class BiomeAtmosphereManager {
-    private static final int CHECK_INTERVAL_TICKS = 60;
+    private static final int CHECK_INTERVAL_TICKS = 10;
     private static int ticksUntilCheck = CHECK_INTERVAL_TICKS;
     private static boolean applyingAutomation = false;
+    private static BiomeCategory pendingCategory = null;
+    private static int pendingCategoryTicks = 0;
 
     private BiomeAtmosphereManager() {
     }
@@ -22,6 +26,8 @@ public final class BiomeAtmosphereManager {
 
     public static void tick(MinecraftClient client) {
         if (client == null || client.player == null || client.world == null) {
+            pendingCategory = null;
+            pendingCategoryTicks = 0;
             return;
         }
 
@@ -44,7 +50,23 @@ public final class BiomeAtmosphereManager {
         config.lastDetectedCategory = categoryId;
 
         if (categoryId.equals(config.lastAppliedCategory)) {
+            pendingCategory = category;
+            pendingCategoryTicks = 0;
             return;
+        }
+
+        int minimumBiomeTimeMs = Math.max(0, config.minimumBiomeTimeMs);
+        if (pendingCategory != category) {
+            pendingCategory = category;
+            pendingCategoryTicks = 0;
+            if (minimumBiomeTimeMs > 0) {
+                return;
+            }
+        } else {
+            pendingCategoryTicks += CHECK_INTERVAL_TICKS;
+            if (pendingCategoryTicks * 50 < minimumBiomeTimeMs) {
+                return;
+            }
         }
 
         String presetId = config.mappings == null ? "" : config.mappings.getOrDefault(categoryId, "");
@@ -61,10 +83,11 @@ public final class BiomeAtmosphereManager {
 
         applyingAutomation = true;
         try {
-            if (PresetLibraryManager.applyPreset(presetId, true)) {
+            if (TransitionManager.transitionTo(presetId, TransitionSpeed.parse(config.transitionSpeed))) {
                 config.lastDetectedCategory = categoryId;
                 config.lastAppliedCategory = categoryId;
                 config.lastAppliedPreset = presetId;
+                pendingCategoryTicks = 0;
                 ConfigManager.save();
             }
         } finally {
@@ -101,9 +124,9 @@ public final class BiomeAtmosphereManager {
         }
     }
 
-    public static String transitionLabel(int millis) {
+    public static String minimumBiomeTimeLabel(int millis) {
         return switch (millis) {
-            case 0 -> "Instant";
+            case 0 -> "Off";
             case 500 -> "0.5s";
             case 1000 -> "1s";
             case 2000 -> "2s";
@@ -112,7 +135,7 @@ public final class BiomeAtmosphereManager {
         };
     }
 
-    public static int nextTransitionDuration(int current) {
+    public static int nextMinimumBiomeTime(int current) {
         int[] values = {0, 500, 1000, 2000, 5000};
         for (int i = 0; i < values.length; i++) {
             if (values[i] == current) {

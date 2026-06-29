@@ -53,6 +53,43 @@ public class AtmosphereProfile {
         return result;
     }
 
+    public static AtmosphereProfile copyOf(AtmosphereProfile source) {
+        AtmosphereProfile copy = new AtmosphereProfile(source == null ? "Profile" : source.name);
+        if (source == null) {
+            return copy;
+        }
+
+        copy.saved = source.saved;
+        copy.favorite = source.favorite;
+        copy.pinned = source.pinned;
+        copy.theme = source.theme;
+        copy.weatherOverride = source.weatherOverride;
+        copy.weatherMode = source.weatherMode;
+        copy.rainIntensity = source.rainIntensity;
+        copy.thunderSounds = source.thunderSounds;
+        copy.timeOverride = source.timeOverride;
+        copy.visualTime = source.visualTime;
+        copy.freezeVisualTime = source.freezeVisualTime;
+        copy.fullbright = source.fullbright;
+        copy.gamma = source.gamma;
+        copy.fogOverride = source.fogOverride;
+        copy.fogDistance = source.fogDistance;
+        copy.fogDensity = source.fogDensity;
+        copy.particleAmount = source.particleAmount;
+        copy.cloudOverride = source.cloudOverride;
+        copy.cloudMode = source.cloudMode;
+        copy.cloudDistance = source.cloudDistance;
+        copy.experimentalRendererControls = source.experimentalRendererControls;
+        copy.cloudOpacity = source.cloudOpacity;
+        copy.cloudHeight = source.cloudHeight;
+        copy.cloudDistanceOverride = source.cloudDistanceOverride;
+        copy.skyBrightness = source.skyBrightness;
+        copy.starBrightness = source.starBrightness;
+        copy.sunMoonVisibility = source.sunMoonVisibility;
+        copy.shaderAwareWarnings = source.shaderAwareWarnings;
+        return copy;
+    }
+
     public void capture(AtmosphereConfig config) {
         this.saved = true;
         this.theme = config.theme;

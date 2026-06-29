@@ -16,6 +16,8 @@ import com.skrra.atmosphereplus.themes.CustomThemeData;
 import com.skrra.atmosphereplus.themes.CustomThemeManager;
 import com.skrra.atmosphereplus.themes.Theme;
 import com.skrra.atmosphereplus.themes.ThemeManager;
+import com.skrra.atmosphereplus.transitions.TransitionManager;
+import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import com.skrra.atmosphereplus.ui.widgets.ActionButtonWidget;
 import com.skrra.atmosphereplus.ui.widgets.AtmosphereWidget;
 import com.skrra.atmosphereplus.ui.widgets.CategoryButton;
@@ -1281,9 +1283,17 @@ private BiomeAtmospheresPage.Actions biomeAtmosphereActions() {
         }
 
         @Override
-        public void cycleTransition() {
+        public void cycleTransitionSpeed() {
             BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
-            config.transitionDurationMs = BiomeAtmosphereManager.nextTransitionDuration(config.transitionDurationMs);
+            config.transitionSpeed = TransitionSpeed.parse(config.transitionSpeed).next().name();
+            ConfigManager.save();
+            rebuildWidgets();
+        }
+
+        @Override
+        public void cycleMinimumBiomeTime() {
+            BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
+            config.minimumBiomeTimeMs = BiomeAtmosphereManager.nextMinimumBiomeTime(config.minimumBiomeTimeMs);
             ConfigManager.save();
             rebuildWidgets();
         }
@@ -1973,6 +1983,7 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
 
     private void setActivePreset(String presetId) {
         BiomeAtmosphereManager.onManualAtmosphereChange();
+        TransitionManager.cancelTransition();
         ConfigManager.get().cloudDistanceOverride = false; // alpha 17 preset safety
         ConfigManager.get().cloudDistance = 12;
         ConfigManager.get().activePreset = presetId;
@@ -1980,6 +1991,7 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
 
     private void clearActivePreset() {
         BiomeAtmosphereManager.onManualAtmosphereChange();
+        TransitionManager.cancelTransition();
         ConfigManager.get().activePreset = "";
     }
 
@@ -2718,8 +2730,13 @@ private int addSearchBiomeAtmosphereEntries(int y, int x, int width) {
         ConfigManager.save();
     });
 
-    y = addSearchAction(y, x, width, "Transition duration", "transition duration instant 0.5 1 2 5 seconds biome", "Transition: " + BiomeAtmosphereManager.transitionLabel(config.transitionDurationMs), "Cycle stored transition duration.", IconType.TIME, () -> {
-        config.transitionDurationMs = BiomeAtmosphereManager.nextTransitionDuration(config.transitionDurationMs);
+    y = addSearchAction(y, x, width, "Transition speed", "transition speed instant fast normal slow biome", "Transition Speed: " + TransitionSpeed.parse(config.transitionSpeed).label(), "Cycle biome transition speed.", IconType.TIME, () -> {
+        config.transitionSpeed = TransitionSpeed.parse(config.transitionSpeed).next().name();
+        ConfigManager.save();
+    });
+
+    y = addSearchAction(y, x, width, "Minimum Biome Time", "minimum biome time dwell wait off 0.5 1 2 5 seconds", "Minimum Biome Time: " + BiomeAtmosphereManager.minimumBiomeTimeLabel(config.minimumBiomeTimeMs), "Cycle the dwell time before biome transitions begin.", IconType.SKY, () -> {
+        config.minimumBiomeTimeMs = BiomeAtmosphereManager.nextMinimumBiomeTime(config.minimumBiomeTimeMs);
         ConfigManager.save();
     });
 

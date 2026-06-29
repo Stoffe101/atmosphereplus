@@ -2,6 +2,7 @@ package com.skrra.atmosphereplus.config;
 
 import com.skrra.atmosphereplus.automation.BiomeAtmosphereConfig;
 import com.skrra.atmosphereplus.automation.BiomeCategory;
+import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import com.skrra.atmosphereplus.util.NotificationUtil;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -13,7 +14,7 @@ import java.util.Locale;
 import java.util.Map;
 
 public final class ConfigSafety {
-    public static final int LATEST_CONFIG_VERSION = 8;
+    public static final int LATEST_CONFIG_VERSION = 9;
 
     private ConfigSafety() {
     }
@@ -144,6 +145,20 @@ public final class ConfigSafety {
 
         if (!isValidTransitionDuration(config.biomeAtmospheres.transitionDurationMs)) {
             config.biomeAtmospheres.transitionDurationMs = 1000;
+            changed = true;
+        }
+
+        TransitionSpeed speed = TransitionSpeed.parse(config.biomeAtmospheres.transitionSpeed);
+        if (config.biomeAtmospheres.transitionSpeed == null || !speed.name().equals(config.biomeAtmospheres.transitionSpeed)) {
+            if (config.biomeAtmospheres.transitionSpeed == null || config.biomeAtmospheres.transitionSpeed.isBlank()) {
+                speed = TransitionSpeed.fromLegacyDuration(config.biomeAtmospheres.transitionDurationMs);
+            }
+            config.biomeAtmospheres.transitionSpeed = speed.name();
+            changed = true;
+        }
+
+        if (!isValidMinimumBiomeTime(config.biomeAtmospheres.minimumBiomeTimeMs)) {
+            config.biomeAtmospheres.minimumBiomeTimeMs = 1000;
             changed = true;
         }
 
@@ -294,6 +309,10 @@ private static boolean isValidCategory(String value) {
 }
 
     private static boolean isValidTransitionDuration(int value) {
+        return value == 0 || value == 500 || value == 1000 || value == 2000 || value == 5000;
+    }
+
+    private static boolean isValidMinimumBiomeTime(int value) {
         return value == 0 || value == 500 || value == 1000 || value == 2000 || value == 5000;
     }
 
