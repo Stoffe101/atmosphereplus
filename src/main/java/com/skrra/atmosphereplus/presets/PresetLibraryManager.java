@@ -21,6 +21,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public final class PresetLibraryManager {
@@ -31,6 +32,28 @@ public final class PresetLibraryManager {
 
     private static final Map<String, BuiltInPreset> BUILT_INS = new LinkedHashMap<>();
     private static final Map<String, CustomPresetData> CUSTOM_PRESETS = new LinkedHashMap<>();
+    private static final Set<String> NETHER_PRESET_IDS = Set.of(
+            "dark_crimson",
+            "nether_clear",
+            "lava_bloom",
+            "basalt_ash",
+            "soul_haze",
+            "nether_horror"
+    );
+    private static final Set<String> END_PRESET_IDS = Set.of(
+            "void_purple",
+            "end_clear",
+            "chorus_dream",
+            "dragon_night",
+            "celestial_void"
+    );
+    private static final Set<String> CAVE_FRIENDLY_PRESET_IDS = Set.of(
+            "bright_caves",
+            "nether_clear",
+            "end_clear",
+            "sodium_iris_safe",
+            "performance_clear"
+    );
 
     private PresetLibraryManager() {
     }
@@ -84,7 +107,59 @@ public final class PresetLibraryManager {
     }
 
     public static List<PresetReference> builtInsSorted() {
-        List<PresetReference> refs = new ArrayList<>(builtIns());
+        List<PresetReference> refs = new ArrayList<>();
+        for (BuiltInPreset preset : BUILT_INS.values()) {
+            if (!preset.dimension()) {
+                refs.add(preset.reference());
+            }
+        }
+        refs.sort(Comparator.comparing(PresetReference::displayName, String.CASE_INSENSITIVE_ORDER));
+        return refs;
+    }
+
+    public static List<PresetReference> dimensionPresetsSorted() {
+        List<PresetReference> refs = new ArrayList<>();
+        for (BuiltInPreset preset : BUILT_INS.values()) {
+            if (preset.dimension()) {
+                refs.add(preset.reference());
+            }
+        }
+        refs.sort(Comparator.comparing(PresetReference::displayName, String.CASE_INSENSITIVE_ORDER));
+        return refs;
+    }
+
+    public static List<PresetReference> netherPresetsSorted() {
+        return builtInsForIdsSorted(NETHER_PRESET_IDS);
+    }
+
+    public static List<PresetReference> endPresetsSorted() {
+        return builtInsForIdsSorted(END_PRESET_IDS);
+    }
+
+    public static List<PresetReference> caveFriendlyPresetsSorted() {
+        return builtInsForIdsSorted(CAVE_FRIENDLY_PRESET_IDS);
+    }
+
+    public static boolean isNetherPreset(String id) {
+        return NETHER_PRESET_IDS.contains(id);
+    }
+
+    public static boolean isEndPreset(String id) {
+        return END_PRESET_IDS.contains(id);
+    }
+
+    public static boolean isCaveFriendlyPreset(String id) {
+        return CAVE_FRIENDLY_PRESET_IDS.contains(id);
+    }
+
+    private static List<PresetReference> builtInsForIdsSorted(Set<String> ids) {
+        List<PresetReference> refs = new ArrayList<>();
+        for (String id : ids) {
+            BuiltInPreset preset = BUILT_INS.get(id);
+            if (preset != null) {
+                refs.add(preset.reference());
+            }
+        }
         refs.sort(Comparator.comparing(PresetReference::displayName, String.CASE_INSENSITIVE_ORDER));
         return refs;
     }
@@ -159,6 +234,7 @@ public final class PresetLibraryManager {
         BuiltInPreset builtIn = BUILT_INS.get(id);
         if (builtIn != null) {
             AtmosphereConfig config = ConfigManager.get();
+            neutralColorGrade(config);
             builtIn.applyTo(config);
             config.activePreset = id;
             ConfigManager.save();
@@ -399,7 +475,7 @@ public final class PresetLibraryManager {
             c.gamma = 1.05f;
             mood(c, 0.85f, 0.95f, 0.95f, 0.80f, 0.75f);
         });
-        add("dark_crimson", "Dark Crimson", "Low, moody Nether contrast.", IconType.LIGHTING, c -> {
+        addDimension("dark_crimson", "Dark Crimson", "Low, moody Nether contrast.", IconType.LIGHTING, c -> {
             c.timeOverride = false;
             c.weatherOverride = false;
             c.fogOverride = true;
@@ -407,9 +483,78 @@ public final class PresetLibraryManager {
             c.fogDensity = 1.75f;
             c.gamma = 0.80f;
             c.particleAmount = 0.85f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
             mood(c, 0.58f, 0.70f, 0.50f, 0.45f, 0.30f);
+            colorGrade(c, 0.80f, 0.08f, 0.05f, 0.58f, 0.82f, 1.24f, 1.30f, 0.42f);
         });
-        add("void_purple", "Void Purple", "Sparse, dim End ambience.", IconType.TIME, c -> {
+        addDimension("nether_clear", "Nether Clear", "Better Nether visibility without fullbright.", IconType.FOG, c -> {
+            c.timeOverride = false;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 1.65f;
+            c.fogDensity = 0.38f;
+            c.gamma = 1.28f;
+            c.fullbright = false;
+            c.particleAmount = 0.55f;
+            c.submersionFogOff = true;
+            c.lowFire = true;
+            mood(c, 0.50f, 1.0f, 1.25f, 0.55f, 0.65f);
+            colorGrade(c, 1.0f, 0.55f, 0.32f, 0.20f, 1.12f, 1.03f, 1.05f, 0.08f);
+        });
+        addDimension("lava_bloom", "Lava Bloom", "Warm glowing Nether visibility.", IconType.LIGHTING, c -> {
+            c.timeOverride = false;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 0.95f;
+            c.fogDensity = 0.85f;
+            c.gamma = 1.18f;
+            c.particleAmount = 0.95f;
+            c.submersionFogOff = true;
+            c.lowFire = true;
+            mood(c, 0.72f, 1.0f, 1.12f, 0.75f, 0.55f);
+            colorGrade(c, 1.0f, 0.42f, 0.10f, 0.46f, 1.08f, 1.16f, 1.35f, 0.22f);
+        });
+        addDimension("basalt_ash", "Basalt Ash", "Smoky basalt delta mood.", IconType.FOG, c -> {
+            c.timeOverride = false;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 0.55f;
+            c.fogDensity = 1.55f;
+            c.gamma = 0.82f;
+            c.particleAmount = 1.05f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
+            mood(c, 0.65f, 1.0f, 0.58f, 0.40f, 0.28f);
+            colorGrade(c, 0.45f, 0.43f, 0.40f, 0.36f, 0.82f, 1.18f, 0.55f, 0.28f);
+        });
+        addDimension("soul_haze", "Soul Haze", "Cooler soul valley haze.", IconType.FOG, c -> {
+            c.timeOverride = false;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 1.10f;
+            c.fogDensity = 0.75f;
+            c.gamma = 0.92f;
+            c.particleAmount = 0.45f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
+            mood(c, 0.62f, 1.0f, 0.74f, 0.95f, 0.42f);
+            colorGrade(c, 0.18f, 0.70f, 0.85f, 0.42f, 0.88f, 1.10f, 0.88f, 0.20f);
+        });
+        addDimension("nether_horror", "Nether Horror", "Very dark spooky Nether fog.", IconType.ADVANCED, c -> {
+            c.timeOverride = false;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 0.28f;
+            c.fogDensity = 1.95f;
+            c.gamma = 0.58f;
+            c.particleAmount = 0.80f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
+            mood(c, 0.50f, 1.0f, 0.32f, 0.20f, 0.20f);
+            colorGrade(c, 0.65f, 0.02f, 0.02f, 0.70f, 0.62f, 1.42f, 1.25f, 0.70f);
+        });
+        addDimension("void_purple", "Void Purple", "Sparse, dim End ambience.", IconType.TIME, c -> {
             c.timeOverride = true;
             c.visualTime = 18000;
             c.weatherOverride = false;
@@ -418,7 +563,66 @@ public final class PresetLibraryManager {
             c.fogDensity = 0.55f;
             c.gamma = 1.15f;
             c.particleAmount = 0.70f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
             mood(c, 0.35f, 1.0f, 0.72f, 1.8f, 0.25f);
+            colorGrade(c, 0.45f, 0.20f, 0.85f, 0.42f, 0.86f, 1.18f, 1.10f, 0.30f);
+        });
+        addDimension("end_clear", "End Clear", "Cleaner visibility in the End.", IconType.SKY, c -> {
+            c.timeOverride = true;
+            c.visualTime = 18000;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 1.75f;
+            c.fogDensity = 0.35f;
+            c.gamma = 1.25f;
+            c.particleAmount = 0.35f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
+            mood(c, 0.25f, 1.0f, 1.05f, 1.65f, 0.45f);
+            colorGrade(c, 0.62f, 0.72f, 1.0f, 0.18f, 1.16f, 1.02f, 1.02f, 0.06f);
+        });
+        addDimension("chorus_dream", "Chorus Dream", "Soft surreal purple End haze.", IconType.TIME, c -> {
+            c.timeOverride = true;
+            c.visualTime = 18000;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 1.05f;
+            c.fogDensity = 0.82f;
+            c.gamma = 1.12f;
+            c.particleAmount = 0.55f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
+            mood(c, 0.42f, 1.0f, 0.82f, 2.0f, 0.30f);
+            colorGrade(c, 0.95f, 0.35f, 1.0f, 0.40f, 1.04f, 0.88f, 1.20f, 0.12f);
+        });
+        addDimension("dragon_night", "Dragon Night", "Dark boss-fight End ambience.", IconType.LIGHTING, c -> {
+            c.timeOverride = true;
+            c.visualTime = 18000;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 0.70f;
+            c.fogDensity = 1.25f;
+            c.gamma = 0.78f;
+            c.particleAmount = 0.75f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
+            mood(c, 0.35f, 1.0f, 0.45f, 1.35f, 0.18f);
+            colorGrade(c, 0.30f, 0.12f, 0.60f, 0.50f, 0.72f, 1.34f, 1.05f, 0.46f);
+        });
+        addDimension("celestial_void", "Celestial Void", "Bright cosmic End clarity.", IconType.SKY, c -> {
+            c.timeOverride = true;
+            c.visualTime = 18000;
+            c.weatherOverride = false;
+            c.fogOverride = true;
+            c.fogDistance = 1.85f;
+            c.fogDensity = 0.30f;
+            c.gamma = 1.38f;
+            c.particleAmount = 0.25f;
+            c.submersionFogOff = false;
+            c.lowFire = false;
+            mood(c, 0.20f, 1.0f, 1.18f, 2.0f, 0.60f);
+            colorGrade(c, 0.35f, 0.58f, 1.0f, 0.28f, 1.18f, 0.96f, 1.18f, 0.12f);
         });
         add("misty_morning", "Misty Morning", "Sunrise and soft fog.", IconType.FOG, c -> {
             c.weatherOverride = true;
@@ -651,7 +855,11 @@ public final class PresetLibraryManager {
     }
 
     private static void add(String id, String displayName, String description, IconType icon, Consumer<AtmosphereConfig> apply) {
-        BUILT_INS.put(id, new BuiltInPreset(id, displayName, description, icon, apply));
+        BUILT_INS.put(id, new BuiltInPreset(id, displayName, description, icon, false, apply));
+    }
+
+    private static void addDimension(String id, String displayName, String description, IconType icon, Consumer<AtmosphereConfig> apply) {
+        BUILT_INS.put(id, new BuiltInPreset(id, displayName, description, icon, true, apply));
     }
 
     private static void mood(AtmosphereConfig config, float cloudOpacity, float cloudHeight, float skyBrightness, float starBrightness, float sunVisibility) {
@@ -664,6 +872,34 @@ public final class PresetLibraryManager {
         config.cloudDistanceOverride = false;
     }
 
+    private static void colorGrade(AtmosphereConfig config, float red, float green, float blue, float strength, float brightness, float contrast, float saturation, float vignette) {
+        config.moodOverlayEnabled = strength > 0.001f
+                || Math.abs(brightness - 1.0f) > 0.001f
+                || Math.abs(contrast - 1.0f) > 0.001f
+                || Math.abs(saturation - 1.0f) > 0.001f
+                || vignette > 0.001f;
+        config.moodOverlayRed = red;
+        config.moodOverlayGreen = green;
+        config.moodOverlayBlue = blue;
+        config.moodOverlayStrength = strength;
+        config.moodBrightness = brightness;
+        config.moodContrast = contrast;
+        config.moodSaturation = saturation;
+        config.moodVignetteStrength = vignette;
+    }
+
+    private static void neutralColorGrade(AtmosphereConfig config) {
+        config.moodOverlayEnabled = false;
+        config.moodOverlayRed = 1.0f;
+        config.moodOverlayGreen = 1.0f;
+        config.moodOverlayBlue = 1.0f;
+        config.moodOverlayStrength = 0.0f;
+        config.moodBrightness = 1.0f;
+        config.moodContrast = 1.0f;
+        config.moodSaturation = 1.0f;
+        config.moodVignetteStrength = 0.0f;
+    }
+
     private static void neutralRenderer(AtmosphereConfig config) {
         config.experimentalRendererControls = false;
         config.cloudOpacity = 1.0f;
@@ -674,13 +910,13 @@ public final class PresetLibraryManager {
         config.cloudDistanceOverride = false;
     }
 
-    private record BuiltInPreset(String id, String displayName, String description, IconType icon, Consumer<AtmosphereConfig> apply) {
+    private record BuiltInPreset(String id, String displayName, String description, IconType icon, boolean dimension, Consumer<AtmosphereConfig> apply) {
         private void applyTo(AtmosphereConfig config) {
             apply.accept(config);
         }
 
         private PresetReference reference() {
-            return new PresetReference(id, displayName, description, icon, false);
+            return new PresetReference(id, displayName, description, icon, false, dimension);
         }
     }
 

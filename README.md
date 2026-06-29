@@ -8,6 +8,7 @@ It changes what *you* see: weather, time, fog, lighting, particles, clouds, prof
 
 - Minecraft `1.21.11`
 - Fabric Loader `0.18.4+`
+- Fabric API
 - Java `21`
 - Environment: client-side
 
@@ -25,6 +26,7 @@ It changes what *you* see: weather, time, fog, lighting, particles, clouds, prof
 - Particle amount
 - Low Fire first-person overlay option
 - Cloud mode: Server / Off / Fast / Fancy
+- Mood Overlay / Color Grade: gameplay-only tint, brightness, contrast, saturation, and vignette
 
 ### Renderer controls
 
@@ -44,6 +46,8 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - Quick menu
 - Prebuilt Presets
 - My Presets
+- Nether Presets
+- End Presets
 - Cinematic presets
 - Safe mode presets
 - Optional Biome Atmospheres automation
@@ -69,8 +73,19 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - Optional Biome Atmospheres automation toasts
 - Nether and End mappings apply supported fog, gamma/fullbright, particle, and renderer controls; vanilla dimensions and shader packs can still limit sky or weather visuals
 - Minecraft 1.21.11 fog hooks target `AtmosphericFogModifier`, `LavaFogModifier`, `WaterFogModifier`, and `PowderSnowFogModifier`
+- Context-aware preset pickers keep Nether, End, cave, and Overworld choices focused
 
 Biome Atmospheres does not require server installation. It applies mapped presets only when the detected biome category changes.
+
+### Mood Overlay / Color Grade
+
+- Gameplay-only overlay that skips Atmosphere+ menus and normal Minecraft screens where practical
+- Adds shader-like tint, brightness, contrast, saturation, and vignette without requiring shader packs
+- Included in presets, custom presets, profiles, and smooth transitions
+- Strengthened Nether and End presets use color grading so dimension presets remain visually distinct even when sky/time/weather controls are limited
+- Can be disabled or reset from the visual controls/search
+
+This is a safe overlay fallback, not a full shader replacement. Iris shader packs may still override, cover, or visually compete with the final look.
 
 ### Transition Engine
 
@@ -97,13 +112,14 @@ Biome Atmospheres does not require server installation. It applies mapped preset
 ## Install
 
 1. Install Fabric Loader for Minecraft `1.21.11`.
-2. Put the Atmosphere+ jar in your `mods` folder.
-3. Optional but recommended:
+2. Install Fabric API.
+3. Put the Atmosphere+ jar in your `mods` folder.
+4. Optional but recommended:
    - Sodium
    - Iris
    - Mod Menu
-4. Start the game.
-5. Open Atmosphere+ with the keybind or through Mod Menu.
+5. Start the game.
+6. Open Atmosphere+ with the keybind or through Mod Menu.
 
 ## Development build
 

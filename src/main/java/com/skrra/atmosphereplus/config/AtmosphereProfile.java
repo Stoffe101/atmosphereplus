@@ -22,8 +22,10 @@ public class AtmosphereProfile {
     public boolean fogOverride = false;
     public float fogDistance = 1.0f;
     public float fogDensity = 1.0f;
+    public boolean submersionFogOff = false;
 
     public float particleAmount = 1.0f;
+    public boolean lowFire = false;
 
     public boolean cloudOverride = false;
     public String cloudMode = "SERVER";
@@ -37,6 +39,16 @@ public class AtmosphereProfile {
     public float starBrightness = 1.0f;
     public float sunMoonVisibility = 1.0f;
     public boolean shaderAwareWarnings = true;
+
+    public boolean moodOverlayEnabled = false;
+    public float moodOverlayRed = 1.0f;
+    public float moodOverlayGreen = 1.0f;
+    public float moodOverlayBlue = 1.0f;
+    public float moodOverlayStrength = 0.0f;
+    public float moodBrightness = 1.0f;
+    public float moodContrast = 1.0f;
+    public float moodSaturation = 1.0f;
+    public float moodVignetteStrength = 0.0f;
 
     public AtmosphereProfile() {
     }
@@ -75,7 +87,9 @@ public class AtmosphereProfile {
         copy.fogOverride = source.fogOverride;
         copy.fogDistance = source.fogDistance;
         copy.fogDensity = source.fogDensity;
+        copy.submersionFogOff = source.submersionFogOff;
         copy.particleAmount = source.particleAmount;
+        copy.lowFire = source.lowFire;
         copy.cloudOverride = source.cloudOverride;
         copy.cloudMode = source.cloudMode;
         copy.cloudDistance = source.cloudDistance;
@@ -87,6 +101,15 @@ public class AtmosphereProfile {
         copy.starBrightness = source.starBrightness;
         copy.sunMoonVisibility = source.sunMoonVisibility;
         copy.shaderAwareWarnings = source.shaderAwareWarnings;
+        copy.moodOverlayEnabled = source.moodOverlayEnabled;
+        copy.moodOverlayRed = source.moodOverlayRed;
+        copy.moodOverlayGreen = source.moodOverlayGreen;
+        copy.moodOverlayBlue = source.moodOverlayBlue;
+        copy.moodOverlayStrength = source.moodOverlayStrength;
+        copy.moodBrightness = source.moodBrightness;
+        copy.moodContrast = source.moodContrast;
+        copy.moodSaturation = source.moodSaturation;
+        copy.moodVignetteStrength = source.moodVignetteStrength;
         return copy;
     }
 
@@ -105,7 +128,9 @@ public class AtmosphereProfile {
         this.fogOverride = config.fogOverride;
         this.fogDistance = config.fogDistance;
         this.fogDensity = config.fogDensity;
+        this.submersionFogOff = config.submersionFogOff;
         this.particleAmount = config.particleAmount;
+        this.lowFire = config.lowFire;
         this.cloudOverride = config.cloudOverride;
         this.cloudMode = config.cloudMode;
         this.cloudDistance = config.cloudDistance;
@@ -117,6 +142,15 @@ public class AtmosphereProfile {
         this.starBrightness = config.starBrightness;
         this.sunMoonVisibility = config.sunMoonVisibility;
         this.shaderAwareWarnings = config.shaderAwareWarnings;
+        this.moodOverlayEnabled = config.moodOverlayEnabled;
+        this.moodOverlayRed = config.moodOverlayRed;
+        this.moodOverlayGreen = config.moodOverlayGreen;
+        this.moodOverlayBlue = config.moodOverlayBlue;
+        this.moodOverlayStrength = config.moodOverlayStrength;
+        this.moodBrightness = config.moodBrightness;
+        this.moodContrast = config.moodContrast;
+        this.moodSaturation = config.moodSaturation;
+        this.moodVignetteStrength = config.moodVignetteStrength;
     }
 
     public void applyTo(AtmosphereConfig config) {
@@ -133,7 +167,9 @@ public class AtmosphereProfile {
         config.fogOverride = this.fogOverride;
         config.fogDistance = this.fogDistance;
         config.fogDensity = this.fogDensity;
+        config.submersionFogOff = this.submersionFogOff;
         config.particleAmount = this.particleAmount;
+        config.lowFire = this.lowFire;
         config.cloudOverride = this.cloudOverride;
         config.cloudMode = this.cloudMode;
         config.cloudDistance = this.cloudDistance;
@@ -145,5 +181,14 @@ public class AtmosphereProfile {
         config.starBrightness = this.starBrightness;
         config.sunMoonVisibility = this.sunMoonVisibility;
         config.shaderAwareWarnings = this.shaderAwareWarnings;
+        config.moodOverlayEnabled = this.moodOverlayEnabled;
+        config.moodOverlayRed = this.moodOverlayRed;
+        config.moodOverlayGreen = this.moodOverlayGreen;
+        config.moodOverlayBlue = this.moodOverlayBlue;
+        config.moodOverlayStrength = this.moodOverlayStrength;
+        config.moodBrightness = this.moodBrightness;
+        config.moodContrast = this.moodContrast;
+        config.moodSaturation = this.moodSaturation;
+        config.moodVignetteStrength = this.moodVignetteStrength;
     }
 }

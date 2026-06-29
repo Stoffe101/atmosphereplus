@@ -12,7 +12,8 @@ public abstract class CloudRendererMixin {
             method = "renderClouds(ILnet/minecraft/client/option/CloudRenderMode;FLnet/minecraft/util/math/Vec3d;JF)V",
             at = @At("HEAD"),
             argsOnly = true,
-            ordinal = 0
+            ordinal = 0,
+            require = 0
     )
     private int atmosphereplus$adjustCloudColor(int color) {
         return VisualSettings.adjustCloudColor(color);
@@ -22,7 +23,8 @@ public abstract class CloudRendererMixin {
             method = "renderClouds(ILnet/minecraft/client/option/CloudRenderMode;FLnet/minecraft/util/math/Vec3d;JF)V",
             at = @At("HEAD"),
             argsOnly = true,
-            ordinal = 0
+            ordinal = 0,
+            require = 0
     )
     private float atmosphereplus$adjustCloudHeight(float cloudHeight) {
         return VisualSettings.adjustCloudHeight(cloudHeight);

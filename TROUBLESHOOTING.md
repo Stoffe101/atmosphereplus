@@ -10,6 +10,7 @@ Iris shader packs may override:
 - lava/water/submersion fog
 - sky brightness
 - lightmap/fullbright
+- mood overlay/color grade appearance
 
 Biome Atmospheres applies presets through the same visual controls, so shader packs may still override the final look.
 
@@ -18,6 +19,13 @@ Try:
 - Advanced → Reset Renderer
 - Advanced → Shader Safe Reset
 - Presets → Sodium/Iris Safe Mode
+- Search for "Reset Mood Overlay" if a color grade looks too strong
+
+## Mood Overlay looks too strong
+
+Use Search -> Reset Mood Overlay, or open the visual controls and disable Mood Overlay / Color Grade. The overlay is gameplay-only where practical and is skipped while screens are open, but it is a lightweight overlay rather than a full post-processing shader.
+
+Shader packs may change how strong the final tint, brightness, contrast, saturation, or vignette appears.
 
 ## Cloud distance is missing
 
@@ -50,7 +58,7 @@ Check:
 - Automation is not paused.
 - Cave Handling may be pausing automation while you are underground.
 - The current biome category has a mapped preset.
-- The mapped preset still exists in Prebuilt Presets or My Presets.
+- The mapped preset still exists in Nether Presets, End Presets, Prebuilt Presets, or My Presets.
 - If you expect popup feedback, Show Automation Toasts is enabled.
 - Shader packs may be overriding the visible result.
 

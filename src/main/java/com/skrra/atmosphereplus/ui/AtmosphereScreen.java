@@ -736,6 +736,8 @@ private int addSkyWidgets(int contentX, int contentY, int contentW) {
 
     y += rendererCols > 1 ? 46 : 92;
 
+    y = addMoodOverlayWidgets(contentX, y + 10, contentW);
+
     widgets.add(new SectionLabelWidget(contentX, y, contentW, "Notes", "Renderer limits"));
     y += 30;
 
@@ -758,6 +760,97 @@ private void addCloudChoice(int x, int y, int width, String label, String descri
         ConfigManager.save();
         rebuildWidgets();
     }));
+}
+
+private int addMoodOverlayWidgets(int contentX, int contentY, int contentW) {
+    int y = contentY;
+    int gap = 10;
+    int columns = responsiveColumns(contentW, 2, 220);
+    int sliderW = responsiveCardWidth(contentW, columns, gap);
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Mood Overlay / Color Grade", "Gameplay-only tint, contrast, saturation and vignette"));
+    y += 30;
+
+    widgets.add(new ToggleWidget(contentX, y, contentW, "Enable Mood Overlay", "Applies a shader-like color mood to gameplay without tinting menus.", () -> ConfigManager.get().moodOverlayEnabled, v -> {
+        ConfigManager.get().moodOverlayEnabled = v;
+        clearActivePreset();
+        ConfigManager.save();
+    }));
+    y += 58;
+
+    widgets.add(new SliderWidget(contentX, y, sliderW, "Tint Strength", "How strongly the selected tint color affects gameplay.", 0.0f, 1.0f, () -> ConfigManager.get().moodOverlayStrength, v -> {
+        ConfigManager.get().moodOverlayStrength = v;
+        ConfigManager.get().moodOverlayEnabled = v > 0.001f || hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    widgets.add(new SliderWidget(contentX + (columns > 1 ? sliderW + gap : 0), y + (columns > 1 ? 0 : 62), sliderW, "Brightness", "Small gameplay-only brightness adjustment.", 0.5f, 1.5f, () -> ConfigManager.get().moodBrightness, v -> {
+        ConfigManager.get().moodBrightness = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    y += columns > 1 ? 62 : 124;
+
+    widgets.add(new SliderWidget(contentX, y, sliderW, "Contrast", "Adds or softens visual contrast.", 0.5f, 1.5f, () -> ConfigManager.get().moodContrast, v -> {
+        ConfigManager.get().moodContrast = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    widgets.add(new SliderWidget(contentX + (columns > 1 ? sliderW + gap : 0), y + (columns > 1 ? 0 : 62), sliderW, "Saturation", "Approximates a more vivid or muted mood.", 0.0f, 2.0f, () -> ConfigManager.get().moodSaturation, v -> {
+        ConfigManager.get().moodSaturation = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    y += columns > 1 ? 62 : 124;
+
+    widgets.add(new SliderWidget(contentX, y, sliderW, "Vignette", "Darkens the gameplay edges for a moodier look.", 0.0f, 1.0f, () -> ConfigManager.get().moodVignetteStrength, v -> {
+        ConfigManager.get().moodVignetteStrength = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%"));
+
+    widgets.add(new ActionButtonWidget(contentX + (columns > 1 ? sliderW + gap : 0), y + (columns > 1 ? 0 : 46), sliderW, "Reset Mood Overlay", "Restore neutral color grading values.", IconType.ADVANCED, () -> {
+        resetMoodOverlay();
+        rebuildWidgets();
+    }));
+
+    y += columns > 1 ? 54 : 100;
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Tint Color", "RGB tint channels"));
+    y += 30;
+
+    widgets.add(new SliderWidget(contentX, y, sliderW, "Red Tint", "Red channel for the gameplay mood tint.", 0.0f, 1.0f, () -> ConfigManager.get().moodOverlayRed, v -> {
+        ConfigManager.get().moodOverlayRed = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 255f) + ""));
+
+    widgets.add(new SliderWidget(contentX + (columns > 1 ? sliderW + gap : 0), y + (columns > 1 ? 0 : 62), sliderW, "Green Tint", "Green channel for the gameplay mood tint.", 0.0f, 1.0f, () -> ConfigManager.get().moodOverlayGreen, v -> {
+        ConfigManager.get().moodOverlayGreen = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 255f) + ""));
+
+    y += columns > 1 ? 62 : 124;
+
+    widgets.add(new SliderWidget(contentX, y, sliderW, "Blue Tint", "Blue channel for the gameplay mood tint.", 0.0f, 1.0f, () -> ConfigManager.get().moodOverlayBlue, v -> {
+        ConfigManager.get().moodOverlayBlue = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 255f) + ""));
+
+    return y + 72;
 }
 
 
@@ -1749,6 +1842,22 @@ private int addPresetWidgets(int contentX, int contentY, int contentW) {
         y += 12;
     }
 
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Nether Presets", "Nether-tuned fog, visibility and mood"));
+    y += 30;
+    List<PresetReference> nether = nonFavorite(PresetLibraryManager.netherPresetsSorted());
+    if (!nether.isEmpty()) {
+        y = addPresetRows(nether, columns, contentX, y, rowW, gap);
+        y += 12;
+    }
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "End Presets", "End-tuned fog, visibility and mood"));
+    y += 30;
+    List<PresetReference> end = nonFavorite(PresetLibraryManager.endPresetsSorted());
+    if (!end.isEmpty()) {
+        y = addPresetRows(end, columns, contentX, y, rowW, gap);
+        y += 12;
+    }
+
     widgets.add(new SectionLabelWidget(contentX, y, contentW, "Prebuilt Presets", "Read-only bundled atmosphere moods"));
     y += 30;
     List<PresetReference> builtIns = nonFavorite(PresetLibraryManager.builtInsSorted());
@@ -1983,6 +2092,52 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
     ConfigManager.save();
 });
 
+    y = addSearchToggle(y, contentX, contentW, "Mood Overlay · Enabled", "mood overlay color grade color grading shader-like tint hue nether tint end tint", () -> ConfigManager.get().moodOverlayEnabled, v -> {
+        ConfigManager.get().moodOverlayEnabled = v;
+        clearActivePreset();
+        ConfigManager.save();
+    });
+
+    y = addSearchSlider(y, contentX, contentW, "Mood Overlay · Strength", "mood overlay strength tint shader-like color grade", 0.0f, 1.0f, () -> ConfigManager.get().moodOverlayStrength, v -> {
+        ConfigManager.get().moodOverlayStrength = v;
+        ConfigManager.get().moodOverlayEnabled = v > 0.001f || hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchSlider(y, contentX, contentW, "Mood Overlay · Brightness", "mood overlay brightness color grade exposure shader-like", 0.5f, 1.5f, () -> ConfigManager.get().moodBrightness, v -> {
+        ConfigManager.get().moodBrightness = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchSlider(y, contentX, contentW, "Mood Overlay · Contrast", "mood overlay contrast color grade shader-like dramatic", 0.5f, 1.5f, () -> ConfigManager.get().moodContrast, v -> {
+        ConfigManager.get().moodContrast = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchSlider(y, contentX, contentW, "Mood Overlay · Saturation", "mood overlay saturation color grading color grade shader-like hue", 0.0f, 2.0f, () -> ConfigManager.get().moodSaturation, v -> {
+        ConfigManager.get().moodSaturation = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchSlider(y, contentX, contentW, "Mood Overlay · Vignette", "mood overlay vignette dark edges color grade nether horror", 0.0f, 1.0f, () -> ConfigManager.get().moodVignetteStrength, v -> {
+        ConfigManager.get().moodVignetteStrength = v;
+        ConfigManager.get().moodOverlayEnabled = hasNonNeutralMoodOverlay();
+        clearActivePreset();
+        ConfigManager.save();
+    }, value -> Math.round(value * 100f) + "%");
+
+    y = addSearchAction(y, contentX, contentW, "Mood Overlay · Reset", "reset mood overlay color grade color grading tint vignette", "Reset Mood Overlay", "Restore neutral gameplay color grading.", IconType.ADVANCED, () -> {
+        resetMoodOverlay();
+        rebuildWidgets();
+    });
+
     y = addSearchToggle(y, contentX, contentW, "Sky · Override clouds visually", "sky cloud clouds override visual off fast fancy", () -> ConfigManager.get().cloudOverride, v -> {
         ConfigManager.get().cloudOverride = v;
         clearActivePreset();
@@ -2083,6 +2238,8 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
     y = addSearchPresetCard(y, contentX, contentW, "Preset · Cloudless Clear", "preset cloudless clear clouds off sky sunny", "Cloudless Clear", "Clear weather with clouds hidden.", IconType.SKY, this::isCloudlessClearActive, this::applyCloudlessClear);
     y = addSearchPresetCard(y, contentX, contentW, "Preset · Fancy Clouds", "preset fancy clouds cloud distance sky", "Fancy Clouds", "Force fancy cloud rendering mode.", IconType.SKY, this::isFancyCloudsActive, this::applyFancyClouds);
 
+    y = addSearchDimensionPresetEntries(y, contentX, contentW);
+
     for (String themeId : ThemeManager.all().keySet()) {
         String name = ThemeManager.all().get(themeId).displayName();
         y = addSearchToggle(y, contentX, contentW, "Theme · " + name, "theme ui color accent dark black purple " + name + " " + themeId, () -> ConfigManager.get().theme.equals(themeId), v -> {
@@ -2092,6 +2249,21 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
         });
     }
 
+    return y;
+}
+
+private int addSearchDimensionPresetEntries(int y, int x, int width) {
+    for (PresetReference preset : PresetLibraryManager.dimensionPresetsSorted()) {
+        String lowerName = preset.displayName().toLowerCase(Locale.ROOT);
+        String family = preset.id().startsWith("end_")
+                || preset.id().contains("void")
+                || preset.id().contains("chorus")
+                || preset.id().contains("dragon")
+                || preset.id().contains("celestial")
+                ? "end presets end dimension"
+                : "nether presets nether dimension lava";
+        y = addSearchAction(y, x, width, "Preset · " + preset.displayName(), "dimension presets " + family + " " + lowerName + " " + preset.id(), preset.displayName(), preset.description(), preset.icon(), () -> applyPresetFromLibrary(preset.id(), preset.displayName()));
+    }
     return y;
 }
 
@@ -2347,10 +2519,38 @@ y = addSearchToggle(y, contentX, contentW, "Sky · Cloud distance attempt", "clo
         ConfigManager.get().cloudOverride = false;
         ConfigManager.get().cloudMode = "SERVER";
         ConfigManager.get().cloudDistance = 12;
+        resetMoodOverlaySilently();
         clearActivePreset();
         ConfigManager.save();
         NotificationUtil.show("Reset All Visuals");
     }
+
+private boolean hasNonNeutralMoodOverlay() {
+    return ConfigManager.get().moodOverlayStrength > 0.001f
+            || Math.abs(ConfigManager.get().moodBrightness - 1.0f) > 0.001f
+            || Math.abs(ConfigManager.get().moodContrast - 1.0f) > 0.001f
+            || Math.abs(ConfigManager.get().moodSaturation - 1.0f) > 0.001f
+            || ConfigManager.get().moodVignetteStrength > 0.001f;
+}
+
+private void resetMoodOverlay() {
+    resetMoodOverlaySilently();
+    clearActivePreset();
+    ConfigManager.save();
+    NotificationUtil.show("Mood Overlay reset");
+}
+
+private void resetMoodOverlaySilently() {
+    ConfigManager.get().moodOverlayEnabled = false;
+    ConfigManager.get().moodOverlayRed = 1.0f;
+    ConfigManager.get().moodOverlayGreen = 1.0f;
+    ConfigManager.get().moodOverlayBlue = 1.0f;
+    ConfigManager.get().moodOverlayStrength = 0.0f;
+    ConfigManager.get().moodBrightness = 1.0f;
+    ConfigManager.get().moodContrast = 1.0f;
+    ConfigManager.get().moodSaturation = 1.0f;
+    ConfigManager.get().moodVignetteStrength = 0.0f;
+}
 
 
 private void setRendererMood(float cloudOpacity, float cloudHeight, float skyBrightness, float starBrightness, float sunVisibility) {
@@ -2361,6 +2561,7 @@ private void setRendererMood(float cloudOpacity, float cloudHeight, float skyBri
     ConfigManager.get().starBrightness = starBrightness;
     ConfigManager.get().sunMoonVisibility = sunVisibility;
     ConfigManager.get().cloudDistanceOverride = false;
+    resetMoodOverlaySilently();
 }
 
 private void setRendererNeutral() {
@@ -2371,6 +2572,7 @@ private void setRendererNeutral() {
     ConfigManager.get().starBrightness = 1.0f;
     ConfigManager.get().sunMoonVisibility = 1.0f;
     ConfigManager.get().cloudDistanceOverride = false;
+    resetMoodOverlaySilently();
 }
 
 
@@ -2407,6 +2609,7 @@ private void applyVanillaSafeMode() {
     ConfigManager.get().particleAmount = 1.0f;
     ConfigManager.get().lowFire = false;
     resetRendererSettingsSilently();
+    resetMoodOverlaySilently();
     setActivePreset("vanilla_safe");
     ConfigManager.save();
 }
@@ -2428,6 +2631,7 @@ private void applySodiumIrisSafeMode() {
     ConfigManager.get().cloudOverride = false;
     ConfigManager.get().cloudMode = "SERVER";
     resetRendererSettingsSilently();
+    resetMoodOverlaySilently();
     setActivePreset("sodium_iris_safe");
     ConfigManager.save();
 }
@@ -2895,6 +3099,16 @@ private boolean isRendererTestActive() {
 
 
 private int addSearchPresetLibraryEntries(int y, int x, int width) {
+    y = addSearchAction(y, x, width, "Nether Presets", "dimension presets nether presets dark crimson nether clear lava bloom basalt ash soul haze nether horror nether tint", "Nether Presets", "Open Nether preset moods.", IconType.PRESETS, () -> {
+        selectCategory(UiCategory.PRESETS);
+        scrollOffset = 0;
+    });
+
+    y = addSearchAction(y, x, width, "End Presets", "dimension presets end presets void purple end clear chorus dream dragon night celestial void end tint", "End Presets", "Open End preset moods.", IconType.PRESETS, () -> {
+        selectCategory(UiCategory.PRESETS);
+        scrollOffset = 0;
+    });
+
     y = addSearchAction(y, x, width, "Prebuilt Presets", "prebuilt presets bundled read only apply", "Prebuilt Presets", "Open the read-only bundled preset library.", IconType.PRESETS, () -> {
         selectCategory(UiCategory.PRESETS);
         scrollOffset = 0;

@@ -1,5 +1,47 @@
 # Atmosphere+ Changelog
 
+## 0.3.0-beta.11
+
+### Added
+
+- Mood Overlay / Color Grade system for gameplay-only tint, brightness, contrast, saturation, and vignette-style edge darkening.
+- Mood Overlay values are saved in config, profiles, presets, custom presets, and transition snapshots.
+- Search entries for mood overlay, color grade, tint, brightness, contrast, saturation, vignette, Nether tint, and End tint.
+
+### Changed
+
+- Nether presets now use color grading to feel more distinct: Dark Crimson, Nether Clear, Lava Bloom, Basalt Ash, Soul Haze, and Nether Horror.
+- End presets now use color grading to feel more distinct: Void Purple, End Clear, Chorus Dream, Dragon Night, and Celestial Void.
+- Presets page now separates Nether Presets and End Presets instead of a single Dimension Presets section.
+- Biome Atmospheres preset pickers are context-aware: Nether mappings show My Presets and Nether Presets, End mappings show My Presets and End Presets, and cave preset selection prioritizes cave-friendly presets.
+
+### Notes
+
+- Mood Overlay uses a safe fullscreen gameplay overlay rather than a fragile Minecraft post-processing shader pipeline.
+- The overlay is intentionally skipped while menus/screens are open, but it is still an approximation rather than true shader color grading.
+- Shader packs can alter, cover, or visually compete with the overlay and other renderer effects.
+
+## 0.3.0-beta.10
+
+### Added
+
+- Dimension Presets section for Nether and End-focused atmosphere presets.
+- New Nether presets: Nether Clear, Lava Bloom, Basalt Ash, Soul Haze, and Nether Horror.
+- New End presets: End Clear, Chorus Dream, Dragon Night, and Celestial Void.
+- Search entries for the new dimension presets and Dimension Presets section.
+
+### Changed
+
+- Preset page and Biome Atmospheres pickers now order presets as Favorites, My Presets, Dimension Presets, then Prebuilt Presets.
+- Dark Crimson and Void Purple are now grouped as Dimension Presets while remaining the default Nether and End mappings.
+- Fabric API is now declared as a required dependency in `fabric.mod.json`.
+- Optional renderer polish hooks use softer injection requirements where practical.
+
+### Notes
+
+- Fog Off still uses inferred distance/density state internally; an explicit persisted fogOff flag is noted for a future migration.
+- Nether/End visuals remain limited by vanilla dimension rendering and shader packs, but the new presets focus on supported fog, gamma/fullbright, particle, submersion fog, low-fire, and renderer mood controls.
+
 ## 0.3.0-beta.9
 
 ### Fixed

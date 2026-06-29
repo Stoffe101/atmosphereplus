@@ -13,6 +13,7 @@
     "WaterFogModifierMixin",
     "PowderSnowFogModifierMixin",
     "LightmapTextureManagerMixin",
+    "InGameHudMixin",
     "InGameOverlayRendererMixin",
     "SimpleOptionMixin",
     "GameOptionsMixin",

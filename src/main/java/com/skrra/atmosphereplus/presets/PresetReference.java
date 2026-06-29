@@ -7,6 +7,10 @@ public record PresetReference(
         String displayName,
         String description,
         IconType icon,
-        boolean custom
+        boolean custom,
+        boolean dimension
 ) {
+    public PresetReference(String id, String displayName, String description, IconType icon, boolean custom) {
+        this(id, displayName, description, icon, custom, false);
+    }
 }

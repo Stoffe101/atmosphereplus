@@ -296,8 +296,11 @@ public final class BiomeAtmospheresPage {
         ));
         y += 42;
 
+        boolean netherPicker = category == BiomeCategory.NETHER;
+        boolean endPicker = category == BiomeCategory.END;
+
         List<PresetReference> favorites = PresetLibraryManager.favorites();
-        if (!favorites.isEmpty()) {
+        if (!netherPicker && !endPicker && !favorites.isEmpty()) {
             widgets.add(new SectionLabelWidget(x, y, width, "Favorite Presets", "Starred"));
             y += 28;
             y = addPickerRows(widgets, actions, category, selectedPresetId, favorites, x, y, width);
@@ -325,6 +328,20 @@ public final class BiomeAtmospheresPage {
             }
         }
 
+        if (netherPicker) {
+            List<PresetReference> nether = PresetLibraryManager.netherPresetsSorted();
+            widgets.add(new SectionLabelWidget(x, y, width, "Nether Presets", "Dimension-tuned"));
+            y += 28;
+            return addPickerRows(widgets, actions, category, selectedPresetId, nether, x, y, width);
+        }
+
+        if (endPicker) {
+            List<PresetReference> end = PresetLibraryManager.endPresetsSorted();
+            widgets.add(new SectionLabelWidget(x, y, width, "End Presets", "Dimension-tuned"));
+            y += 28;
+            return addPickerRows(widgets, actions, category, selectedPresetId, end, x, y, width);
+        }
+
         widgets.add(new SectionLabelWidget(x, y, width, "Prebuilt Presets", "Read-only"));
         y += 28;
         y = addPickerRows(widgets, actions, category, selectedPresetId, nonFavorite(PresetLibraryManager.builtInsSorted()), x, y, width);
@@ -344,14 +361,6 @@ public final class BiomeAtmospheresPage {
                 () -> actions.selectCavePreset("")
         ));
         y += 42;
-
-        List<PresetReference> favorites = PresetLibraryManager.favorites();
-        if (!favorites.isEmpty()) {
-            widgets.add(new SectionLabelWidget(x, y, width, "Favorite Presets", "Starred"));
-            y += 28;
-            y = addCavePickerRows(widgets, actions, selectedPresetId, favorites, x, y, width);
-            y += 6;
-        }
 
         widgets.add(new SectionLabelWidget(x, y, width, "My Presets", "Saved custom presets"));
         y += 28;
@@ -374,9 +383,15 @@ public final class BiomeAtmospheresPage {
             }
         }
 
+        List<PresetReference> caveFriendly = PresetLibraryManager.caveFriendlyPresetsSorted();
+        widgets.add(new SectionLabelWidget(x, y, width, "Cave-Friendly Presets", "Visibility-focused"));
+        y += 28;
+        y = addCavePickerRows(widgets, actions, selectedPresetId, caveFriendly, x, y, width);
+        y += 6;
+
         widgets.add(new SectionLabelWidget(x, y, width, "Prebuilt Presets", "Read-only"));
         y += 28;
-        return addCavePickerRows(widgets, actions, selectedPresetId, nonFavorite(PresetLibraryManager.builtInsSorted()), x, y, width);
+        return addCavePickerRows(widgets, actions, selectedPresetId, nonFavorite(excluding(PresetLibraryManager.builtInsSorted(), caveFriendly)), x, y, width);
     }
 
     private static int addCavePickerRows(List<AtmosphereWidget> widgets, Actions actions, String selectedPresetId, List<PresetReference> presets, int x, int y, int width) {
@@ -421,6 +436,23 @@ public final class BiomeAtmospheresPage {
         List<PresetReference> result = new ArrayList<>();
         for (PresetReference preset : presets) {
             if (!PresetLibraryManager.isFavorite(preset.id())) {
+                result.add(preset);
+            }
+        }
+        return result;
+    }
+
+    private static List<PresetReference> excluding(List<PresetReference> presets, List<PresetReference> excluded) {
+        List<PresetReference> result = new ArrayList<>();
+        for (PresetReference preset : presets) {
+            boolean skip = false;
+            for (PresetReference excludedPreset : excluded) {
+                if (preset.id().equals(excludedPreset.id())) {
+                    skip = true;
+                    break;
+                }
+            }
+            if (!skip) {
                 result.add(preset);
             }
         }

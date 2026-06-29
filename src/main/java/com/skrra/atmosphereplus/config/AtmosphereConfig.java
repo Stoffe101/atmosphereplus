@@ -45,6 +45,16 @@ public class AtmosphereConfig {
     public float sunMoonVisibility = 1.0f;
     public boolean shaderAwareWarnings = true;
 
+    public boolean moodOverlayEnabled = false;
+    public float moodOverlayRed = 1.0f;
+    public float moodOverlayGreen = 1.0f;
+    public float moodOverlayBlue = 1.0f;
+    public float moodOverlayStrength = 0.0f;
+    public float moodBrightness = 1.0f;
+    public float moodContrast = 1.0f;
+    public float moodSaturation = 1.0f;
+    public float moodVignetteStrength = 0.0f;
+
     public String activePreset = "";
     public String lastUiCategory = "QUICK";
     public int lastQuickProfile = 0;

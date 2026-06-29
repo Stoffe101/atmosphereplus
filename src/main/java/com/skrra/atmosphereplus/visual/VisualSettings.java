@@ -80,6 +80,7 @@ public final class VisualSettings {
     }
 
     public static boolean isFogOffEnabled() {
+        // TODO: Replace this inferred mode with an explicit persisted fogOff flag in a future config migration.
         return ConfigManager.get().fogOverride
                 && ConfigManager.get().fogDistance >= 1.95F
                 && ConfigManager.get().fogDensity <= 0.05F;

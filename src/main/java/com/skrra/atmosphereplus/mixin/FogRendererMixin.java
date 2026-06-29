@@ -24,7 +24,8 @@ public abstract class FogRendererMixin {
 
     @Inject(
             method = "applyFog(Lnet/minecraft/client/render/Camera;ILnet/minecraft/client/render/RenderTickCounter;FLnet/minecraft/client/world/ClientWorld;)Lorg/joml/Vector4f;",
-            at = @At("HEAD")
+            at = @At("HEAD"),
+            require = 0
     )
     private void atmosphereplus$captureSubmersion(Camera camera, int viewDistance, RenderTickCounter tickCounter, float skyDarkness, ClientWorld world, CallbackInfoReturnable<Vector4f> cir) {
         atmosphereplus$currentSubmersionType = camera == null ? CameraSubmersionType.NONE : camera.getSubmersionType();
@@ -35,7 +36,8 @@ public abstract class FogRendererMixin {
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/render/fog/FogRenderer;applyFog(Ljava/nio/ByteBuffer;ILorg/joml/Vector4f;FFFFFF)V"
-            )
+            ),
+            require = 0
     )
     private void atmosphereplus$modifyFogDistances(Args args) {
         Vector4f fogColor = args.get(2);

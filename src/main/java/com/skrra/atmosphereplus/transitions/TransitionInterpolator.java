@@ -30,8 +30,10 @@ public final class TransitionInterpolator {
         config.fogOverride = target.fogOverride || (!endBooleans && start.fogOverride);
         config.fogDistance = lerp(start.fogDistance, target.fogDistance, easedProgress);
         config.fogDensity = lerp(start.fogDensity, target.fogDensity, easedProgress);
+        config.submersionFogOff = target.submersionFogOff || (!endBooleans && start.submersionFogOff);
 
         config.particleAmount = lerp(start.particleAmount, target.particleAmount, easedProgress);
+        config.lowFire = target.lowFire || (!endBooleans && start.lowFire);
 
         config.cloudOverride = target.cloudOverride || (!endBooleans && start.cloudOverride);
         config.cloudMode = target.cloudMode;
@@ -45,6 +47,16 @@ public final class TransitionInterpolator {
         config.starBrightness = lerp(start.starBrightness, target.starBrightness, easedProgress);
         config.sunMoonVisibility = lerp(start.sunMoonVisibility, target.sunMoonVisibility, easedProgress);
         config.shaderAwareWarnings = target.shaderAwareWarnings;
+
+        config.moodOverlayEnabled = target.moodOverlayEnabled || (!endBooleans && start.moodOverlayEnabled);
+        config.moodOverlayRed = lerp(start.moodOverlayRed, target.moodOverlayRed, easedProgress);
+        config.moodOverlayGreen = lerp(start.moodOverlayGreen, target.moodOverlayGreen, easedProgress);
+        config.moodOverlayBlue = lerp(start.moodOverlayBlue, target.moodOverlayBlue, easedProgress);
+        config.moodOverlayStrength = lerp(start.moodOverlayStrength, target.moodOverlayStrength, easedProgress);
+        config.moodBrightness = lerp(start.moodBrightness, target.moodBrightness, easedProgress);
+        config.moodContrast = lerp(start.moodContrast, target.moodContrast, easedProgress);
+        config.moodSaturation = lerp(start.moodSaturation, target.moodSaturation, easedProgress);
+        config.moodVignetteStrength = lerp(start.moodVignetteStrength, target.moodVignetteStrength, easedProgress);
 
         if (complete) {
             target.applyTo(config);

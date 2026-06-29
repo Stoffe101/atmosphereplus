@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.ModifyConstant;
 
 @Mixin(InGameOverlayRenderer.class)
 public abstract class InGameOverlayRendererMixin {
-    @ModifyConstant(method = "renderFireOverlay", constant = @Constant(floatValue = -0.3F))
+    @ModifyConstant(method = "renderFireOverlay", constant = @Constant(floatValue = -0.3F), require = 0)
     private static float atmosphereplus$lowerFireOverlay(float original) {
         return VisualSettings.isLowFireEnabled() ? -0.62F : original;
     }

@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 
 public final class ConfigSafety {
-    public static final int LATEST_CONFIG_VERSION = 14;
+    public static final int LATEST_CONFIG_VERSION = 15;
 
     private ConfigSafety() {
     }
@@ -124,6 +124,14 @@ public final class ConfigSafety {
         config.skyBrightness = clamp(config.skyBrightness, 0.0f, 2.0f);
         config.starBrightness = clamp(config.starBrightness, 0.0f, 2.0f);
         config.sunMoonVisibility = clamp(config.sunMoonVisibility, 0.0f, 1.0f);
+        config.moodOverlayRed = clamp(config.moodOverlayRed, 0.0f, 1.0f);
+        config.moodOverlayGreen = clamp(config.moodOverlayGreen, 0.0f, 1.0f);
+        config.moodOverlayBlue = clamp(config.moodOverlayBlue, 0.0f, 1.0f);
+        config.moodOverlayStrength = clamp(config.moodOverlayStrength, 0.0f, 1.0f);
+        config.moodBrightness = clamp(config.moodBrightness, 0.5f, 1.5f);
+        config.moodContrast = clamp(config.moodContrast, 0.5f, 1.5f);
+        config.moodSaturation = clamp(config.moodSaturation, 0.0f, 2.0f);
+        config.moodVignetteStrength = clamp(config.moodVignetteStrength, 0.0f, 1.0f);
 
         if (repairProfiles(config)) {
             changed = true;
@@ -317,6 +325,14 @@ public final class ConfigSafety {
             profile.skyBrightness = clamp(profile.skyBrightness, 0.0f, 2.0f);
             profile.starBrightness = clamp(profile.starBrightness, 0.0f, 2.0f);
             profile.sunMoonVisibility = clamp(profile.sunMoonVisibility, 0.0f, 1.0f);
+            profile.moodOverlayRed = clamp(profile.moodOverlayRed, 0.0f, 1.0f);
+            profile.moodOverlayGreen = clamp(profile.moodOverlayGreen, 0.0f, 1.0f);
+            profile.moodOverlayBlue = clamp(profile.moodOverlayBlue, 0.0f, 1.0f);
+            profile.moodOverlayStrength = clamp(profile.moodOverlayStrength, 0.0f, 1.0f);
+            profile.moodBrightness = clamp(profile.moodBrightness, 0.5f, 1.5f);
+            profile.moodContrast = clamp(profile.moodContrast, 0.5f, 1.5f);
+            profile.moodSaturation = clamp(profile.moodSaturation, 0.0f, 2.0f);
+            profile.moodVignetteStrength = clamp(profile.moodVignetteStrength, 0.0f, 1.0f);
         }
 
         return changed;
