@@ -25,6 +25,8 @@ Try:
 
 Use Search -> Reset Mood Overlay, or open the visual controls and disable Mood Overlay / Color Grade. The overlay is gameplay-only where practical and is skipped while screens are open, but it is a lightweight overlay rather than a full post-processing shader.
 
+Set Vignette Strength to `0` to fully disable vignette edge darkening. The vignette uses the current screen dimensions and avoids fixed 16:9 assumptions, including on ultrawide displays.
+
 Shader packs may change how strong the final tint, brightness, contrast, saturation, or vignette appears.
 
 ## Cloud distance is missing

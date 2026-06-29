@@ -65,18 +65,44 @@ public final class MoodOverlayRenderer {
             return;
         }
 
-        int edgeAlpha = Math.round(strength * 150.0F);
-        int midAlpha = Math.round(strength * 70.0F);
-        int edge = argb(edgeAlpha, 0, 0, 0);
-        int mid = argb(midAlpha, 0, 0, 0);
-        int clear = 0x00000000;
-        int bandX = Math.max(18, width / 7);
-        int bandY = Math.max(18, height / 7);
+        int shortSide = Math.min(width, height);
+        int bandX = Math.min(width / 2, Math.max(24, Math.round(shortSide * 0.16F)));
+        int bandY = Math.min(height / 2, Math.max(24, Math.round(shortSide * 0.14F)));
+        int maxAlpha = Math.round(strength * 118.0F);
 
-        context.fillGradient(0, 0, width, bandY, edge, clear);
-        context.fillGradient(0, height - bandY, width, height, clear, edge);
-        context.fillGradient(0, 0, bandX, height, edge, mid);
-        context.fillGradient(width - bandX, 0, width, height, mid, edge);
+        drawEdgeStrips(context, width, height, bandX, maxAlpha, true);
+        drawEdgeStrips(context, width, height, bandY, maxAlpha, false);
+    }
+
+    private static void drawEdgeStrips(DrawContext context, int width, int height, int band, int maxAlpha, boolean horizontal) {
+        if (band <= 0 || maxAlpha <= 0) {
+            return;
+        }
+
+        int steps = Math.max(12, Math.min(96, band));
+        for (int i = 0; i < steps; i++) {
+            int start = Math.round(i * band / (float) steps);
+            int end = Math.round((i + 1) * band / (float) steps);
+            if (end <= start) {
+                continue;
+            }
+
+            float edgeDistance = 1.0F - ((i + 0.5F) / steps);
+            float eased = edgeDistance * edgeDistance * (3.0F - 2.0F * edgeDistance);
+            int alpha = Math.round(maxAlpha * eased);
+            if (alpha <= 0) {
+                continue;
+            }
+
+            int color = argb(alpha, 0, 0, 0);
+            if (horizontal) {
+                context.fill(start, 0, end, height, color);
+                context.fill(width - end, 0, width - start, height, color);
+            } else {
+                context.fill(0, start, width, end, color);
+                context.fill(0, height - end, width, height - start, color);
+            }
+        }
     }
 
     private static int argb(int alpha, int red, int green, int blue) {

@@ -486,7 +486,7 @@ public final class PresetLibraryManager {
             c.submersionFogOff = false;
             c.lowFire = false;
             mood(c, 0.58f, 0.70f, 0.50f, 0.45f, 0.30f);
-            colorGrade(c, 0.80f, 0.08f, 0.05f, 0.58f, 0.82f, 1.24f, 1.30f, 0.42f);
+            colorGrade(c, 0.80f, 0.08f, 0.05f, 0.58f, 0.82f, 1.24f, 1.30f, 0.34f);
         });
         addDimension("nether_clear", "Nether Clear", "Better Nether visibility without fullbright.", IconType.FOG, c -> {
             c.timeOverride = false;
@@ -513,7 +513,7 @@ public final class PresetLibraryManager {
             c.submersionFogOff = true;
             c.lowFire = true;
             mood(c, 0.72f, 1.0f, 1.12f, 0.75f, 0.55f);
-            colorGrade(c, 1.0f, 0.42f, 0.10f, 0.46f, 1.08f, 1.16f, 1.35f, 0.22f);
+            colorGrade(c, 1.0f, 0.42f, 0.10f, 0.46f, 1.08f, 1.16f, 1.35f, 0.16f);
         });
         addDimension("basalt_ash", "Basalt Ash", "Smoky basalt delta mood.", IconType.FOG, c -> {
             c.timeOverride = false;
@@ -526,7 +526,7 @@ public final class PresetLibraryManager {
             c.submersionFogOff = false;
             c.lowFire = false;
             mood(c, 0.65f, 1.0f, 0.58f, 0.40f, 0.28f);
-            colorGrade(c, 0.45f, 0.43f, 0.40f, 0.36f, 0.82f, 1.18f, 0.55f, 0.28f);
+            colorGrade(c, 0.45f, 0.43f, 0.40f, 0.36f, 0.82f, 1.18f, 0.55f, 0.22f);
         });
         addDimension("soul_haze", "Soul Haze", "Cooler soul valley haze.", IconType.FOG, c -> {
             c.timeOverride = false;
@@ -539,7 +539,7 @@ public final class PresetLibraryManager {
             c.submersionFogOff = false;
             c.lowFire = false;
             mood(c, 0.62f, 1.0f, 0.74f, 0.95f, 0.42f);
-            colorGrade(c, 0.18f, 0.70f, 0.85f, 0.42f, 0.88f, 1.10f, 0.88f, 0.20f);
+            colorGrade(c, 0.18f, 0.70f, 0.85f, 0.42f, 0.88f, 1.10f, 0.88f, 0.16f);
         });
         addDimension("nether_horror", "Nether Horror", "Very dark spooky Nether fog.", IconType.ADVANCED, c -> {
             c.timeOverride = false;
@@ -552,7 +552,7 @@ public final class PresetLibraryManager {
             c.submersionFogOff = false;
             c.lowFire = false;
             mood(c, 0.50f, 1.0f, 0.32f, 0.20f, 0.20f);
-            colorGrade(c, 0.65f, 0.02f, 0.02f, 0.70f, 0.62f, 1.42f, 1.25f, 0.70f);
+            colorGrade(c, 0.65f, 0.02f, 0.02f, 0.70f, 0.62f, 1.42f, 1.25f, 0.54f);
         });
         addDimension("void_purple", "Void Purple", "Sparse, dim End ambience.", IconType.TIME, c -> {
             c.timeOverride = true;
@@ -565,8 +565,8 @@ public final class PresetLibraryManager {
             c.particleAmount = 0.70f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.35f, 1.0f, 0.72f, 1.8f, 0.25f);
-            colorGrade(c, 0.45f, 0.20f, 0.85f, 0.42f, 0.86f, 1.18f, 1.10f, 0.30f);
+            mood(c, 0.30f, 1.0f, 0.78f, 2.0f, 0.22f);
+            colorGrade(c, 0.58f, 0.12f, 1.0f, 0.58f, 0.82f, 1.22f, 1.24f, 0.24f);
         });
         addDimension("end_clear", "End Clear", "Cleaner visibility in the End.", IconType.SKY, c -> {
             c.timeOverride = true;
@@ -579,8 +579,8 @@ public final class PresetLibraryManager {
             c.particleAmount = 0.35f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.25f, 1.0f, 1.05f, 1.65f, 0.45f);
-            colorGrade(c, 0.62f, 0.72f, 1.0f, 0.18f, 1.16f, 1.02f, 1.02f, 0.06f);
+            mood(c, 0.18f, 1.0f, 1.18f, 1.85f, 0.52f);
+            colorGrade(c, 0.66f, 0.58f, 1.0f, 0.26f, 1.20f, 1.04f, 1.12f, 0.04f);
         });
         addDimension("chorus_dream", "Chorus Dream", "Soft surreal purple End haze.", IconType.TIME, c -> {
             c.timeOverride = true;
@@ -593,8 +593,8 @@ public final class PresetLibraryManager {
             c.particleAmount = 0.55f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.42f, 1.0f, 0.82f, 2.0f, 0.30f);
-            colorGrade(c, 0.95f, 0.35f, 1.0f, 0.40f, 1.04f, 0.88f, 1.20f, 0.12f);
+            mood(c, 0.36f, 1.0f, 0.96f, 2.0f, 0.34f);
+            colorGrade(c, 1.0f, 0.24f, 0.92f, 0.56f, 1.08f, 0.86f, 1.36f, 0.08f);
         });
         addDimension("dragon_night", "Dragon Night", "Dark boss-fight End ambience.", IconType.LIGHTING, c -> {
             c.timeOverride = true;
@@ -607,8 +607,8 @@ public final class PresetLibraryManager {
             c.particleAmount = 0.75f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.35f, 1.0f, 0.45f, 1.35f, 0.18f);
-            colorGrade(c, 0.30f, 0.12f, 0.60f, 0.50f, 0.72f, 1.34f, 1.05f, 0.46f);
+            mood(c, 0.32f, 1.0f, 0.50f, 1.55f, 0.16f);
+            colorGrade(c, 0.26f, 0.10f, 0.78f, 0.62f, 0.70f, 1.40f, 1.16f, 0.34f);
         });
         addDimension("celestial_void", "Celestial Void", "Bright cosmic End clarity.", IconType.SKY, c -> {
             c.timeOverride = true;
@@ -621,8 +621,8 @@ public final class PresetLibraryManager {
             c.particleAmount = 0.25f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.20f, 1.0f, 1.18f, 2.0f, 0.60f);
-            colorGrade(c, 0.35f, 0.58f, 1.0f, 0.28f, 1.18f, 0.96f, 1.18f, 0.12f);
+            mood(c, 0.14f, 1.0f, 1.32f, 2.0f, 0.72f);
+            colorGrade(c, 0.32f, 0.70f, 1.0f, 0.42f, 1.24f, 0.98f, 1.34f, 0.08f);
         });
         add("misty_morning", "Misty Morning", "Sunrise and soft fog.", IconType.FOG, c -> {
             c.weatherOverride = true;

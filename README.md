@@ -84,6 +84,7 @@ Biome Atmospheres does not require server installation. It applies mapped preset
 - Included in presets, custom presets, profiles, and smooth transitions
 - Strengthened Nether and End presets use color grading so dimension presets remain visually distinct even when sky/time/weather controls are limited
 - Can be disabled or reset from the visual controls/search
+- Vignette uses adaptive edge darkening for normal and ultrawide displays, and Vignette Strength `0` disables vignette rendering completely
 
 This is a safe overlay fallback, not a full shader replacement. Iris shader packs may still override, cover, or visually compete with the final look.
 

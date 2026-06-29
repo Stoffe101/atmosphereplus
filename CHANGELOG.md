@@ -1,5 +1,19 @@
 # Atmosphere+ Changelog
 
+## 0.3.0-beta.12
+
+### Fixed
+
+- Fixed Mood Overlay vignette side-panel artifacts caused by broad rectangular gradient fills.
+- Vignette rendering now uses eased edge strips based on the current scaled window size, improving ultrawide behavior.
+- Setting Vignette Strength to `0` fully skips vignette rendering.
+
+### Changed
+
+- End presets are more vibrant, colorful, purple, and cosmic while staying playable.
+- Void Purple, End Clear, Chorus Dream, Dragon Night, and Celestial Void now use stronger fantasy color-grade tuning.
+- Reduced heavy vignette values on Nether/End presets so color and fog carry more of the mood.
+
 ## 0.3.0-beta.11
 
 ### Added
