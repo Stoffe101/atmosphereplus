@@ -12,6 +12,7 @@ import com.skrra.atmosphereplus.config.ProfileManager;
 import com.skrra.atmosphereplus.keybind.AtmosphereKeybinds;
 import com.skrra.atmosphereplus.presets.CustomPresetData;
 import com.skrra.atmosphereplus.presets.PresetLibraryManager;
+import com.skrra.atmosphereplus.presets.PresetPackManager;
 import com.skrra.atmosphereplus.presets.PresetReference;
 import com.skrra.atmosphereplus.themes.CustomThemeData;
 import com.skrra.atmosphereplus.themes.CustomThemeManager;
@@ -43,8 +44,11 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.function.Consumer;
 
 public class AtmosphereScreen extends Screen {
     private final List<AtmosphereWidget> widgets = new ArrayList<>();
@@ -59,14 +63,31 @@ public class AtmosphereScreen extends Screen {
     private final ThemeStudioState themeStudioState = new ThemeStudioState();
     private BiomeCategory biomePresetPickerCategory = null;
     private boolean cavePresetPickerOpen = false;
+    private PresetPackMode presetPackMode = PresetPackMode.NONE;
+    private final Set<String> presetPackSelection = new LinkedHashSet<>();
+    private String presetPackName = "Atmosphere+ Preset Pack";
+    private String presetPackAuthor = "Skrra";
+    private String presetPackDescription = "Shared Atmosphere+ presets.";
+    private List<PresetPackManager.PackPreview> presetPackPreviews = new ArrayList<>();
+    private PresetPackManager.PackPreview selectedPresetPackPreview = null;
 
     private String confirmTitle = "";
     private String confirmMessage = "";
     private Runnable confirmAction = null;
+    private String textPromptTitle = "";
+    private String textPromptValue = "";
+    private int textPromptMaxLength = 64;
+    private Consumer<String> textPromptAction = null;
 
     private int scrollOffset = 0;
     private int maxScroll = 0;
     private int contentBottom = 0;
+
+    private enum PresetPackMode {
+        NONE,
+        EXPORT,
+        IMPORT
+    }
 
     private int sidebarScrollOffset = 0;
     private int sidebarMaxScroll = 0;
@@ -1797,29 +1818,43 @@ private int addPresetWidgets(int contentX, int contentY, int contentW) {
         y += 12;
     }
 
-    int actionCols = contentW >= 520 ? 2 : 1;
+    int actionCols = contentW >= 760 ? 3 : contentW >= 520 ? 2 : 1;
     int actionW = (contentW - gap * (actionCols - 1)) / actionCols;
-    widgets.add(new ActionButtonWidget(contentX, y, actionW, "Save Current as Preset", "Create a custom preset from the current atmosphere.", IconType.PRESETS, () -> {
+    int actionIndex = 0;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Save Current as Preset", "Create a custom preset from the current atmosphere.", IconType.PRESETS, () -> {
         CustomPresetData created = PresetLibraryManager.saveCurrentAsPreset();
         NotificationUtil.show("Saved " + created.displayName);
         rebuildWidgets();
     }));
+    actionIndex++;
 
-    if (actionCols > 1) {
-        widgets.add(new ActionButtonWidget(contentX + actionW + gap, y, actionW, "Reload Presets", "Reload custom presets from config.", IconType.ADVANCED, () -> {
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Import Preset Pack", "Load JSON packs from config/atmosphereplus-preset-packs/.", IconType.PRESETS, () -> {
+        openPresetPackImport();
+        rebuildWidgets();
+    }));
+    actionIndex++;
+
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Export Preset Pack", "Create a shareable JSON pack from selected presets.", IconType.ADVANCED, () -> {
+        openPresetPackExport();
+        rebuildWidgets();
+    }));
+    actionIndex++;
+
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Reload Presets", "Reload custom presets from config.", IconType.ADVANCED, () -> {
             PresetLibraryManager.loadCustomPresets();
             NotificationUtil.show("Preset library reloaded");
             rebuildWidgets();
-        }));
-        y += 52;
-    } else {
-        y += 46;
-        widgets.add(new ActionButtonWidget(contentX, y, actionW, "Reload Presets", "Reload custom presets from config.", IconType.ADVANCED, () -> {
-            PresetLibraryManager.loadCustomPresets();
-            NotificationUtil.show("Preset library reloaded");
-            rebuildWidgets();
-        }));
-        y += 52;
+    }));
+    actionIndex++;
+
+    y += ((actionIndex + actionCols - 1) / actionCols) * 46 + 6;
+
+    if (presetPackMode == PresetPackMode.EXPORT) {
+        return addPresetPackExportWidgets(contentX, y, contentW, columns, rowW, gap);
+    }
+
+    if (presetPackMode == PresetPackMode.IMPORT) {
+        return addPresetPackImportWidgets(contentX, y, contentW, columns, rowW, gap);
     }
 
     widgets.add(new SectionLabelWidget(contentX, y, contentW, "My Presets", "Your saved custom atmospheres"));
@@ -1868,6 +1903,173 @@ private int addPresetWidgets(int contentX, int contentY, int contentW) {
     return y;
 }
 
+private int addPresetPackExportWidgets(int contentX, int contentY, int contentW, int columns, int rowW, int gap) {
+    int y = contentY;
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Export Preset Pack", "Create a shareable JSON preset collection"));
+    y += 30;
+
+    int metaCols = contentW >= 760 ? 3 : 1;
+    int metaW = (contentW - gap * (metaCols - 1)) / metaCols;
+    widgets.add(new ActionButtonWidget(contentX, y, metaW, "Pack Name", presetPackName, IconType.PRESETS, () -> openTextPrompt("Pack Name", presetPackName, 48, value -> {
+        presetPackName = value == null || value.isBlank() ? "Atmosphere+ Preset Pack" : value.trim();
+        rebuildWidgets();
+    })));
+    widgets.add(new ActionButtonWidget(contentX + (metaCols > 1 ? metaW + gap : 0), y + (metaCols > 1 ? 0 : 46), metaW, "Author", presetPackAuthor, IconType.PRESETS, () -> openTextPrompt("Pack Author", presetPackAuthor, 32, value -> {
+        presetPackAuthor = value == null ? "" : value.trim();
+        rebuildWidgets();
+    })));
+    widgets.add(new ActionButtonWidget(contentX + (metaCols > 2 ? (metaW + gap) * 2 : 0), y + (metaCols > 2 ? 0 : metaCols > 1 ? 46 : 92), metaW, "Description", presetPackDescription, IconType.ADVANCED, () -> openTextPrompt("Pack Description", presetPackDescription, 96, value -> {
+        presetPackDescription = value == null ? "" : value.trim();
+        rebuildWidgets();
+    })));
+    y += metaCols >= 3 ? 52 : metaCols == 2 ? 98 : 144;
+
+    int actionCols = contentW >= 620 ? 3 : 1;
+    int actionW = (contentW - gap * (actionCols - 1)) / actionCols;
+    widgets.add(new ActionButtonWidget(contentX, y, actionW, "Export " + presetPackSelection.size() + " Presets", "Writes to " + PresetPackManager.packFolder(), IconType.PRESETS, this::exportSelectedPresetPack));
+    widgets.add(new ActionButtonWidget(contentX + (actionCols > 1 ? actionW + gap : 0), y + (actionCols > 1 ? 0 : 46), actionW, "Select My Presets", "Select all saved custom presets.", IconType.PRESETS, () -> {
+        presetPackSelection.clear();
+        for (PresetReference preset : PresetLibraryManager.customPresetsSorted()) {
+            presetPackSelection.add(preset.id());
+        }
+        rebuildWidgets();
+    }));
+    widgets.add(new ActionButtonWidget(contentX + (actionCols > 2 ? (actionW + gap) * 2 : 0), y + (actionCols > 2 ? 0 : actionCols > 1 ? 46 : 92), actionW, "Close", "Return to the preset library.", IconType.ADVANCED, () -> {
+        presetPackMode = PresetPackMode.NONE;
+        rebuildWidgets();
+    }));
+    y += actionCols >= 3 ? 58 : actionCols == 2 ? 104 : 150;
+
+    y = addPresetPackSelectionSection("My Presets", "Custom presets", PresetLibraryManager.customPresetsSorted(), contentX, y, columns, rowW, gap);
+    y = addPresetPackSelectionSection("Favorite Presets", "Starred presets", PresetLibraryManager.favorites(), contentX, y + 6, columns, rowW, gap);
+    y = addPresetPackSelectionSection("Nether Presets", "Nether share pack options", PresetLibraryManager.netherPresetsSorted(), contentX, y + 6, columns, rowW, gap);
+    y = addPresetPackSelectionSection("End Presets", "End share pack options", PresetLibraryManager.endPresetsSorted(), contentX, y + 6, columns, rowW, gap);
+    y = addPresetPackSelectionSection("Prebuilt Presets", "Bundled presets", PresetLibraryManager.builtInsSorted(), contentX, y + 6, columns, rowW, gap);
+    return y;
+}
+
+private int addPresetPackSelectionSection(String title, String description, List<PresetReference> presets, int contentX, int contentY, int columns, int rowW, int gap) {
+    int y = contentY;
+    widgets.add(new SectionLabelWidget(contentX, y, rowW * columns + gap * (columns - 1), title, description));
+    y += 30;
+    if (presets == null || presets.isEmpty()) {
+        widgets.add(new InfoCardWidget(contentX, y, rowW * columns + gap * (columns - 1), 48, "No presets here", "Nothing to include from this section.", IconType.PRESETS));
+        return y + 60;
+    }
+
+    int index = 0;
+    int rowH = 48;
+    for (PresetReference preset : presets) {
+        int col = index % columns;
+        int row = index / columns;
+        int x = contentX + col * (rowW + gap);
+        int itemY = y + row * rowH;
+        widgets.add(new PresetRowWidget(
+                x,
+                itemY,
+                rowW,
+                presetPackSelection.contains(preset.id()) ? "[x] " + preset.displayName() : preset.displayName(),
+                presetPackSelection.contains(preset.id()) ? "Included in export pack" : preset.description(),
+                preset.icon(),
+                () -> presetPackSelection.contains(preset.id()),
+                () -> PresetLibraryManager.isFavorite(preset.id()),
+                () -> togglePresetPackSelection(preset.id()),
+                () -> togglePresetFavorite(preset.id(), preset.displayName())
+        ));
+        index++;
+    }
+    return y + ((index + columns - 1) / columns) * rowH;
+}
+
+private int addPresetPackImportWidgets(int contentX, int contentY, int contentW, int columns, int rowW, int gap) {
+    int y = contentY;
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Import Preset Pack", PresetPackManager.packFolder().toString()));
+    y += 30;
+
+    int actionCols = contentW >= 520 ? 2 : 1;
+    int actionW = (contentW - gap * (actionCols - 1)) / actionCols;
+    widgets.add(new ActionButtonWidget(contentX, y, actionW, "Refresh Packs", "Reload JSON files from the preset pack folder.", IconType.PRESETS, () -> {
+        refreshPresetPackPreviews();
+        rebuildWidgets();
+    }));
+    widgets.add(new ActionButtonWidget(contentX + (actionCols > 1 ? actionW + gap : 0), y + (actionCols > 1 ? 0 : 46), actionW, "Close", "Return to the preset library.", IconType.ADVANCED, () -> {
+        presetPackMode = PresetPackMode.NONE;
+        selectedPresetPackPreview = null;
+        rebuildWidgets();
+    }));
+    y += actionCols > 1 ? 58 : 104;
+
+    if (presetPackPreviews.isEmpty()) {
+        widgets.add(new InfoCardWidget(contentX, y, contentW, 70, "No preset packs found", "Place .json files in config/atmosphereplus-preset-packs/ and refresh.", IconType.PRESETS));
+        return y + 82;
+    }
+
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Available Packs", "Select a pack to preview"));
+    y += 30;
+    for (PresetPackManager.PackPreview preview : presetPackPreviews) {
+        widgets.add(new PresetRowWidget(
+                contentX,
+                y,
+                contentW,
+                preview.packName(),
+                preview.valid() ? preview.validPresets().size() + " presets · " + preview.fileName() : "Invalid pack · " + preview.fileName(),
+                preview.valid() ? IconType.PRESETS : IconType.ADVANCED,
+                () -> selectedPresetPackPreview == preview,
+                () -> false,
+                () -> {
+                    selectedPresetPackPreview = preview;
+                    rebuildWidgets();
+                },
+                () -> {
+                }
+        ));
+        y += 48;
+    }
+
+    if (selectedPresetPackPreview != null) {
+        y += 8;
+        y = addPresetPackPreviewWidgets(selectedPresetPackPreview, contentX, y, contentW);
+    }
+
+    return y;
+}
+
+private int addPresetPackPreviewWidgets(PresetPackManager.PackPreview preview, int contentX, int contentY, int contentW) {
+    int y = contentY;
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Pack Preview", preview.fileName()));
+    y += 30;
+
+    String author = preview.author().isBlank() ? "Unknown author" : preview.author();
+    widgets.add(new InfoCardWidget(contentX, y, contentW, 78, preview.packName(), author + " - " + preview.validPresets().size() + " valid presets", IconType.PRESETS));
+    y += 90;
+
+    if (!preview.description().isBlank()) {
+        widgets.add(new InfoCardWidget(contentX, y, contentW, 56, "Description", preview.description(), IconType.ADVANCED));
+        y += 68;
+    }
+
+    if (!preview.warnings().isEmpty()) {
+        widgets.add(new InfoCardWidget(contentX, y, contentW, 56, "Warnings", String.join(" ", preview.warnings()), IconType.ADVANCED));
+        y += 68;
+    }
+
+    widgets.add(new ActionButtonWidget(contentX, y, contentW, preview.valid() ? "Import " + preview.validPresets().size() + " Presets" : "Invalid Preset Pack", "Imported presets appear under My Presets.", IconType.PRESETS, () -> importSelectedPresetPack(preview)));
+    y += 54;
+
+    int shown = 0;
+    for (var entry : preview.validPresets()) {
+        if (shown >= 8) {
+            widgets.add(new InfoCardWidget(contentX, y, contentW, 42, "More presets", (preview.validPresets().size() - shown) + " additional presets will be imported.", IconType.PRESETS));
+            y += 54;
+            break;
+        }
+        widgets.add(new InfoCardWidget(contentX, y, contentW, 42, entry.displayName, entry.description == null ? "" : entry.description, IconType.PRESETS));
+        y += 54;
+        shown++;
+    }
+    return y;
+}
+
 private List<PresetReference> nonFavorite(List<PresetReference> presets) {
     List<PresetReference> result = new ArrayList<>();
     for (PresetReference preset : presets) {
@@ -1901,6 +2103,76 @@ private int addPresetRows(List<PresetReference> presets, int columns, int conten
         index++;
     }
     return contentY + ((index + columns - 1) / columns) * rowH;
+}
+
+private void openPresetPackExport() {
+    presetPackMode = PresetPackMode.EXPORT;
+    presetPackSelection.clear();
+    for (PresetReference preset : PresetLibraryManager.customPresetsSorted()) {
+        presetPackSelection.add(preset.id());
+    }
+    if (presetPackName == null || presetPackName.isBlank()) {
+        presetPackName = "Atmosphere+ Preset Pack";
+    }
+    scrollOffset = 0;
+}
+
+private void openPresetPackImport() {
+    presetPackMode = PresetPackMode.IMPORT;
+    refreshPresetPackPreviews();
+    selectedPresetPackPreview = presetPackPreviews.isEmpty() ? null : presetPackPreviews.get(0);
+    scrollOffset = 0;
+}
+
+private void refreshPresetPackPreviews() {
+    presetPackPreviews = new ArrayList<>();
+    for (var path : PresetPackManager.availablePackFiles()) {
+        presetPackPreviews.add(PresetPackManager.preview(path));
+    }
+}
+
+private void togglePresetPackSelection(String presetId) {
+    if (presetPackSelection.contains(presetId)) {
+        presetPackSelection.remove(presetId);
+    } else {
+        presetPackSelection.add(presetId);
+    }
+    rebuildWidgets();
+}
+
+private void exportSelectedPresetPack() {
+    if (presetPackSelection.isEmpty()) {
+        NotificationUtil.show("Select at least one preset");
+        return;
+    }
+
+    PresetPackManager.ExportResult result = PresetPackManager.exportPack(
+            presetPackName,
+            presetPackAuthor,
+            presetPackDescription,
+            new ArrayList<>(presetPackSelection)
+    );
+
+    if (result.success()) {
+        NotificationUtil.show("Preset Pack exported: " + result.fileName());
+        presetPackMode = PresetPackMode.NONE;
+    } else {
+        NotificationUtil.show(result.message().isBlank() ? "Preset Pack export failed" : result.message());
+    }
+    rebuildWidgets();
+}
+
+private void importSelectedPresetPack(PresetPackManager.PackPreview preview) {
+    PresetPackManager.ImportResult result = PresetPackManager.importPack(preview);
+    if (result.success()) {
+        PresetLibraryManager.cleanFavoritePresetIds();
+        NotificationUtil.show("Imported " + result.count() + " presets from " + preview.packName());
+        presetPackMode = PresetPackMode.NONE;
+        selectedPresetPackPreview = null;
+    } else {
+        NotificationUtil.show(result.message().isBlank() ? "Invalid Preset Pack" : result.message());
+    }
+    rebuildWidgets();
 }
 
 private int addPresetCard(int index, int columns, int contentX, int contentY, int cardW, int gap, int rowH, String title, String description, IconType icon, java.util.function.Supplier<Boolean> activeSupplier, Runnable action) {
@@ -3099,6 +3371,24 @@ private boolean isRendererTestActive() {
 
 
 private int addSearchPresetLibraryEntries(int y, int x, int width) {
+    y = addSearchAction(y, x, width, "Preset Packs", "preset pack import preset export preset share presets preset json pack backup presets nether pack end pack cinematic pack", "Preset Packs", "Open preset pack import and export tools.", IconType.PRESETS, () -> {
+        selectCategory(UiCategory.PRESETS);
+        presetPackMode = PresetPackMode.NONE;
+        scrollOffset = 0;
+    });
+
+    y = addSearchAction(y, x, width, "Import Preset Pack", "import preset pack preset json backup presets share presets pack", "Import Preset Pack", "Preview and import JSON preset packs.", IconType.PRESETS, () -> {
+        selectCategory(UiCategory.PRESETS);
+        openPresetPackImport();
+        rebuildWidgets();
+    });
+
+    y = addSearchAction(y, x, width, "Export Preset Pack", "export preset pack share presets preset json backup presets nether pack end pack cinematic pack", "Export Preset Pack", "Select presets and export a shareable JSON pack.", IconType.ADVANCED, () -> {
+        selectCategory(UiCategory.PRESETS);
+        openPresetPackExport();
+        rebuildWidgets();
+    });
+
     y = addSearchAction(y, x, width, "Nether Presets", "dimension presets nether presets dark crimson nether clear lava bloom basalt ash soul haze nether horror nether tint", "Nether Presets", "Open Nether preset moods.", IconType.PRESETS, () -> {
         selectCategory(UiCategory.PRESETS);
         scrollOffset = 0;
@@ -3374,7 +3664,7 @@ private String trimHeaderText(String text, int maxWidth) {
     renderBackdrop(context);
 
     Theme theme = ThemeManager.current();
-    boolean modalOpen = isRenaming() || isConfirmingAction();
+    boolean modalOpen = isRenaming() || isTextPrompting() || isConfirmingAction();
     int uiMouseX = modalOpen ? -100000 : mouseX;
     int uiMouseY = modalOpen ? -100000 : mouseY;
 
@@ -3679,6 +3969,38 @@ private String trimHeaderText(String text, int maxWidth) {
         return isRenamingProfile() || isRenamingTheme();
     }
 
+    private void openTextPrompt(String title, String initialValue, int maxLength, Consumer<String> action) {
+        textPromptTitle = title == null ? "Edit Text" : title;
+        textPromptValue = initialValue == null ? "" : initialValue;
+        textPromptMaxLength = Math.max(1, maxLength);
+        textPromptAction = action;
+        searchFocused = false;
+        NotificationUtil.show("Type text, Enter to save, Esc to cancel");
+    }
+
+    private boolean isTextPrompting() {
+        return textPromptAction != null;
+    }
+
+    private void finishTextPrompt() {
+        Consumer<String> action = textPromptAction;
+        String value = textPromptValue;
+        textPromptAction = null;
+        textPromptTitle = "";
+        textPromptValue = "";
+        if (action != null) {
+            action.accept(value);
+        }
+    }
+
+    private void cancelTextPrompt() {
+        textPromptAction = null;
+        textPromptTitle = "";
+        textPromptValue = "";
+        NotificationUtil.show("Edit cancelled");
+        rebuildWidgets();
+    }
+
 
 
 private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, int mouseY) {
@@ -3754,7 +4076,7 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
     }
 
     private void renderProfileRenameOverlay(DrawContext context, Theme theme) {
-        if (!isRenaming()) {
+        if (!isRenaming() && !isTextPrompting()) {
             return;
         }
 
@@ -3766,8 +4088,9 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
         context.fill(0, 0, width, height, 0xAA000000);
         UiRender.borderedRect(context, x, y, modalW, modalH, theme.panel(), theme.accent());
 
-        String title = isRenamingTheme() ? "Rename Theme" : "Rename Profile " + (renamingProfileIndex + 1);
-        int maxNameLength = isRenamingTheme() ? 28 : 24;
+        String title = isTextPrompting() ? textPromptTitle : isRenamingTheme() ? "Rename Theme" : "Rename Profile " + (renamingProfileIndex + 1);
+        int maxNameLength = isTextPrompting() ? textPromptMaxLength : isRenamingTheme() ? 28 : 24;
+        String value = isTextPrompting() ? textPromptValue : renameProfileText;
 
         UiRender.text(context, textRenderer, title, x + 16, y + 14, theme.text());
         UiRender.text(context, textRenderer, "Enter saves · Esc cancels · Backspace deletes", x + 16, y + 29, theme.mutedText());
@@ -3778,7 +4101,7 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
         int fieldW = modalW - 32;
         UiRender.borderedRect(context, fieldX, fieldY, fieldW, 24, theme.panelAlt(), theme.accent());
 
-        String visible = renameProfileText;
+        String visible = value;
         while (textRenderer.getWidth(visible) > fieldW - 24 && visible.length() > 0) {
             visible = visible.substring(1);
         }
@@ -3790,7 +4113,7 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
             context.fill(caretX + 2, fieldY + 6, caretX + 3, fieldY + 19, theme.accent());
         }
 
-        UiRender.centeredText(context, textRenderer, "New name: " + renameProfileText.length() + "/" + maxNameLength, x + modalW / 2, y + 92, theme.mutedText());
+        UiRender.centeredText(context, textRenderer, "Length: " + value.length() + "/" + maxNameLength, x + modalW / 2, y + 92, theme.mutedText());
     }
 
 
@@ -3825,7 +4148,7 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
     }
 
     private void renderTooltip(DrawContext context, int mouseX, int mouseY) {
-        if (isRenaming() || isConfirmingAction()) {
+        if (isRenaming() || isTextPrompting() || isConfirmingAction()) {
             return;
         }
 
@@ -3859,7 +4182,7 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return handleConfirmClick(click.x(), click.y());
         }
 
-        if (isRenaming()) {
+        if (isRenaming() || isTextPrompting()) {
             return true;
         }
 
@@ -3988,6 +4311,25 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return true;
         }
 
+        if (isTextPrompting()) {
+            if (input.isEscape()) {
+                cancelTextPrompt();
+                return true;
+            }
+
+            if (input.getKeycode() == GLFW.GLFW_KEY_ENTER) {
+                finishTextPrompt();
+                return true;
+            }
+
+            if (input.getKeycode() == GLFW.GLFW_KEY_BACKSPACE && !textPromptValue.isEmpty()) {
+                textPromptValue = textPromptValue.substring(0, textPromptValue.length() - 1);
+                return true;
+            }
+
+            return true;
+        }
+
         if (handleThemeStudioHexKey(input)) {
             return true;
         }
@@ -4025,6 +4367,14 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
 
         if (handleThemeStudioSearchChar(input)) {
+            return true;
+        }
+
+        if (isTextPrompting() && input.isValidChar() && textPromptValue.length() < textPromptMaxLength) {
+            String typed = input.asString();
+            if (!typed.equals("\n") && !typed.equals("\r")) {
+                textPromptValue += typed;
+            }
             return true;
         }
 

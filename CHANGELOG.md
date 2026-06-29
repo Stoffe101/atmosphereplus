@@ -1,5 +1,26 @@
 # Atmosphere+ Changelog
 
+## 0.4.0-beta.1
+
+### Added
+
+- Preset Packs for sharing groups of Atmosphere+ presets as JSON files.
+- Preset pack export flow on the Presets page with pack name, author, description, and preset selection.
+- Preset pack import flow with file listing, preview, validation warnings, and safe import into My Presets.
+- Preset pack folder workflow at `config/atmosphereplus-preset-packs/`.
+- Lightweight preset tags in exported/imported pack data for future filtering.
+- Search entries for preset packs, import preset, export preset, share presets, preset JSON, backup presets, Nether pack, End pack, and cinematic pack.
+
+### Changed
+
+- Imported preset IDs and display names are made unique automatically instead of overwriting existing presets.
+- Exported packs contain full preset snapshots, including Mood Overlay, fog, gamma, particles, renderer, submersion fog, and Low Fire values.
+
+### Notes
+
+- Broken, empty, unsupported, or invalid preset pack JSON files are rejected safely before custom presets are modified.
+- Imported presets appear under My Presets.
+
 ## 0.3.0-beta.13
 
 ### Added

@@ -152,6 +152,55 @@ public final class PresetLibraryManager {
         return CAVE_FRIENDLY_PRESET_IDS.contains(id);
     }
 
+    public static List<String> tagsForPreset(String id) {
+        LinkedHashSet<String> tags = new LinkedHashSet<>();
+        PresetReference ref = reference(id);
+        if (ref == null) {
+            return new ArrayList<>();
+        }
+
+        if (ref.custom()) {
+            CustomPresetData data = CUSTOM_PRESETS.get(id);
+            if (data != null && data.tags != null) {
+                tags.addAll(data.tags);
+            }
+            tags.add("CUSTOM");
+        } else {
+            tags.add("BUILT_IN");
+            if (isNetherPreset(id)) {
+                tags.add("NETHER");
+                tags.add("DIMENSION");
+            } else if (isEndPreset(id)) {
+                tags.add("END");
+                tags.add("DIMENSION");
+            } else {
+                tags.add("OVERWORLD");
+            }
+
+            if (isCaveFriendlyPreset(id)) {
+                tags.add("CAVE");
+                tags.add("VISIBILITY");
+            }
+
+            if (id.contains("horror")) {
+                tags.add("HORROR");
+            }
+            if (id.contains("void") || id.contains("chorus") || id.contains("celestial")) {
+                tags.add("FANTASY");
+                tags.add("COSMIC");
+            }
+            if (id.contains("safe") || id.contains("shader")) {
+                tags.add("SAFE");
+                tags.add("SHADER_FRIENDLY");
+            }
+            if (id.contains("cinematic") || id.contains("misty") || id.contains("moonlit")) {
+                tags.add("CINEMATIC");
+            }
+        }
+
+        return new ArrayList<>(tags);
+    }
+
     private static List<PresetReference> builtInsForIdsSorted(Set<String> ids) {
         List<PresetReference> refs = new ArrayList<>();
         for (String id : ids) {
@@ -325,6 +374,46 @@ public final class PresetLibraryManager {
         return data;
     }
 
+    public static int importCustomPresets(List<CustomPresetData> presets) {
+        if (presets == null || presets.isEmpty()) {
+            return 0;
+        }
+
+        List<CustomPresetData> staged = new ArrayList<>();
+        LinkedHashSet<String> stagedIds = new LinkedHashSet<>();
+        LinkedHashSet<String> stagedNames = new LinkedHashSet<>();
+        for (CustomPresetData source : presets) {
+            if (!isValidCustomPreset(source)) {
+                continue;
+            }
+
+            CustomPresetData data = new CustomPresetData();
+            data.id = uniqueId(slug(source.id == null || source.id.isBlank() ? source.displayName : source.id), stagedIds);
+            data.displayName = uniqueDisplayName(source.displayName, stagedNames);
+            data.description = source.description == null || source.description.isBlank()
+                    ? "Imported preset."
+                    : source.description;
+            data.snapshot = AtmosphereProfile.copyOf(source.snapshot);
+            data.tags = source.tags == null ? new ArrayList<>() : new ArrayList<>(source.tags);
+            if (!data.tags.contains("CUSTOM")) {
+                data.tags.add("CUSTOM");
+            }
+            staged.add(data);
+            stagedIds.add(data.id);
+            stagedNames.add(data.displayName.toLowerCase(Locale.ROOT));
+        }
+
+        if (staged.isEmpty()) {
+            return 0;
+        }
+
+        for (CustomPresetData data : staged) {
+            CUSTOM_PRESETS.put(data.id, data);
+        }
+        saveCustomPresets();
+        return staged.size();
+    }
+
     public static boolean deleteCustomPreset(String id) {
         if (CUSTOM_PRESETS.remove(id) == null) {
             return false;
@@ -411,11 +500,38 @@ public final class PresetLibraryManager {
         return false;
     }
 
+    private static String uniqueDisplayName(String name) {
+        return uniqueDisplayName(name, Set.of());
+    }
+
+    private static String uniqueDisplayName(String name, Set<String> reservedNames) {
+        String cleaned = name == null || name.isBlank() ? "Imported Preset" : name.trim();
+        if (!containsDisplayName(cleaned) && !reservedNames.contains(cleaned.toLowerCase(Locale.ROOT))) {
+            return cleaned;
+        }
+
+        String candidate = cleaned + " Imported";
+        if (!containsDisplayName(candidate) && !reservedNames.contains(candidate.toLowerCase(Locale.ROOT))) {
+            return candidate;
+        }
+
+        int suffix = 2;
+        candidate = cleaned + " Copy";
+        while (containsDisplayName(candidate) || reservedNames.contains(candidate.toLowerCase(Locale.ROOT))) {
+            candidate = cleaned + " Copy " + suffix++;
+        }
+        return candidate;
+    }
+
     private static String uniqueId(String base) {
+        return uniqueId(base, Set.of());
+    }
+
+    private static String uniqueId(String base, Set<String> reservedIds) {
         String cleaned = base == null || base.isBlank() ? "custom_preset" : base;
         String candidate = cleaned;
         int suffix = 2;
-        while (BUILT_INS.containsKey(candidate) || CUSTOM_PRESETS.containsKey(candidate)) {
+        while (BUILT_INS.containsKey(candidate) || CUSTOM_PRESETS.containsKey(candidate) || reservedIds.contains(candidate)) {
             candidate = cleaned + "_" + suffix++;
         }
         return candidate;

@@ -29,6 +29,7 @@ On Windows:
 - Apply presets.
 - Test Mood Overlay.
 - Test Biome Atmospheres.
+- Test Preset Pack export/import if preset sharing changed.
 - Test Nether/End behavior if the release changed dimension visuals.
 
 ## 4. Commit

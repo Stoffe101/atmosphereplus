@@ -48,12 +48,22 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - My Presets
 - Nether Presets
 - End Presets
+- Preset Packs for JSON import/export
 - Cinematic presets
 - Safe mode presets
 - Optional Biome Atmospheres automation
 - Save/load profiles
 - Rename profiles
 - Import/export profiles
+
+### Preset Packs
+
+- Export selected presets into shareable JSON preset packs
+- Import preset packs from `config/atmosphereplus-preset-packs/`
+- Preview pack name, author, description, preset count, preset names, and warnings before importing
+- Imported presets appear under My Presets
+- Duplicate imported IDs and names are made unique automatically
+- Broken or unsupported pack files are rejected safely without wiping existing custom presets
 
 ### Biome Atmospheres
 

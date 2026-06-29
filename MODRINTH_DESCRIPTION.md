@@ -15,6 +15,7 @@ It lets you change the atmosphere of the game locally without changing the serve
 - Quick menu
 - Prebuilt Presets
 - My Presets
+- Preset Packs for JSON import/export
 - Nether Presets
 - End Presets
 - Mood Overlay / Color Grade
@@ -58,6 +59,16 @@ These presets focus on supported client-side controls such as fog distance, fog 
 Atmosphere+ includes a safe gameplay-only color grading overlay for tint, brightness, contrast, saturation, and vignette-style edge darkening. It helps Nether and End presets feel more distinct without requiring shader packs.
 
 This is not a full shader replacement. Iris shader packs may still override or visually compete with some effects, and the overlay can be disabled or reset.
+
+## Preset Packs
+
+Preset Packs let players share groups of Atmosphere+ presets as JSON files. Export selected presets from the Presets page, then share the generated file from:
+
+```text
+config/atmosphereplus-preset-packs/
+```
+
+To import a pack, place the `.json` file in that folder, open Presets, choose Import Preset Pack, preview the contents, and import. Imported presets appear under My Presets. Broken or unsupported packs are rejected safely.
 
 ## Client-side
 

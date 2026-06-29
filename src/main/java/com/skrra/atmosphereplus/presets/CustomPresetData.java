@@ -3,11 +3,15 @@ package com.skrra.atmosphereplus.presets;
 import com.skrra.atmosphereplus.config.AtmosphereConfig;
 import com.skrra.atmosphereplus.config.AtmosphereProfile;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class CustomPresetData {
     public String id = "";
     public String displayName = "My Preset";
     public String description = "Saved custom atmosphere.";
     public AtmosphereProfile snapshot = new AtmosphereProfile("Preset Snapshot");
+    public List<String> tags = new ArrayList<>();
 
     public CustomPresetData() {
     }
