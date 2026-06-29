@@ -1,0 +1,54 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build mod
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: ./gradlew clean build
+
+      - name: Resolve artifact path
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          mod_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          archive_name="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
+          jar_path="build/libs/${archive_name}-${mod_version}.jar"
+
+          if [[ ! -f "${jar_path}" ]]; then
+            echo "::error::Expected release jar not found: ${jar_path}"
+            exit 1
+          fi
+
+          echo "name=${archive_name}-${mod_version}" >> "$GITHUB_OUTPUT"
+          echo "path=${jar_path}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload mod jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: ${{ steps.artifact.outputs.path }}
+          if-no-files-found: error

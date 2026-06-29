@@ -1,5 +1,20 @@
 # Atmosphere+ Changelog
 
+## 0.3.0-beta.13
+
+### Added
+
+- GitHub Actions build workflow for pushes and pull requests to `master`.
+- Tag-based GitHub release workflow for `v*` version tags.
+- Release workflow validation that tag versions match `gradle.properties` `mod_version`.
+- Workflow artifact upload for the normal mod jar.
+- Local release checklist and optional Windows PowerShell release helper.
+
+### Notes
+
+- Pre-release GitHub releases are marked automatically when the tag contains `alpha`, `beta`, or `rc`.
+- Release automation uploads the normal `atmosphereplus-<version>.jar`, not the sources jar.
+
 ## 0.3.0-beta.12
 
 ### Fixed

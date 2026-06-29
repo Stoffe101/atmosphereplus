@@ -148,6 +148,12 @@ Then:
 .\gradlew runClient
 ```
 
+## Releases
+
+GitHub Actions builds pushes and pull requests to `master`. Pushing a `v*` tag creates a GitHub release when the tag version matches `mod_version` in `gradle.properties`.
+
+See `RELEASE_CHECKLIST.md` for the local release steps.
+
 ## Troubleshooting
 
 ### Visuals look weird with shaders

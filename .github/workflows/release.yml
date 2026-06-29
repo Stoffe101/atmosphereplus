@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish GitHub release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: ./gradlew clean build
+
+      - name: Validate tag and resolve release jar
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_name="${GITHUB_REF_NAME}"
+          tag_version="${tag_name#v}"
+          mod_version="$(sed -n 's/^mod_version=//p' gradle.properties)"
+          archive_name="$(sed -n 's/^archives_base_name=//p' gradle.properties)"
+          jar_path="build/libs/${archive_name}-${mod_version}.jar"
+
+          if [[ "${tag_name}" == "${tag_version}" ]]; then
+            echo "::error::Release tags must start with v. Got ${tag_name}."
+            exit 1
+          fi
+
+          if [[ "${tag_version}" != "${mod_version}" ]]; then
+            echo "::error::Tag ${tag_name} does not match gradle.properties mod_version=${mod_version}."
+            exit 1
+          fi
+
+          if [[ ! -f "${jar_path}" ]]; then
+            echo "::error::Expected release jar not found: ${jar_path}"
+            exit 1
+          fi
+
+          prerelease="false"
+          if [[ "${tag_version}" =~ (alpha|beta|rc) ]]; then
+            prerelease="true"
+          fi
+
+          echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
+          echo "jar_path=${jar_path}" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          JAR_PATH: ${{ steps.release.outputs.jar_path }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prerelease_args=()
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          gh release create "${TAG_NAME}" "${JAR_PATH}" \
+            --title "${TAG_NAME}" \
+            --generate-notes \
+            "${prerelease_args[@]}"
