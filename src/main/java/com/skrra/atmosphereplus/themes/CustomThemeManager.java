@@ -16,6 +16,8 @@ import java.util.Map;
 public final class CustomThemeManager {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FILE_NAME = "atmosphereplus-themes.json";
+    private static final String EXPORT_FILE_NAME = "atmosphereplus-theme-export.json";
+    private static final String IMPORT_FILE_NAME = "atmosphereplus-theme-import.json";
     private static final int MAX_NAME_LENGTH = 28;
     private static final Map<String, CustomThemeData> CUSTOM_THEMES = new LinkedHashMap<>();
 
@@ -135,6 +137,48 @@ public final class CustomThemeManager {
         return true;
     }
 
+    public static boolean exportTheme(String id) {
+        CustomThemeData data = CUSTOM_THEMES.get(id);
+        if (data == null) {
+            return false;
+        }
+
+        try {
+            Path path = exportPath();
+            Files.createDirectories(path.getParent());
+            try (Writer writer = Files.newBufferedWriter(path)) {
+                GSON.toJson(data, writer);
+            }
+            return true;
+        } catch (IOException exception) {
+            return false;
+        }
+    }
+
+    public static ImportResult importTheme() {
+        Path path = importPath();
+        if (!Files.exists(path)) {
+            return ImportResult.missing();
+        }
+
+        try (Reader reader = Files.newBufferedReader(path)) {
+            CustomThemeData imported = GSON.fromJson(reader, CustomThemeData.class);
+            CustomThemeData repaired = sanitize(imported);
+            if (repaired == null) {
+                return ImportResult.invalid();
+            }
+
+            repaired.id = uniqueId(repaired.id, repaired.displayName);
+            repaired.displayName = cleanName(repaired.displayName, "Imported Theme");
+            CUSTOM_THEMES.put(repaired.id, repaired);
+            save();
+            ThemeManager.refreshCustomThemes();
+            return ImportResult.success(repaired);
+        } catch (Exception exception) {
+            return ImportResult.invalid();
+        }
+    }
+
     private static CustomThemeData sanitize(CustomThemeData data) {
         if (data == null || data.id == null || data.id.isBlank()) {
             return null;
@@ -197,8 +241,56 @@ public final class CustomThemeManager {
         return id;
     }
 
+    private static String uniqueId(String requestedId, String name) {
+        String base = requestedId == null ? "" : requestedId.trim()
+                .toLowerCase()
+                .replaceAll("[^a-z0-9_]+", "_")
+                .replaceAll("^_+|_+$", "");
+
+        if (base.isBlank()) {
+            base = nextId(name);
+        }
+
+        String id = base;
+        int suffix = 2;
+        while (ThemeManager.isBuiltInTheme(id) || CUSTOM_THEMES.containsKey(id)) {
+            id = base + "_" + suffix;
+            suffix++;
+        }
+
+        return id;
+    }
+
     private static Path path() {
         return FabricLoader.getInstance().getConfigDir().resolve(FILE_NAME);
+    }
+
+    private static Path exportPath() {
+        return FabricLoader.getInstance().getConfigDir().resolve(EXPORT_FILE_NAME);
+    }
+
+    private static Path importPath() {
+        return FabricLoader.getInstance().getConfigDir().resolve(IMPORT_FILE_NAME);
+    }
+
+    public record ImportResult(Status status, CustomThemeData theme) {
+        public static ImportResult success(CustomThemeData theme) {
+            return new ImportResult(Status.SUCCESS, theme);
+        }
+
+        public static ImportResult missing() {
+            return new ImportResult(Status.MISSING_FILE, null);
+        }
+
+        public static ImportResult invalid() {
+            return new ImportResult(Status.INVALID_FILE, null);
+        }
+    }
+
+    public enum Status {
+        SUCCESS,
+        MISSING_FILE,
+        INVALID_FILE
     }
 
     private static final class Storage {

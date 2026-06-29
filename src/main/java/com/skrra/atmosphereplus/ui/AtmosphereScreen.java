@@ -104,6 +104,20 @@ private void loadLastSelectedTab() {
 }
 
 private void selectCategory(UiCategory category) {
+    if (selected == UiCategory.THEME_STUDIO && category != UiCategory.THEME_STUDIO && themeStudioState.dirty()) {
+        showConfirmation(
+                "Discard unsaved theme edits?",
+                "Save or revert changes before leaving Theme Studio if you want to keep them.",
+                () -> {
+                    themeStudioState.revert();
+                    selectCategory(category);
+                    scrollOffset = 0;
+                    rebuildWidgets();
+                }
+        );
+        return;
+    }
+
     selected = category;
     ConfigManager.get().lastUiCategory = category.name();
     ConfigManager.save();
@@ -1159,6 +1173,16 @@ private ThemeStudioPage.Actions themeStudioActions() {
         }
 
         @Override
+        public void exportTheme(String themeId) {
+            exportCustomTheme(themeId);
+        }
+
+        @Override
+        public void importTheme() {
+            importCustomTheme();
+        }
+
+        @Override
         public void saveTheme(String themeId) {
             saveCustomTheme(themeId);
         }
@@ -1175,8 +1199,7 @@ private ThemeStudioPage.Actions themeStudioActions() {
 
         @Override
         public void selectTheme(String themeId) {
-            themeStudioState.selectTheme(themeId);
-            rebuildWidgets();
+            selectThemeFromStudio(themeId);
         }
 
         @Override
@@ -1202,10 +1225,37 @@ private ThemeStudioPage.Actions themeStudioActions() {
             themeStudioState.clearHexFocus();
             rebuildWidgets();
         }
+
+        @Override
+        public void focusThemeSearch() {
+            themeStudioState.setThemeSearchFocused(true);
+            themeStudioState.clearHexFocus();
+            searchFocused = false;
+            rebuildWidgets();
+        }
+
+        @Override
+        public void clearThemeSearch() {
+            themeStudioState.setThemeSearch("");
+            themeStudioState.setThemeSearchFocused(false);
+            rebuildWidgets();
+        }
     };
 }
 
 private void createCustomTheme() {
+    if (themeStudioState.dirty()) {
+        showConfirmation(
+                "Discard unsaved theme edits?",
+                "Creating a new theme will discard the current unsaved draft.",
+                () -> {
+                    themeStudioState.revert();
+                    createCustomTheme();
+                }
+        );
+        return;
+    }
+
     CustomThemeData created = CustomThemeManager.createTheme("Custom Theme", ThemeManager.current());
     ThemeManager.setTheme(created.id);
     themeStudioState.selectTheme(created.id);
@@ -1214,6 +1264,18 @@ private void createCustomTheme() {
 }
 
 private void duplicateCustomTheme(String sourceId) {
+    if (themeStudioState.dirty()) {
+        showConfirmation(
+                "Discard unsaved theme edits?",
+                "Duplicating a theme will discard the current unsaved draft.",
+                () -> {
+                    themeStudioState.revert();
+                    duplicateCustomTheme(sourceId);
+                }
+        );
+        return;
+    }
+
     Theme source = ThemeManager.byId(sourceId);
     if (source == null) {
         source = ThemeManager.current();
@@ -1222,7 +1284,29 @@ private void duplicateCustomTheme(String sourceId) {
     CustomThemeData created = CustomThemeManager.duplicateTheme(source.id(), source.displayName() + " Copy");
     ThemeManager.setTheme(created.id);
     themeStudioState.selectTheme(created.id);
-    NotificationUtil.show("Duplicated " + source.displayName());
+    NotificationUtil.show("Theme Duplicated");
+    rebuildWidgets();
+}
+
+private void selectThemeFromStudio(String themeId) {
+    if (themeId == null || themeId.equals(themeStudioState.selectedThemeId())) {
+        return;
+    }
+
+    if (themeStudioState.dirty()) {
+        showConfirmation(
+                "Discard unsaved theme edits?",
+                "Selecting another theme will discard unsaved changes.",
+                () -> {
+                    themeStudioState.revert();
+                    themeStudioState.selectTheme(themeId);
+                    rebuildWidgets();
+                }
+        );
+        return;
+    }
+
+    themeStudioState.selectTheme(themeId);
     rebuildWidgets();
 }
 
@@ -1253,8 +1337,51 @@ private void saveCustomTheme(String themeId) {
 
     CustomThemeManager.saveTheme(new CustomThemeData(draft));
     themeStudioState.revert();
-    NotificationUtil.show("Saved " + draft.displayName);
+    NotificationUtil.show("Theme Saved");
     rebuildWidgets();
+}
+
+private void exportCustomTheme(String themeId) {
+    if (!CustomThemeManager.isCustomTheme(themeId)) {
+        NotificationUtil.show("Duplicate a built-in theme before exporting");
+        return;
+    }
+
+    if (CustomThemeManager.exportTheme(themeId)) {
+        NotificationUtil.show("Theme Exported");
+    } else {
+        NotificationUtil.show("Theme Export Failed");
+    }
+}
+
+private void importCustomTheme() {
+    if (themeStudioState.dirty()) {
+        showConfirmation(
+                "Discard unsaved theme edits?",
+                "Importing a theme will discard the current unsaved draft.",
+                () -> {
+                    themeStudioState.revert();
+                    importCustomTheme();
+                }
+        );
+        return;
+    }
+
+    CustomThemeManager.ImportResult result = CustomThemeManager.importTheme();
+
+    if (result.status() == CustomThemeManager.Status.SUCCESS && result.theme() != null) {
+        themeStudioState.selectTheme(result.theme().id);
+        ThemeManager.setTheme(result.theme().id);
+        NotificationUtil.show("Theme Imported");
+        rebuildWidgets();
+        return;
+    }
+
+    if (result.status() == CustomThemeManager.Status.MISSING_FILE) {
+        NotificationUtil.show("Import Failed");
+    } else {
+        NotificationUtil.show("Invalid Theme File");
+    }
 }
 
 private void revertCustomTheme() {
@@ -1289,7 +1416,7 @@ private void reloadCustomThemes() {
     }
 
     themeStudioState.selectCurrentTheme();
-    NotificationUtil.show("Reloaded custom themes");
+    NotificationUtil.show("Theme library reloaded");
     rebuildWidgets();
 }
 
@@ -1306,7 +1433,7 @@ private void confirmDeleteTheme(String themeId) {
             () -> {
                 CustomThemeManager.deleteTheme(data.id);
                 themeStudioState.selectCurrentTheme();
-                NotificationUtil.show("Deleted " + data.displayName);
+                NotificationUtil.show("Theme Deleted");
                 rebuildWidgets();
             }
     );
@@ -2616,7 +2743,7 @@ private int addSearchProfiles(int y, int x, int width) {
             }
         }
 
-        return true;
+        return false;
     }
 
     private List<UiCategory> visibleCategories() {
@@ -3152,11 +3279,17 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
         if (AtmosphereKeybinds.matchesOpenMenuMouse(click)) {
+            if (confirmThemeStudioCloseIfDirty()) {
+                return true;
+            }
             MinecraftClient.getInstance().setScreen(null);
             return true;
         }
 
         if (UiRender.hovered(click.x(), click.y(), closeX, closeY, closeSize, closeSize)) {
+            if (confirmThemeStudioCloseIfDirty()) {
+                return true;
+            }
             MinecraftClient.getInstance().setScreen(null);
             return true;
         }
@@ -3181,6 +3314,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return true;
         } else {
             searchFocused = false;
+        }
+
+        if (selected == UiCategory.THEME_STUDIO) {
+            themeStudioState.setThemeSearchFocused(false);
         }
 
         for (AtmosphereWidget widget : widgets) {
@@ -3246,6 +3383,9 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
     @Override
     public boolean keyPressed(KeyInput input) {
         if (AtmosphereKeybinds.matchesOpenMenu(input)) {
+            if (confirmThemeStudioCloseIfDirty()) {
+                return true;
+            }
             MinecraftClient.getInstance().setScreen(null);
             return true;
         }
@@ -3291,6 +3431,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return true;
         }
 
+        if (handleThemeStudioSearchKey(input)) {
+            return true;
+        }
+
         if (searchFocused) {
             if (input.isEscape()) {
                 searchFocused = false;
@@ -3319,6 +3463,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return true;
         }
 
+        if (handleThemeStudioSearchChar(input)) {
+            return true;
+        }
+
         int maxRenameLength = isRenamingTheme() ? 28 : 24;
         if (isRenaming() && input.isValidChar() && renameProfileText.length() < maxRenameLength) {
             String typed = input.asString();
@@ -3341,6 +3489,27 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
     private boolean handleThemeStudioHexKey(KeyInput input) {
         if (selected != UiCategory.THEME_STUDIO || themeStudioState.focusedToken() == null) {
             return false;
+        }
+
+        if (isControlDown(input) && input.getKeycode() == GLFW.GLFW_KEY_A) {
+            themeStudioState.selectAllHex();
+            rebuildWidgets();
+            return true;
+        }
+
+        if (isControlDown(input) && input.getKeycode() == GLFW.GLFW_KEY_C) {
+            MinecraftClient.getInstance().keyboard.setClipboard(themeStudioState.copyFocusedHex());
+            NotificationUtil.show("HEX copied");
+            return true;
+        }
+
+        if (isControlDown(input) && input.getKeycode() == GLFW.GLFW_KEY_V) {
+            ThemeStudioState.HexResult result = themeStudioState.pasteHex(MinecraftClient.getInstance().keyboard.getClipboard());
+            if (result == ThemeStudioState.HexResult.INVALID) {
+                NotificationUtil.show("Invalid hex color. Use #RRGGBB or #AARRGGBB");
+            }
+            rebuildWidgets();
+            return true;
         }
 
         if (input.isEscape()) {
@@ -3367,6 +3536,38 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         return false;
     }
 
+    private boolean handleThemeStudioSearchKey(KeyInput input) {
+        if (selected != UiCategory.THEME_STUDIO || !themeStudioState.themeSearchFocused()) {
+            return false;
+        }
+
+        if (input.isEscape()) {
+            themeStudioState.setThemeSearchFocused(false);
+            rebuildWidgets();
+            return true;
+        }
+
+        if (input.getKeycode() == GLFW.GLFW_KEY_ENTER) {
+            themeStudioState.setThemeSearchFocused(false);
+            rebuildWidgets();
+            return true;
+        }
+
+        if (input.getKeycode() == GLFW.GLFW_KEY_BACKSPACE) {
+            themeStudioState.backspaceThemeSearch();
+            rebuildWidgets();
+            return true;
+        }
+
+        if (isControlDown(input) && input.getKeycode() == GLFW.GLFW_KEY_A) {
+            themeStudioState.setThemeSearch("");
+            rebuildWidgets();
+            return true;
+        }
+
+        return true;
+    }
+
     private boolean handleThemeStudioHexChar(CharInput input) {
         if (selected != UiCategory.THEME_STUDIO || themeStudioState.focusedToken() == null || !input.isValidChar()) {
             return false;
@@ -3382,6 +3583,39 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             NotificationUtil.show("Invalid hex color. Use 0-9 and A-F");
         }
         rebuildWidgets();
+        return true;
+    }
+
+    private boolean handleThemeStudioSearchChar(CharInput input) {
+        if (selected != UiCategory.THEME_STUDIO || !themeStudioState.themeSearchFocused() || !input.isValidChar()) {
+            return false;
+        }
+
+        String typed = input.asString();
+        if (!typed.equals("\n") && !typed.equals("\r")) {
+            themeStudioState.appendThemeSearch(typed);
+            rebuildWidgets();
+        }
+        return true;
+    }
+
+    private boolean isControlDown(KeyInput input) {
+        return (input.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
+    }
+
+    private boolean confirmThemeStudioCloseIfDirty() {
+        if (selected != UiCategory.THEME_STUDIO || !themeStudioState.dirty()) {
+            return false;
+        }
+
+        showConfirmation(
+                "Discard unsaved theme edits?",
+                "This will close Theme Studio and discard unsaved theme changes.",
+                () -> {
+                    themeStudioState.revert();
+                    MinecraftClient.getInstance().setScreen(null);
+                }
+        );
         return true;
     }
 

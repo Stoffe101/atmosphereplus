@@ -52,6 +52,9 @@ public class ThemeStudioState {
     private boolean advancedMode = false;
     private EditorSection expandedSection = EditorSection.ACCENT;
     private String focusedHexToken = "";
+    private boolean hexSelectedAll = false;
+    private String themeSearch = "";
+    private boolean themeSearchFocused = false;
     private final Map<String, String> hexInputs = new HashMap<>();
 
     public String selectedThemeId() {
@@ -65,8 +68,48 @@ public class ThemeStudioState {
             selectedThemeId = id;
             draft = null;
             focusedHexToken = "";
+            hexSelectedAll = false;
             hexInputs.clear();
         }
+    }
+
+    public String themeSearch() {
+        return themeSearch;
+    }
+
+    public boolean themeSearchFocused() {
+        return themeSearchFocused;
+    }
+
+    public void setThemeSearchFocused(boolean focused) {
+        themeSearchFocused = focused;
+    }
+
+    public void setThemeSearch(String query) {
+        themeSearch = query == null ? "" : query.trim();
+    }
+
+    public void appendThemeSearch(String text) {
+        if (text != null && themeSearch.length() < 28) {
+            themeSearch = (themeSearch + text).trim();
+        }
+    }
+
+    public void backspaceThemeSearch() {
+        if (!themeSearch.isEmpty()) {
+            themeSearch = themeSearch.substring(0, themeSearch.length() - 1);
+        }
+    }
+
+    public boolean matchesThemeSearch(CustomThemeData data) {
+        if (themeSearch.isBlank()) {
+            return true;
+        }
+
+        String query = themeSearch.toLowerCase();
+        String name = data == null || data.displayName == null ? "" : data.displayName.toLowerCase();
+        String id = data == null || data.id == null ? "" : data.id.toLowerCase();
+        return name.contains(query) || id.contains(query);
     }
 
     public void selectCurrentTheme() {
@@ -127,6 +170,7 @@ public class ThemeStudioState {
     public void revert() {
         draft = null;
         focusedHexToken = "";
+        hexSelectedAll = false;
         hexInputs.clear();
         ensureDraft();
     }
@@ -187,13 +231,15 @@ public class ThemeStudioState {
 
     public void focusHex(Token token) {
         focusedHexToken = token == null ? "" : token.id;
+        hexSelectedAll = token != null;
         if (token != null) {
-            hexInputs.put(token.id, "#");
+            hexInputs.put(token.id, formatColor(color(token)));
         }
     }
 
     public void clearHexFocus() {
         focusedHexToken = "";
+        hexSelectedAll = false;
     }
 
     public Token focusedToken() {
@@ -220,7 +266,8 @@ public class ThemeStudioState {
             return HexResult.INVALID;
         }
 
-        String current = hexInput(token).replace("#", "");
+        String current = hexSelectedAll ? "" : hexInput(token).replace("#", "");
+        hexSelectedAll = false;
         if (current.length() >= 8) {
             return HexResult.INVALID;
         }
@@ -236,7 +283,8 @@ public class ThemeStudioState {
             return HexResult.IGNORED;
         }
 
-        String current = hexInput(token).replace("#", "");
+        String current = hexSelectedAll ? "" : hexInput(token).replace("#", "");
+        hexSelectedAll = false;
         if (!current.isEmpty()) {
             current = current.substring(0, current.length() - 1);
         }
@@ -255,6 +303,39 @@ public class ThemeStudioState {
             clearHexFocus();
         }
         return result;
+    }
+
+    public void selectAllHex() {
+        if (focusedToken() != null) {
+            hexSelectedAll = true;
+            Token token = focusedToken();
+            hexInputs.put(token.id, formatColor(color(token)));
+        }
+    }
+
+    public String copyFocusedHex() {
+        Token token = focusedToken();
+        return token == null ? "" : formatColor(color(token));
+    }
+
+    public HexResult pasteHex(String text) {
+        Token token = focusedToken();
+        if (token == null || text == null) {
+            return HexResult.IGNORED;
+        }
+
+        String cleaned = text.trim();
+        if (cleaned.startsWith("#")) {
+            cleaned = cleaned.substring(1);
+        }
+        cleaned = cleaned.replaceAll("[^A-Fa-f0-9]", "");
+        if (cleaned.length() != 6 && cleaned.length() != 8) {
+            return HexResult.INVALID;
+        }
+
+        hexInputs.put(token.id, "#" + cleaned.toUpperCase());
+        hexSelectedAll = false;
+        return applyHexInput(token, true);
     }
 
     public String formatColor(Token token) {

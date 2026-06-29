@@ -39,6 +39,10 @@ public final class ThemeStudioPage {
 
         void deleteTheme(String themeId);
 
+        void exportTheme(String themeId);
+
+        void importTheme();
+
         void saveTheme(String themeId);
 
         void reloadThemes();
@@ -54,6 +58,10 @@ public final class ThemeStudioPage {
         void toggleAdvancedMode();
 
         void expandSection(ThemeStudioState.EditorSection section);
+
+        void focusThemeSearch();
+
+        void clearThemeSearch();
     }
 
     public static int addWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int contentX, int contentY, int contentW) {
@@ -105,7 +113,7 @@ public final class ThemeStudioPage {
 
     private static int addLibrarySection(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
         Theme selected = ThemeManager.byId(state.selectedThemeId());
-        widgets.add(new SectionLabelWidget(x, y, w, "Theme Studio", state.dirty() ? "Unsaved edits" : "Custom themes"));
+        widgets.add(new SectionLabelWidget(x, y, w, "Theme Studio", state.dirty() ? "Unsaved Changes" : "Custom themes"));
         y += 28;
 
         if (!CustomThemeManager.hasCustomThemes()) {
@@ -121,11 +129,39 @@ public final class ThemeStudioPage {
             return y + 72 + GAP;
         }
 
+        widgets.add(new ActionButtonWidget(
+                x,
+                y,
+                w,
+                state.themeSearch().isBlank() ? (state.themeSearchFocused() ? "Search: typing..." : "Search Custom Themes") : "Search: " + state.themeSearch(),
+                state.themeSearchFocused() ? "Type to filter custom themes. Enter keeps results." : "Click to filter custom themes by name.",
+                IconType.THEMES,
+                actions::focusThemeSearch
+        ));
+        y += 42;
+
+        if (!state.themeSearch().isBlank()) {
+            widgets.add(new ActionButtonWidget(
+                    x,
+                    y,
+                    w,
+                    "Clear Search",
+                    "Show all custom themes.",
+                    IconType.ADVANCED,
+                    actions::clearThemeSearch
+            ));
+            y += 42;
+        }
+
         int columns = w >= 520 ? 2 : 1;
         int cardW = (w - SMALL_GAP * (columns - 1)) / columns;
         int index = 0;
 
         for (CustomThemeData data : CustomThemeManager.all().values()) {
+            if (!state.matchesThemeSearch(data)) {
+                continue;
+            }
+
             int cardX = x + (index % columns) * (cardW + SMALL_GAP);
             int cardY = y + (index / columns) * 42;
             widgets.add(new ChoiceButtonWidget(
@@ -139,6 +175,19 @@ public final class ThemeStudioPage {
                     () -> actions.selectTheme(data.id)
             ));
             index++;
+        }
+
+        if (index == 0) {
+            widgets.add(new InfoCardWidget(
+                    x,
+                    y,
+                    w,
+                    58,
+                    "No matching themes",
+                    "Try a different custom theme search.",
+                    IconType.THEMES
+            ));
+            return y + 58 + GAP;
         }
 
         int bottom = y + ((index + columns - 1) / columns) * 42 + GAP;
@@ -249,7 +298,7 @@ public final class ThemeStudioPage {
     }
 
     private static int addLivePreviewSection(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Live Preview", state.dirty() ? "Unsaved preview" : "Current preview"));
+        widgets.add(new SectionLabelWidget(x, y, w, "Live Preview", state.dirty() ? "Unsaved Changes" : "Current preview"));
         y += 28;
         int previewH = previewHeight(w);
         widgets.add(new ThemePreviewWidget(x, y, w, previewH, state));
@@ -292,6 +341,10 @@ public final class ThemeStudioPage {
         widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Duplicate", "Duplicate the selected theme.", IconType.PRESETS, () -> actions.duplicateTheme(state.selectedThemeId())));
         index++;
         widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Delete", "Delete the selected custom theme.", IconType.ADVANCED, () -> actions.deleteTheme(state.selectedThemeId())));
+        index++;
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Export Theme", "Export selected custom theme.", IconType.THEMES, () -> actions.exportTheme(state.selectedThemeId())));
+        index++;
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Import Theme", "Import theme from config.", IconType.PRESETS, actions::importTheme));
         index++;
         widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Reload", "Reload custom themes from disk.", IconType.ADVANCED, actions::reloadThemes));
         index++;
