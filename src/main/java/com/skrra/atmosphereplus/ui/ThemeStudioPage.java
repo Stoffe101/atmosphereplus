@@ -64,8 +64,8 @@ public final class ThemeStudioPage {
         void clearThemeSearch();
     }
 
-    public static int addWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int contentX, int contentY, int contentW, int viewportY) {
-        LayoutMode mode = layoutMode(contentW);
+    public static int addWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int contentX, int contentY, int contentW, int viewportY, int viewportBottom) {
+        LayoutMode mode = layoutMode(contentW, Math.max(0, viewportBottom - viewportY));
 
         return switch (mode) {
             case WIDE -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, viewportY, contentW, 58);
@@ -74,7 +74,11 @@ public final class ThemeStudioPage {
         };
     }
 
-    private static LayoutMode layoutMode(int width) {
+    private static LayoutMode layoutMode(int width, int viewportHeight) {
+        if (viewportHeight < stickyColumnHeight(width)) {
+            return LayoutMode.NARROW;
+        }
+
         if (width >= 820) {
             return LayoutMode.WIDE;
         }
@@ -82,6 +86,15 @@ public final class ThemeStudioPage {
             return LayoutMode.MEDIUM;
         }
         return LayoutMode.NARROW;
+    }
+
+    private static int stickyColumnHeight(int width) {
+        int rightW = width >= 820
+                ? width - GAP - Math.max(280, (width - GAP) * 58 / 100)
+                : width >= 620
+                ? width - GAP - Math.max(280, (width - GAP) * 50 / 100)
+                : width;
+        return 28 + previewHeight(rightW) + GAP + 8;
     }
 
     private static int addTwoColumnWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int stickyY, int w, int leftPercent) {
@@ -93,11 +106,11 @@ public final class ThemeStudioPage {
 
         leftY = addLibrarySection(widgets, state, actions, x, leftY, leftW);
         leftY = addEditorSection(widgets, state, actions, x, leftY, leftW);
+        leftY = addPrimaryActions(widgets, state, actions, x, leftY, leftW);
+        leftY = addSecondaryActions(widgets, state, actions, x, leftY, leftW);
 
         int rightX = x + leftW + GAP;
         rightY = addLivePreviewSection(widgets, state, rightX, rightY, rightW);
-        rightY = addPrimaryActions(widgets, state, actions, rightX, rightY, rightW);
-        rightY = addSecondaryActions(widgets, state, actions, rightX, rightY, rightW);
 
         return Math.max(leftY, y + Math.max(0, rightY - stickyY));
     }

@@ -318,7 +318,7 @@ private int contentWidgetWidth() {
         case FOG -> finalY = addFogWidgets(contentX, contentY, contentW);
         case PARTICLES -> finalY = addParticlesWidgets(contentX, contentY, contentW);
         case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
-        case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, themeStudioState, themeStudioActions(), contentX, contentY, contentW, windowY + layout().contentTopOffset());
+        case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, themeStudioState, themeStudioActions(), contentX, contentY, contentW, windowY + layout().contentTopOffset(), contentBottom);
         case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
         case BIOME_ATMOSPHERES -> finalY = BiomeAtmospheresPage.addWidgets(widgets, biomeAtmosphereActions(), biomePresetPickerCategory, cavePresetPickerOpen, contentX, contentY, contentW);
         case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
