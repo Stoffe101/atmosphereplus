@@ -1,5 +1,19 @@
 # Atmosphere+ Changelog
 
+## 0.4.0-beta.3
+
+### Changed
+
+- Imported duplicate preset names now use clean `Imported`, `Imported 2`, and `Imported 3` style suffixes instead of repeatedly appending words.
+- End presets are smoother and clearer while keeping their purple/cosmic fantasy identity.
+- Theme Studio keeps the live preview visible in a sticky right-side column on medium and wide layouts while editing lower controls.
+- Home screen cards and tip/status text now lay out vertically with wrapping to avoid overlap at high GUI scales.
+
+### Fixed
+
+- Avoided awkward imported preset names such as `Imported Imported` or `Copy Copy`.
+- Improved Home screen text spacing at 1920x1080 GUI scale 3.
+
 ## 0.4.0
 
 ### Stable Release

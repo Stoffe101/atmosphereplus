@@ -64,12 +64,12 @@ public final class ThemeStudioPage {
         void clearThemeSearch();
     }
 
-    public static int addWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int contentX, int contentY, int contentW) {
+    public static int addWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int contentX, int contentY, int contentW, int viewportY) {
         LayoutMode mode = layoutMode(contentW);
 
         return switch (mode) {
-            case WIDE -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, contentW, 58);
-            case MEDIUM -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, contentW, 50);
+            case WIDE -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, viewportY, contentW, 58);
+            case MEDIUM -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, viewportY, contentW, 50);
             case NARROW -> addStackedWidgets(widgets, state, actions, contentX, contentY, contentW);
         };
     }
@@ -84,12 +84,12 @@ public final class ThemeStudioPage {
         return LayoutMode.NARROW;
     }
 
-    private static int addTwoColumnWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, int leftPercent) {
+    private static int addTwoColumnWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int stickyY, int w, int leftPercent) {
         int leftW = Math.max(280, (w - GAP) * leftPercent / 100);
         int rightW = w - GAP - leftW;
 
         int leftY = y;
-        int rightY = y;
+        int rightY = stickyY;
 
         leftY = addLibrarySection(widgets, state, actions, x, leftY, leftW);
         leftY = addEditorSection(widgets, state, actions, x, leftY, leftW);
@@ -99,7 +99,7 @@ public final class ThemeStudioPage {
         rightY = addPrimaryActions(widgets, state, actions, rightX, rightY, rightW);
         rightY = addSecondaryActions(widgets, state, actions, rightX, rightY, rightW);
 
-        return Math.max(leftY, rightY);
+        return Math.max(leftY, y + Math.max(0, rightY - stickyY));
     }
 
     private static int addStackedWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {

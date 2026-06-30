@@ -512,22 +512,23 @@ public final class PresetLibraryManager {
     }
 
     private static String uniqueDisplayName(String name, Set<String> reservedNames) {
-        String cleaned = name == null || name.isBlank() ? "Imported Preset" : name.trim();
+        String cleaned = cleanImportedDisplayBase(name);
         if (!containsDisplayName(cleaned) && !reservedNames.contains(cleaned.toLowerCase(Locale.ROOT))) {
             return cleaned;
         }
 
         String candidate = cleaned + " Imported";
-        if (!containsDisplayName(candidate) && !reservedNames.contains(candidate.toLowerCase(Locale.ROOT))) {
-            return candidate;
-        }
-
         int suffix = 2;
-        candidate = cleaned + " Copy";
         while (containsDisplayName(candidate) || reservedNames.contains(candidate.toLowerCase(Locale.ROOT))) {
-            candidate = cleaned + " Copy " + suffix++;
+            candidate = cleaned + " Imported " + suffix++;
         }
         return candidate;
+    }
+
+    private static String cleanImportedDisplayBase(String name) {
+        String cleaned = name == null || name.isBlank() ? "Imported Preset" : name.trim();
+        cleaned = cleaned.replaceAll("(?i)\\s+(Imported|Copy)(\\s+\\d+)?$", "").trim();
+        return cleaned.isBlank() ? "Imported Preset" : cleaned;
     }
 
     private static String uniqueId(String base) {
@@ -692,70 +693,70 @@ public final class PresetLibraryManager {
             c.visualTime = 18000;
             c.weatherOverride = false;
             c.fogOverride = true;
-            c.fogDistance = 1.35f;
-            c.fogDensity = 0.55f;
-            c.gamma = 1.15f;
-            c.particleAmount = 0.70f;
+            c.fogDistance = 1.55f;
+            c.fogDensity = 0.42f;
+            c.gamma = 1.18f;
+            c.particleAmount = 0.62f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.30f, 1.0f, 0.78f, 2.0f, 0.22f);
-            colorGrade(c, 0.58f, 0.12f, 1.0f, 0.58f, 0.82f, 1.22f, 1.24f, 0.24f);
+            mood(c, 0.34f, 1.0f, 0.86f, 1.85f, 0.28f);
+            colorGrade(c, 0.62f, 0.24f, 1.0f, 0.42f, 0.90f, 1.12f, 1.08f, 0.14f);
         });
         addDimension("end_clear", "End Clear", "Cleaner visibility in the End.", IconType.SKY, c -> {
             c.timeOverride = true;
             c.visualTime = 18000;
             c.weatherOverride = false;
             c.fogOverride = true;
-            c.fogDistance = 1.75f;
-            c.fogDensity = 0.35f;
-            c.gamma = 1.25f;
-            c.particleAmount = 0.35f;
+            c.fogDistance = 2.05f;
+            c.fogDensity = 0.24f;
+            c.gamma = 1.30f;
+            c.particleAmount = 0.30f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.18f, 1.0f, 1.18f, 1.85f, 0.52f);
-            colorGrade(c, 0.66f, 0.58f, 1.0f, 0.26f, 1.20f, 1.04f, 1.12f, 0.04f);
+            mood(c, 0.20f, 1.0f, 1.22f, 1.75f, 0.60f);
+            colorGrade(c, 0.76f, 0.70f, 1.0f, 0.14f, 1.16f, 1.02f, 1.04f, 0.02f);
         });
         addDimension("chorus_dream", "Chorus Dream", "Soft surreal purple End haze.", IconType.TIME, c -> {
             c.timeOverride = true;
             c.visualTime = 18000;
             c.weatherOverride = false;
             c.fogOverride = true;
-            c.fogDistance = 1.05f;
-            c.fogDensity = 0.82f;
-            c.gamma = 1.12f;
-            c.particleAmount = 0.55f;
+            c.fogDistance = 1.34f;
+            c.fogDensity = 0.56f;
+            c.gamma = 1.16f;
+            c.particleAmount = 0.48f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.36f, 1.0f, 0.96f, 2.0f, 0.34f);
-            colorGrade(c, 1.0f, 0.24f, 0.92f, 0.56f, 1.08f, 0.86f, 1.36f, 0.08f);
+            mood(c, 0.38f, 1.0f, 1.02f, 1.9f, 0.42f);
+            colorGrade(c, 1.0f, 0.38f, 0.90f, 0.38f, 1.06f, 0.94f, 1.16f, 0.06f);
         });
         addDimension("dragon_night", "Dragon Night", "Dark boss-fight End ambience.", IconType.LIGHTING, c -> {
             c.timeOverride = true;
             c.visualTime = 18000;
             c.weatherOverride = false;
             c.fogOverride = true;
-            c.fogDistance = 0.70f;
-            c.fogDensity = 1.25f;
-            c.gamma = 0.78f;
-            c.particleAmount = 0.75f;
+            c.fogDistance = 0.92f;
+            c.fogDensity = 0.92f;
+            c.gamma = 0.86f;
+            c.particleAmount = 0.68f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.32f, 1.0f, 0.50f, 1.55f, 0.16f);
-            colorGrade(c, 0.26f, 0.10f, 0.78f, 0.62f, 0.70f, 1.40f, 1.16f, 0.34f);
+            mood(c, 0.34f, 1.0f, 0.58f, 1.55f, 0.20f);
+            colorGrade(c, 0.34f, 0.16f, 0.80f, 0.48f, 0.78f, 1.28f, 1.06f, 0.22f);
         });
         addDimension("celestial_void", "Celestial Void", "Bright cosmic End clarity.", IconType.SKY, c -> {
             c.timeOverride = true;
             c.visualTime = 18000;
             c.weatherOverride = false;
             c.fogOverride = true;
-            c.fogDistance = 1.85f;
-            c.fogDensity = 0.30f;
-            c.gamma = 1.38f;
-            c.particleAmount = 0.25f;
+            c.fogDistance = 2.15f;
+            c.fogDensity = 0.22f;
+            c.gamma = 1.40f;
+            c.particleAmount = 0.22f;
             c.submersionFogOff = false;
             c.lowFire = false;
-            mood(c, 0.14f, 1.0f, 1.32f, 2.0f, 0.72f);
-            colorGrade(c, 0.32f, 0.70f, 1.0f, 0.42f, 1.24f, 0.98f, 1.34f, 0.08f);
+            mood(c, 0.16f, 1.0f, 1.34f, 2.0f, 0.78f);
+            colorGrade(c, 0.46f, 0.78f, 1.0f, 0.30f, 1.22f, 0.98f, 1.14f, 0.04f);
         });
         add("misty_morning", "Misty Morning", "Sunrise and soft fog.", IconType.FOG, c -> {
             c.weatherOverride = true;

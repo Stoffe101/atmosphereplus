@@ -318,7 +318,7 @@ private int contentWidgetWidth() {
         case FOG -> finalY = addFogWidgets(contentX, contentY, contentW);
         case PARTICLES -> finalY = addParticlesWidgets(contentX, contentY, contentW);
         case THEMES -> finalY = addThemeWidgets(contentX, contentY, contentW);
-        case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, themeStudioState, themeStudioActions(), contentX, contentY, contentW);
+        case THEME_STUDIO -> finalY = ThemeStudioPage.addWidgets(widgets, themeStudioState, themeStudioActions(), contentX, contentY, contentW, windowY + layout().contentTopOffset());
         case PRESETS -> finalY = addPresetWidgets(contentX, contentY, contentW);
         case BIOME_ATMOSPHERES -> finalY = BiomeAtmospheresPage.addWidgets(widgets, biomeAtmosphereActions(), biomePresetPickerCategory, cavePresetPickerOpen, contentX, contentY, contentW);
         case PROFILES -> finalY = addProfilesWidgets(contentX, contentY, contentW);
@@ -3904,28 +3904,88 @@ private String trimHeaderText(String text, int maxWidth) {
 }
 
     private void renderHome(DrawContext context, Theme theme, int x, int y, int w, int h) {
-        UiRender.centeredText(context, textRenderer, "Welcome to Atmosphere+", x + w / 2, y + 48, theme.text());
-        UiRender.centeredText(context, textRenderer, "A client-side atmosphere and visual customization suite.", x + w / 2, y + 68, theme.mutedText());
+        boolean compact = h < 250;
+        int innerX = x + 16;
+        int innerW = Math.max(120, w - 32);
+        int centerX = x + w / 2;
 
-        int cardW = (w - 54) / 3;
-        int cardY = y + 112;
+        UiRender.centeredText(context, textRenderer, "Welcome to Atmosphere+", centerX, y + (compact ? 28 : 48), theme.text());
+        UiRender.centeredText(context, textRenderer, "A client-side atmosphere and visual customization suite.", centerX, y + (compact ? 46 : 68), theme.mutedText());
 
-        drawMiniCard(context, theme, x + 16, cardY, cardW, "Weather", "Override visuals", IconType.WEATHER);
-        drawMiniCard(context, theme, x + 27 + cardW, cardY, cardW, "Time", "Control day/night", IconType.TIME);
-        drawMiniCard(context, theme, x + 38 + cardW * 2, cardY, cardW, "Presets", "One-click moods", IconType.PRESETS);
+        int gap = 10;
+        int columns = innerW >= 374 ? 3 : innerW >= 250 ? 2 : 1;
+        int cardW = (innerW - gap * (columns - 1)) / columns;
+        int cardH = compact ? 64 : 76;
+        int cardY = y + (compact ? 76 : 112);
 
-        UiRender.centeredText(context, textRenderer, "Tip: search for sunrise, rain, golden hour, fog distance, or a theme.", x + w / 2, y + h - 58, theme.mutedText());
-        UiRender.centeredText(context, textRenderer, "Weather, time, clouds, fog, lighting, particles and profiles are now hooked.", x + w / 2, y + h - 40, theme.accent());
+        drawHomeCard(context, theme, innerX, cardY, cardW, cardH, "Weather", "Override visuals", IconType.WEATHER);
+        drawHomeCard(context, theme, innerX + (cardW + gap) * (1 % columns), cardY + (1 / columns) * (cardH + gap), cardW, cardH, "Time", "Control day/night", IconType.TIME);
+        drawHomeCard(context, theme, innerX + (cardW + gap) * (2 % columns), cardY + (2 / columns) * (cardH + gap), cardW, cardH, "Presets", "One-click moods", IconType.PRESETS);
+
+        int rows = (3 + columns - 1) / columns;
+        int footerY = cardY + rows * cardH + (rows - 1) * gap + 16;
+        int footerBottom = y + h - 14;
+
+        footerY = drawCenteredWrapped(context, "Tip: search for sunrise, rain, golden hour, fog distance, or a theme.", centerX, footerY, innerW, theme.mutedText(), footerBottom);
+        drawCenteredWrapped(context, "Weather, time, clouds, fog, lighting, particles and profiles are now hooked.", centerX, footerY + 4, innerW, theme.accent(), footerBottom);
     }
 
-    private void drawMiniCard(DrawContext context, Theme theme, int x, int y, int w, String title, String description, IconType icon) {
-        UiRender.card(context, x, y, w, 76, theme.panelAlt(), theme.border());
+    private void drawHomeCard(DrawContext context, Theme theme, int x, int y, int w, int h, String title, String description, IconType icon) {
+        UiRender.card(context, x, y, w, h, theme.panelAlt(), theme.border());
         UiRender.borderedRect(context, x + 12, y + 12, 22, 22, theme.accentSoft(), theme.accent());
         IconRenderer.drawCentered(context, icon, x + 23, y + 23, 18);
-        UiRender.text(context, textRenderer, title, x + 44, y + 13, theme.text());
-        UiRender.text(context, textRenderer, description, x + 44, y + 28, theme.mutedText());
-        UiRender.rect(context, x + 12, y + 56, w - 24, 3, theme.accentSoft());
-        UiRender.rect(context, x + 12, y + 56, (w - 24) / 2, 3, theme.accent());
+        int textW = Math.max(20, w - 54);
+        UiRender.text(context, textRenderer, trimText(title, textW), x + 44, y + 13, theme.text());
+        UiRender.text(context, textRenderer, trimText(description, textW), x + 44, y + 28, theme.mutedText());
+        UiRender.rect(context, x + 12, y + h - 20, w - 24, 3, theme.accentSoft());
+        UiRender.rect(context, x + 12, y + h - 20, (w - 24) / 2, 3, theme.accent());
+    }
+
+    private int drawCenteredWrapped(DrawContext context, String text, int centerX, int y, int maxWidth, int color, int bottom) {
+        String remaining = text;
+        int lineY = y;
+        while (!remaining.isBlank() && lineY + 8 <= bottom) {
+            String line = nextWrappedLine(remaining, maxWidth);
+            UiRender.centeredText(context, textRenderer, line, centerX, lineY, color);
+            remaining = remaining.substring(Math.min(remaining.length(), line.length())).trim();
+            lineY += 12;
+        }
+        return lineY;
+    }
+
+    private String nextWrappedLine(String text, int maxWidth) {
+        if (textRenderer.getWidth(text) <= maxWidth) {
+            return text;
+        }
+
+        int end = text.length();
+        while (end > 3 && textRenderer.getWidth(text.substring(0, end)) > maxWidth) {
+            end--;
+        }
+
+        int breakAt = text.lastIndexOf(' ', end);
+        if (breakAt > 12) {
+            return text.substring(0, breakAt);
+        }
+
+        return text.substring(0, Math.max(1, end));
+    }
+
+    private String trimText(String text, int maxWidth) {
+        if (text == null || maxWidth <= 0) {
+            return "";
+        }
+
+        if (textRenderer.getWidth(text) <= maxWidth) {
+            return text;
+        }
+
+        String result = text;
+        while (result.length() > 3 && textRenderer.getWidth(result + "...") > maxWidth) {
+            result = result.substring(0, result.length() - 1);
+        }
+
+        return result + "...";
     }
 
     private void renderComingSoon(DrawContext context, Theme theme, int x, int y, int w, int h) {

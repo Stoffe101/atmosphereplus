@@ -4,7 +4,7 @@
 
 It changes what *you* see: weather, time, fog, lighting, particles, clouds, profiles, presets, biome-based preset automation, and a few renderer controls that work best without shader packs.
 
-Version `0.4.0` is the stable Preset Packs release.
+Version `0.4.0-beta.3` is a polish update for Preset Packs, End presets, Theme Studio, and responsive Home layout.
 
 ## Target
 
@@ -60,7 +60,7 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 
 ### Preset Packs
 
-- Stable JSON preset sharing in v0.4.0
+- Stable JSON preset sharing from v0.4.0
 - Export selected presets into shareable JSON preset packs
 - Import preset packs from `config/atmosphereplus-preset-packs/`
 - Open the Preset Packs folder directly from the Presets page
@@ -185,7 +185,7 @@ Recommended release flow:
 2. Build/test locally.
 3. Commit and push.
 4. GitHub -> Actions -> Create Release.
-5. Enter the version, for example `0.4.0`.
+5. Enter the version, for example `0.4.0-beta.3`.
 6. The workflow builds, tags, creates the GitHub release, and uploads the normal mod jar.
 
 Manual fallback: pushing a `v*` tag still creates a GitHub release when the tag version matches `mod_version` in `gradle.properties`. The tag workflow checks for an existing release first to avoid duplicate releases.

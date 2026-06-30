@@ -4,7 +4,7 @@ Atmosphere+ is a client-side Fabric visual control suite for Minecraft.
 
 It lets you change the atmosphere of the game locally without changing the server.
 
-Version 0.4.0 is the stable Preset Packs release.
+Version 0.4.0-beta.3 is a polish update for Preset Packs, End presets, Theme Studio, and responsive Home layout.
 
 ## Features
 
@@ -76,6 +76,8 @@ config/atmosphereplus-preset-packs/
 To import a pack, place the `.json` file in that folder, open Presets, choose Import Preset Pack, preview the contents, and import. Imported presets appear under My Presets. Broken or unsupported packs are rejected safely.
 
 The Presets page can open the Preset Packs folder for you, and import/export messages now clearly report successful exports, missing packs, invalid packs, broken JSON, unsupported versions, empty packs, and renamed duplicate preset names.
+
+Duplicate imported preset names are cleaned up with readable suffixes like `Imported`, `Imported 2`, and `Imported 3`.
 
 ## Screenshot checklist
 
