@@ -111,21 +111,28 @@ public final class UiRender {
     }
 
     public static void v2Card(DrawContext ctx, int x, int y, int w, int h, boolean hovered, boolean selected) {
+        // Idle cards carry no outline at all — fill contrast and a faint shadow/highlight are
+        // enough to read as a card. A border only appears once a card means something (hover =
+        // soft border, selected = strong accent border + left rail), so the page doesn't read
+        // as a wall of identical boxes.
         int fill = selected ? V2_SELECTED() : hovered ? V2_CARD_HOVER() : V2_CARD();
-        int border = selected ? V2_ACCENT() : hovered ? V2_BORDER_SOFT() : V2_BORDER();
-        ctx.fill(x + 1, y + 2, x + w + 1, y + h + 2, 0x28000000);
+        ctx.fill(x + 1, y + 2, x + w + 1, y + h + 2, 0x1E000000);
         gradientHorizontal(ctx, x, y, w, h, fill, selected ? withAlpha(lerpColor(currentTheme().panel(), currentTheme().accent(), 0.25f), 0xDD) : fill);
-        ctx.fill(x, y, x + w, y + 1, 0x2FFFFFFF);
-        border(ctx, x, y, w, h, border);
+        ctx.fill(x, y, x + w, y + 1, 0x22FFFFFF);
         if (selected) {
+            border(ctx, x, y, w, h, V2_ACCENT());
             gradientHorizontal(ctx, x, y, 3, h, V2_ACCENT(), V2_ACCENT_PURPLE());
+        } else if (hovered) {
+            border(ctx, x, y, w, h, V2_BORDER_SOFT());
         }
     }
 
     public static void v2IconBox(DrawContext ctx, int x, int y, int size, boolean active) {
-        borderedRect(ctx, x, y, size, size, active ? V2_ACCENT_SOFT() : V2_PANEL_ALT(), active ? V2_ACCENT() : V2_BORDER());
         if (active) {
+            borderedRect(ctx, x, y, size, size, V2_ACCENT_SOFT(), V2_ACCENT());
             ctx.fill(x + size - 2, y + 2, x + size - 1, y + size - 2, V2_ACCENT_PURPLE());
+        } else {
+            rect(ctx, x, y, size, size, V2_PANEL_ALT());
         }
     }
 

@@ -3903,8 +3903,8 @@ private String trimHeaderText(String text, int maxWidth) {
 
     UiRender.v2Panel(context, x, y, w, h);
 
-    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 14, y + 46, theme.mutedText());
-    UiRender.text(context, textRenderer, "Atmosphere+ " + AtmospherePlusClient.VERSION, x + 14, y + h - 24, theme.mutedText());
+    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 12, y + 46, theme.mutedText());
+    UiRender.text(context, textRenderer, "Atmosphere+ " + AtmospherePlusClient.VERSION, x + 12, y + h - 22, theme.mutedText());
     UiRender.v2Rule(context, x + 14, y + 63, w - 28, 72);
 
     if (isSearching()) {
@@ -4344,7 +4344,7 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
 
         for (AtmosphereWidget widget : widgets) {
-            if (!widget.isScrollLocked() && mouseY < scrollViewportTop) {
+            if (isContentScrollGuarded(widget) && mouseY < scrollViewportTop) {
                 continue;
             }
             if (widget.isHoveredPublic(mouseX, mouseY) && widget.getTooltip() != null && !widget.getTooltip().isEmpty()) {
@@ -4354,8 +4354,15 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
     }
 
+    // The scrollViewportTop clip only governs the main content area's scrollable region — it
+    // must never apply to the sidebar (its own independent scroll system) or to anything a page
+    // explicitly pinned outside the scroll flow via lockToViewport().
+    private boolean isContentScrollGuarded(AtmosphereWidget widget) {
+        return !(widget instanceof CategoryButton) && !widget.isScrollLocked();
+    }
+
     private void drawV2Tooltip(DrawContext context, String tooltip, int mouseX, int mouseY) {
-        List<String> lines = wrapTooltip(tooltip, 220);
+        List<String> lines = wrapTooltip(tooltip, 170);
         if (lines.isEmpty()) {
             return;
         }
@@ -4366,24 +4373,29 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
 
         int boxW = maxW + 14;
-        int boxH = lines.size() * 11 + 10;
+        int lineH = 10;
+        int boxH = lines.size() * lineH + 8;
         int x = mouseX + 14;
         int y = mouseY + 16;
 
-        if (x + boxW > width - 6) {
+        // Tooltips render inside the virtual-canvas matrix scale, so bounds must be checked
+        // against the virtual canvas size, not the real (unscaled) Screen width/height.
+        int boundsW = layout().scaledWidth;
+        int boundsH = layout().scaledHeight;
+
+        if (x + boxW > boundsW - 6) {
             x = mouseX - boxW - 14;
         }
-        if (y + boxH > height - 6) {
+        if (y + boxH > boundsH - 6) {
             y = mouseY - boxH - 12;
         }
 
-        x = Math.max(6, Math.min(x, width - boxW - 6));
-        y = Math.max(6, Math.min(y, height - boxH - 6));
+        x = Math.max(6, Math.min(x, boundsW - boxW - 6));
+        y = Math.max(6, Math.min(y, boundsH - boxH - 6));
 
         UiRender.borderedRect(context, x, y, boxW, boxH, UiRender.V2_BACKGROUND_DEEP(), UiRender.V2_BORDER_SOFT());
-        UiRender.v2Rule(context, x + 6, y + 4, boxW - 12, 54);
         for (int i = 0; i < lines.size(); i++) {
-            UiRender.text(context, textRenderer, lines.get(i), x + 7, y + 9 + i * 11, UiRender.V2_TEXT());
+            UiRender.text(context, textRenderer, lines.get(i), x + 7, y + 6 + i * lineH, UiRender.V2_TEXT());
         }
     }
 
@@ -4474,7 +4486,7 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
 
         for (AtmosphereWidget widget : widgets) {
-            if (!widget.isScrollLocked() && click.y() < scrollViewportTop) {
+            if (isContentScrollGuarded(widget) && click.y() < scrollViewportTop) {
                 continue;
             }
             if (widget.mouseClicked(click.x(), click.y(), click.button())) {

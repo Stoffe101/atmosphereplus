@@ -62,41 +62,50 @@ public final class ThemeStudioPage {
         V2Layout.ThemeStudioSpec spec = V2Layout.themeStudio(contentX, contentW, viewportHeight);
 
         if (spec.sidePreview()) {
-            // Separate, non-overlapping X ranges: the preview sits in its own column and is
-            // pinned to viewportY (sticky), while the editor column scrolls independently.
-            // Nothing can ever render behind anything else here, so no locking or click guard
-            // is needed for this layout.
+            // Right inspector column: preview + primary + secondary actions, all pinned at
+            // fixed Y in their own X range. The editor column scrolls independently and the
+            // two never share X space, so nothing here needs locking or a click guard — they
+            // simply can't ever render behind each other.
+            int inspX = spec.previewX();
+            int inspW = spec.previewW();
+            int inspY = viewportY;
+
+            int previewCardH = previewHeight(inspW);
+            addLivePreviewSection(widgets, state, inspX, inspY, inspW, previewCardH, false);
+            inspY += 24 + previewCardH + GAP;
+
+            inspY = addPrimaryActions(widgets, state, actions, inspX, inspY, inspW, false);
+            inspY += GAP;
+            addSecondaryActions(widgets, state, actions, inspX, inspY, inspW, false);
+
             int y = contentY;
             widgets.add(new StudioTabsWidget(contentX, y, contentW, actions::focusThemeSearch));
             y += 30 + V2DesignTokens.TAB_TO_CONTENT_GAP;
 
-            y = addToolbar(widgets, state, actions, spec.editorX(), y, spec.editorW(), spec.compactDensity());
-            int bodyTop = y;
-
-            int leftY = addSelectedThemeCard(widgets, state, actions, spec.editorX(), bodyTop, spec.editorW(), spec.compactDensity());
+            int leftY = addSelectedThemeCard(widgets, state, actions, spec.editorX(), y, spec.editorW(), spec.compactDensity());
             leftY = addEditorSection(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.columns(), spec.compactDensity());
             leftY = addLibrarySection(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.compactDensity());
-
-            int previewCardH = previewHeight(spec.previewW());
-            addLivePreviewSection(widgets, state, spec.previewX(), viewportY, spec.previewW(), previewCardH, false);
 
             return leftY + GAP;
         }
 
-        // Compact/stacked layout: only the live preview is locked to the viewport (a real
-        // fixed header, not an overlay). Everything else — tabs, toolbar, selected theme,
-        // editor, library — scrolls normally in a viewport AtmosphereScreen clips to start
-        // right at the preview's bottom edge, so scrolled content is cut off there rather
-        // than drawn behind/through the preview.
+        // Compact/stacked layout: the live preview and primary actions (Save/Create/Duplicate/
+        // Reset) are locked together as one fixed top band, so saving never requires scrolling
+        // away from the preview. Everything else — tabs, secondary actions, selected theme,
+        // editor, library — scrolls normally beneath it in a viewport AtmosphereScreen clips to
+        // start right at the band's bottom edge.
         int previewCardH = compactPreviewHeight(contentW);
-        int previewBandH = previewCardH + 24;
         addLivePreviewSection(widgets, state, contentX, viewportY, contentW, previewCardH, true);
+        int bandY = viewportY + 24 + previewCardH + GAP;
+        int bandBottomAbs = addPrimaryActions(widgets, state, actions, contentX, bandY, contentW, true);
+        int bandBottomOffset = bandBottomAbs - viewportY;
 
-        int y = contentY + previewBandH + GAP;
+        int y = contentY + bandBottomOffset + GAP;
         widgets.add(new StudioTabsWidget(contentX, y, contentW, actions::focusThemeSearch));
         y += 30 + V2DesignTokens.TAB_TO_CONTENT_GAP;
 
-        y = addToolbar(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
+        y = addSecondaryActions(widgets, state, actions, contentX, y, contentW, true);
+        y += GAP;
         y = addSelectedThemeCard(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
         y = addEditorSection(widgets, state, actions, contentX, y, contentW, spec.columns(), spec.compactDensity());
         y = addLibrarySection(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
@@ -107,12 +116,39 @@ public final class ThemeStudioPage {
     private record ToolbarItem(String label, String tooltip, IconType icon, Supplier<Boolean> active, Runnable action) {
     }
 
-    private static int addToolbar(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean compact) {
+    private record PrimaryAction(String label, String description, IconType icon, Runnable action) {
+    }
+
+    private static int addPrimaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean lock) {
+        PrimaryAction[] items = {
+                new PrimaryAction("Save", "Save changes to the selected theme.", IconType.THEMES, () -> actions.saveTheme(state.selectedThemeId())),
+                new PrimaryAction("Create", "Create a new custom theme.", IconType.THEMES, actions::createTheme),
+                new PrimaryAction("Duplicate", "Duplicate the selected theme into a new custom theme.", IconType.PRESETS, () -> actions.duplicateTheme(state.selectedThemeId())),
+                new PrimaryAction("Reset", "Reset the draft to its base theme.", IconType.FOG, actions::resetTheme),
+        };
+
+        int columns = w >= 260 ? 2 : 1;
+        int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
+        int rowH = UiRender.V2_BUTTON_HEIGHT;
+        int rowStep = rowH + SMALL_GAP;
+
+        for (int i = 0; i < items.length; i++) {
+            PrimaryAction item = items[i];
+            int bx = x + (i % columns) * (buttonW + SMALL_GAP);
+            int by = y + (i / columns) * rowStep;
+            AtmosphereWidget widget = new ActionButtonWidget(bx, by, buttonW, item.label(), item.description(), item.icon(), item.action());
+            if (lock) {
+                widget.lockToViewport();
+            }
+            widgets.add(widget);
+        }
+
+        int rows = (items.length + columns - 1) / columns;
+        return y + rows * rowStep - SMALL_GAP;
+    }
+
+    private static int addSecondaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean compact) {
         ToolbarItem[] items = {
-                new ToolbarItem("Create", "Create a new custom theme.", IconType.THEMES, null, actions::createTheme),
-                new ToolbarItem("Duplicate", "Duplicate the selected theme into a new custom theme.", IconType.PRESETS, null, () -> actions.duplicateTheme(state.selectedThemeId())),
-                new ToolbarItem("Save", "Save changes to the selected theme.", IconType.THEMES, null, () -> actions.saveTheme(state.selectedThemeId())),
-                new ToolbarItem("Reset", "Reset the draft to its base theme.", IconType.FOG, null, actions::resetTheme),
                 new ToolbarItem(state.advancedMode() ? "Simple Mode" : "Advanced Mode", state.advancedMode() ? "Return to core color cards." : "Show grouped color controls.", IconType.ADVANCED, state::advancedMode, actions::toggleAdvancedMode),
                 new ToolbarItem("Revert", "Discard unsaved edits.", IconType.PRESETS, null, actions::revertTheme),
                 new ToolbarItem("Delete", "Delete the selected custom theme.", IconType.ADVANCED, null, () -> actions.deleteTheme(state.selectedThemeId())),
@@ -121,9 +157,9 @@ public final class ThemeStudioPage {
                 new ToolbarItem("Library", "Reload custom themes from disk.", IconType.PRESETS, null, actions::reloadThemes),
         };
 
-        int columns = Math.max(2, Math.min(items.length, w / 112));
+        int columns = Math.max(1, Math.min(items.length, w / 112));
         int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
-        int rowH = compact ? 26 : 28;
+        int rowH = compact ? 24 : 26;
         int rowStep = rowH + V2DesignTokens.TOOLBAR_ROW_GAP;
 
         for (int i = 0; i < items.length; i++) {
@@ -134,7 +170,7 @@ public final class ThemeStudioPage {
         }
 
         int rows = (items.length + columns - 1) / columns;
-        return y + rows * rowStep - V2DesignTokens.TOOLBAR_ROW_GAP + GAP;
+        return y + rows * rowStep - V2DesignTokens.TOOLBAR_ROW_GAP;
     }
 
     private static int addSelectedThemeCard(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean compact) {
