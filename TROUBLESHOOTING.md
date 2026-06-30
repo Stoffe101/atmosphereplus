@@ -29,6 +29,12 @@ Set Vignette Strength to `0` to fully disable vignette edge darkening. The vigne
 
 Shader packs may change how strong the final tint, brightness, contrast, saturation, or vignette appears.
 
+## UI feels crowded at high GUI scale
+
+Atmosphere+ UI v2 uses compact dashboard layouts at high GUI scale. If a page still feels cramped, use the page scrollbar first; Theme Studio keeps the preview compact on constrained layouts so Create, Duplicate, Save, Reset, and library tools stay reachable.
+
+For the most room, Minecraft GUI scale 2 gives the UI more breathing space than GUI scale 3 at 1920x1080.
+
 ## Cloud distance is missing
 
 Cloud distance was removed because it caused broken/tiny/local clouds.

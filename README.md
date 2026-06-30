@@ -4,7 +4,7 @@
 
 It changes what *you* see: weather, time, fog, lighting, particles, clouds, profiles, presets, biome-based preset automation, and a few renderer controls that work best without shader packs.
 
-Version `0.4.0-beta.3` is a polish update for Preset Packs, End presets, Theme Studio compact layouts, and responsive Home layout.
+Version `0.5.0-beta.1` introduces the UI v2 redesign: a darker neon dashboard style, refreshed cards/buttons/icons, improved Theme Studio layout, and more consistent responsive behavior at high GUI scale.
 
 ## Target
 
@@ -57,6 +57,14 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - Save/load profiles
 - Rename profiles
 - Import/export profiles
+
+### UI v2
+
+- Premium dark dashboard-style interface with a stronger sidebar and clearer search area
+- Shared card, button, slider, toggle, section, and preview panel styling across the main UI
+- Refreshed icon boxes and selected states for better scanability
+- Theme Studio uses a compact action strip, editor cards, and live preview behavior tuned for both ultrawide displays and 1080p high GUI scale
+- High GUI scale layouts prioritize reachable controls and compact previews instead of excessive scrolling
 
 ### Preset Packs
 

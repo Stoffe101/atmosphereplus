@@ -4,7 +4,7 @@ Atmosphere+ is a client-side Fabric visual control suite for Minecraft.
 
 It lets you change the atmosphere of the game locally without changing the server.
 
-Version 0.4.0-beta.3 is a polish update for Preset Packs, End presets, Theme Studio, and responsive Home layout.
+Version 0.5.0-beta.1 introduces the UI v2 redesign with a premium dark neon dashboard style, refreshed cards/buttons/icons, improved Theme Studio layout, and better high-GUI-scale responsiveness.
 
 ## Features
 
@@ -25,11 +25,17 @@ Version 0.4.0-beta.3 is a polish update for Preset Packs, End presets, Theme Stu
 - Client-side Biome Atmospheres automation
 - Save/load profiles
 - Profile import/export
-- Responsive UI
+- UI v2 responsive dashboard
 - Sodium/Iris-aware tools
 - Reset Renderer
 - Vanilla Safe Mode
 - Sodium/Iris Safe Mode
+
+## UI v2
+
+Atmosphere+ 0.5.0-beta.1 refreshes the mod menu with a darker dashboard shell, stronger sidebar navigation, cleaner search, compact settings cards, refreshed icon boxes, and polished preview panels.
+
+Theme Studio is the reference page for the new design: important actions stay near the top, the live preview remains useful without taking over constrained layouts, and high GUI scale users should see less excessive scrolling.
 
 ## Renderer controls
 

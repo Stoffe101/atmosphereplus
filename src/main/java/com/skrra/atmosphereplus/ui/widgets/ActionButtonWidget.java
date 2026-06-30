@@ -15,7 +15,7 @@ public class ActionButtonWidget extends AtmosphereWidget {
     private final Runnable action;
 
     public ActionButtonWidget(int x, int y, int width, String label, String description, IconType icon, Runnable action) {
-        super(x, y, width, 34);
+        super(x, y, width, UiRender.V2_BUTTON_HEIGHT);
         this.label = label;
         this.description = description;
         this.icon = icon;
@@ -28,22 +28,20 @@ public class ActionButtonWidget extends AtmosphereWidget {
         Theme theme = ThemeManager.current();
         boolean hover = isHovered(mouseX, mouseY);
 
-        int fill = hover ? theme.panelAlt() : theme.panel();
-        int border = hover ? theme.accentSoft() : theme.border();
-        UiRender.card(context, x, y, width, height, fill, border);
+        UiRender.v2Card(context, x, y, width, height, hover, false);
 
         int tileX = x + 9;
-        int tileY = y + 7;
-        int tileSize = 20;
-        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, theme.panelAlt(), hover ? theme.accent() : theme.border());
+        int tileY = y + 6;
+        int tileSize = UiRender.V2_ICON_BOX;
+        UiRender.v2IconBox(context, tileX, tileY, tileSize, hover);
         IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 15);
 
-        int textX = x + 38;
-        int textW = width - 48;
+        int textX = x + 40;
+        int textW = width - 50;
         UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + 6, theme.text());
 
         if (description != null && !description.isBlank()) {
-            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 19, hover ? theme.text() : theme.mutedText());
+            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 19, hover ? UiRender.V2_TEXT : theme.mutedText());
         }
     }
 

@@ -33,14 +33,7 @@ public class TimePresetButtonWidget extends AtmosphereWidget {
         boolean hover = isHovered(mouseX, mouseY);
         boolean active = activeSupplier.get();
 
-        int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
-        int border = active ? theme.accent() : hover ? theme.accent() : theme.border();
-
-        UiRender.card(context, x, y, width, height, fill, border);
-
-        if (active) {
-            context.fill(x, y, x + 3, y + height, theme.accent());
-        }
+        UiRender.v2Card(context, x, y, width, height, hover, active);
 
         UiRender.text(context, textRenderer, label, x + 10, y + 8, active ? theme.text() : theme.text());
         UiRender.text(context, textRenderer, timeLabel, x + 10, y + 22, active ? theme.accent() : theme.mutedText());
@@ -49,10 +42,10 @@ public class TimePresetButtonWidget extends AtmosphereWidget {
         int dotY = y + 13;
 
         if (active) {
-            context.fill(dotX - 2, dotY - 2, dotX + 8, dotY + 8, theme.accentSoft());
-            context.fill(dotX, dotY, dotX + 6, dotY + 6, theme.accent());
+            context.fill(dotX - 2, dotY - 2, dotX + 8, dotY + 8, UiRender.V2_ACCENT_SOFT);
+            context.fill(dotX, dotY, dotX + 6, dotY + 6, UiRender.V2_ACCENT);
         } else {
-            context.fill(dotX, dotY, dotX + 6, dotY + 6, hover ? theme.accent() : theme.accentSoft());
+            context.fill(dotX, dotY, dotX + 6, dotY + 6, hover ? UiRender.V2_ACCENT : UiRender.V2_BORDER_SOFT);
         }
     }
 

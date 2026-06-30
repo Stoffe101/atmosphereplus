@@ -30,21 +30,21 @@ public class ColorHexWidget extends AtmosphereWidget {
         Theme theme = ThemeManager.current();
         boolean focused = focusedSupplier.get();
         boolean hover = isHovered(mouseX, mouseY);
-        int border = focused ? theme.accent() : hover ? theme.accentSoft() : theme.border();
+        int border = focused ? UiRender.V2_ACCENT : hover ? UiRender.V2_BORDER_SOFT : UiRender.V2_BORDER;
 
-        UiRender.card(context, x, y, width, height, hover ? theme.panelAlt() : theme.panel(), border);
+        UiRender.v2Card(context, x, y, width, height, hover, focused);
 
         int swatchSize = 18;
         int swatchX = x + 9;
         int swatchY = y + 8;
-        UiRender.borderedRect(context, swatchX, swatchY, swatchSize, swatchSize, colorSupplier.get(), theme.border());
+        UiRender.borderedRect(context, swatchX, swatchY, swatchSize, swatchSize, colorSupplier.get(), border);
 
         int hexW = Math.min(92, Math.max(70, width / 3));
         int hexX = x + width - hexW - 8;
         int labelW = Math.max(20, hexX - (x + 36) - 8);
         UiRender.text(context, textRenderer, trim(textRenderer, label, labelW), x + 36, y + 12, theme.text());
 
-        UiRender.borderedRect(context, hexX, y + 7, hexW, 20, focused ? theme.accentSoft() : theme.panelAlt(), focused ? theme.accent() : theme.border());
+        UiRender.borderedRect(context, hexX, y + 7, hexW, 20, focused ? UiRender.V2_ACCENT_SOFT : UiRender.V2_PANEL_ALT, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
         UiRender.centeredText(context, textRenderer, trim(textRenderer, hexSupplier.get(), hexW - 8), hexX + hexW / 2, y + 13, focused ? theme.text() : theme.mutedText());
     }
 

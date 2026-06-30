@@ -50,22 +50,16 @@ public class PresetRowWidget extends AtmosphereWidget {
         boolean hover = isHovered(mouseX, mouseY);
         boolean starHover = UiRender.hovered(mouseX, mouseY, starX(), y + 9, 20, 20);
 
-        int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
-        int border = active ? theme.accent() : hover ? theme.accentSoft() : theme.border();
-        UiRender.card(context, x, y, width, height, fill, border);
+        UiRender.v2Card(context, x, y, width, height, hover, active);
 
-        if (active) {
-            context.fill(x, y + 4, x + 2, y + height - 4, theme.accent());
-        }
-
-        int starFill = starHover ? theme.panel() : theme.panelAlt();
-        UiRender.borderedRect(context, starX(), y + 9, 20, 20, starFill, favorite ? theme.accent() : theme.border());
+        int starFill = starHover ? UiRender.V2_CARD_HOVER : UiRender.V2_PANEL_ALT;
+        UiRender.borderedRect(context, starX(), y + 9, 20, 20, starFill, favorite ? UiRender.V2_ACCENT_PURPLE : UiRender.V2_BORDER);
         UiRender.centeredText(context, textRenderer, favorite ? "\u2605" : "\u2606", starX() + 10, y + 15, favorite ? theme.accent() : theme.mutedText());
 
         int tileSize = 18;
         int tileX = x + 36;
         int tileY = y + 10;
-        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, active ? theme.accentSoft() : theme.panelAlt(), active ? theme.accent() : theme.border());
+        UiRender.v2IconBox(context, tileX, tileY, tileSize, active || hover);
         IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 13);
 
         int textX = tileX + tileSize + 8;

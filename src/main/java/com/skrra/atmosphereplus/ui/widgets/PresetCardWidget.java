@@ -37,20 +37,13 @@ public class PresetCardWidget extends AtmosphereWidget {
         boolean hover = isHovered(mouseX, mouseY);
         boolean active = activeSupplier.get();
 
-        int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
-        int border = active ? theme.accent() : hover ? theme.accentSoft() : theme.border();
-
-        UiRender.card(context, x, y, width, height, fill, border);
-
-        if (active) {
-            context.fill(x, y + 4, x + 2, y + height - 4, theme.accent());
-        }
+        UiRender.v2Card(context, x, y, width, height, hover, active);
 
         int tileSize = 20;
         int tileX = x + 9;
         int tileY = y + 14;
 
-        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, active ? theme.accentSoft() : theme.panelAlt(), active ? theme.accent() : theme.border());
+        UiRender.v2IconBox(context, tileX, tileY, tileSize, active || hover);
         IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 15);
 
         int textX = x + 38;
@@ -58,7 +51,7 @@ public class PresetCardWidget extends AtmosphereWidget {
 
         if (active && textW > 72) {
             int chipW = 36;
-            UiRender.borderedRect(context, x + width - chipW - 8, y + 7, chipW, 13, theme.accentSoft(), theme.accent());
+            UiRender.borderedRect(context, x + width - chipW - 8, y + 7, chipW, 13, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
             UiRender.centeredText(context, textRenderer, "ON", x + width - chipW / 2 - 8, y + 10, theme.text());
             textW -= chipW + 8;
         }

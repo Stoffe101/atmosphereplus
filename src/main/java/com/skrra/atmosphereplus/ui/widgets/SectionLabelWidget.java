@@ -33,8 +33,7 @@ public class SectionLabelWidget extends AtmosphereWidget {
         }
 
         int accentW = Math.min(width, Math.max(70, textRenderer.getWidth(safeLabel) + 34));
-        UiRender.rect(context, x, y + 18, width, 1, theme.border());
-        UiRender.rect(context, x, y + 18, accentW, 1, theme.accentSoft());
+        UiRender.v2Rule(context, x, y + 18, width, accentW);
     }
 
     private String trim(TextRenderer renderer, String text, int maxWidth) {

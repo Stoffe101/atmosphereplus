@@ -269,14 +269,14 @@ private int contentWidgetWidth() {
     windowY = (height - windowH) / 2;
     contentBottom = windowY + windowH - layout().outerMargin() - contentPadding();
 
-    searchW = Math.min(260, Math.max(120, windowW / 3));
-    searchH = 20;
-    searchX = windowX + windowW / 2 - searchW / 2;
-    searchY = windowY + 14;
+    searchW = Math.min(300, Math.max(140, windowW / 3));
+    searchH = 24;
+    searchX = windowX + windowW - layout().outerMargin() - 42 - searchW;
+    searchY = windowY + 12;
 
-    closeSize = 20;
-    closeX = windowX + windowW - 36;
-    closeY = windowY + 14;
+    closeSize = 24;
+    closeX = windowX + windowW - layout().outerMargin() - closeSize;
+    closeY = windowY + 12;
 
     int sidebarX = sidebarLeft();
     int sidebarY = sidebarListTop();
@@ -3709,9 +3709,9 @@ private String trimHeaderText(String text, int maxWidth) {
     int uiMouseX = modalOpen ? -100000 : mouseX;
     int uiMouseY = modalOpen ? -100000 : mouseY;
 
-    UiRender.borderedRect(context, windowX, windowY, windowW, windowH, theme.background(), theme.border());
-    UiRender.gradientHorizontal(context, windowX + 1, windowY + 1, windowW - 2, layout().topBarHeight(), theme.panel(), theme.panelAlt());
-    UiRender.rect(context, windowX + 1, windowY + layout().topBarHeight(), windowW - 2, 1, theme.border());
+    UiRender.v2Window(context, windowX, windowY, windowW, windowH);
+    UiRender.gradientHorizontal(context, windowX + 1, windowY + 1, windowW - 2, layout().topBarHeight(), UiRender.V2_BACKGROUND_DEEP, UiRender.V2_PANEL);
+    UiRender.rect(context, windowX + 1, windowY + layout().topBarHeight(), windowW - 2, 1, UiRender.V2_BORDER);
 
     drawBranding(context, theme);
     drawSearchBar(context, theme);
@@ -3776,24 +3776,24 @@ private String trimHeaderText(String text, int maxWidth) {
         int logoX = windowX + 16;
         int logoY = windowY + 13;
 
-        UiRender.borderedRect(context, logoX, logoY, 24, 24, theme.accentSoft(), theme.accent());
+        UiRender.borderedRect(context, logoX, logoY, 24, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
         IconRenderer.drawCentered(context, IconType.WEATHER, logoX + 12, logoY + 12, 18);
 
         UiRender.text(context, textRenderer, AtmospherePlusClient.MOD_NAME, windowX + 48, windowY + 12, theme.text());
-        UiRender.text(context, textRenderer, "visual control suite", windowX + 48, windowY + 27, theme.mutedText());
+        UiRender.text(context, textRenderer, "Settings", windowX + 48, windowY + 27, theme.mutedText());
     }
 
     private void drawSearchBar(DrawContext context, Theme theme) {
-        int border = searchFocused ? theme.accent() : isSearching() ? theme.accentSoft() : theme.border();
-        int fill = isSearching() ? theme.accentSoft() : theme.panelAlt();
+        int border = searchFocused ? UiRender.V2_ACCENT : isSearching() ? UiRender.V2_ACCENT_PURPLE : UiRender.V2_BORDER;
+        int fill = isSearching() ? UiRender.V2_ACCENT_SOFT : UiRender.V2_BACKGROUND_DEEP;
 
         UiRender.borderedRect(context, searchX, searchY, searchW, searchH, fill, border);
 
         String displayed = searchQuery.isEmpty() ? "Search settings..." : searchQuery;
         int textColor = searchQuery.isEmpty() ? theme.mutedText() : theme.text();
 
-        drawSearchIcon(context, searchX + 8, searchY + 4, searchFocused || isSearching() ? theme.accent() : theme.mutedText());
-        UiRender.text(context, textRenderer, displayed, searchX + 31, searchY + 6, textColor);
+        drawSearchIcon(context, searchX + 8, searchY + 6, searchFocused || isSearching() ? theme.accent() : theme.mutedText());
+        UiRender.text(context, textRenderer, trimHeaderText(displayed, searchW - 46), searchX + 31, searchY + 8, textColor);
 
         if (searchFocused && shouldShowCaret() && !searchQuery.isEmpty()) {
             int caretX = Math.min(searchX + searchW - 28, searchX + 31 + textRenderer.getWidth(searchQuery));
@@ -3801,7 +3801,7 @@ private String trimHeaderText(String text, int maxWidth) {
         }
 
         if (!searchQuery.isEmpty()) {
-            UiRender.text(context, textRenderer, "×", searchX + searchW - 14, searchY + 6, theme.text());
+            UiRender.text(context, textRenderer, "X", searchX + searchW - 14, searchY + 8, theme.text());
         }
     }
 
@@ -3816,15 +3816,9 @@ private String trimHeaderText(String text, int maxWidth) {
     }
 
     private void drawTopButtons(DrawContext context, Theme theme, int mouseX, int mouseY) {
-        int versionW = 112;
-        int versionX = closeX - versionW - 8;
-
-        UiRender.borderedRect(context, versionX, closeY, versionW, closeSize, theme.panelAlt(), theme.border());
-        UiRender.centeredText(context, textRenderer, AtmospherePlusClient.VERSION, versionX + versionW / 2, closeY + 6, theme.mutedText());
-
         boolean closeHover = UiRender.hovered(mouseX, mouseY, closeX, closeY, closeSize, closeSize);
-        UiRender.borderedRect(context, closeX, closeY, closeSize, closeSize, closeHover ? theme.accentSoft() : theme.panelAlt(), closeHover ? theme.accent() : theme.border());
-        UiRender.centeredText(context, textRenderer, "×", closeX + closeSize / 2, closeY + 6, closeHover ? theme.text() : theme.mutedText());
+        UiRender.borderedRect(context, closeX, closeY, closeSize, closeSize, closeHover ? UiRender.V2_ACCENT_SOFT : UiRender.V2_BACKGROUND_DEEP, closeHover ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
+        UiRender.centeredText(context, textRenderer, "X", closeX + closeSize / 2, closeY + 8, closeHover ? theme.text() : theme.mutedText());
     }
 
     private void drawSidebar(DrawContext context, Theme theme) {
@@ -3833,17 +3827,18 @@ private String trimHeaderText(String text, int maxWidth) {
     int w = sidebarWidth();
     int h = sidebarPanelBottom() - y;
 
-    UiRender.panel(context, x, y, w, h, theme.panel(), theme.border(), theme.accent());
+    UiRender.v2Panel(context, x, y, w, h);
 
-    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 14, y + 12, theme.mutedText());
-    UiRender.rect(context, x + 14, y + 29, w - 28, 1, theme.border());
+    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 14, y + 10, theme.mutedText());
+    UiRender.text(context, textRenderer, "Atmosphere+ " + AtmospherePlusClient.VERSION, x + 14, y + h - 24, theme.mutedText());
+    UiRender.v2Rule(context, x + 14, y + 29, w - 28, 72);
 
     if (isSearching()) {
         UiRender.centeredText(context, textRenderer, "Direct results", x + w / 2, y + 54, theme.accent());
         UiRender.centeredText(context, textRenderer, "Categories hidden", x + w / 2, y + 74, theme.mutedText());
         UiRender.centeredText(context, textRenderer, "Clear search", x + w / 2, y + 94, theme.mutedText());
 
-        UiRender.borderedRect(context, x + 16, y + 122, w - 32, 24, theme.accentSoft(), theme.border());
+        UiRender.borderedRect(context, x + 16, y + 122, w - 32, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_BORDER);
         UiRender.centeredText(context, textRenderer, searchResultCount + " result" + (searchResultCount == 1 ? "" : "s"), x + w / 2, y + 130, theme.text());
         return;
     }
@@ -3858,22 +3853,22 @@ private String trimHeaderText(String text, int maxWidth) {
     int y = windowY + layout().topBarHeight() + 10;
     int w = contentWidth();
 
-    UiRender.borderedRect(context, x, y, w, 38, theme.panel(), theme.border());
+    UiRender.v2Panel(context, x, y, w, 38);
 
     if (isSearching()) {
-        UiRender.borderedRect(context, x + 10, y + 8, 22, 22, theme.accentSoft(), theme.accent());
+        UiRender.v2IconBox(context, x + 10, y + 8, 22, true);
         IconRenderer.drawCentered(context, IconType.ADVANCED, x + 21, y + 19, 18);
 
         UiRender.text(context, textRenderer, "SEARCH MODE", x + 42, y + 7, theme.accent());
         UiRender.text(context, textRenderer, trimHeaderText(searchResultCount + " direct result" + (searchResultCount == 1 ? "" : "s") + " for " + searchQuery, w - 150), x + 42, y + 22, theme.text());
 
         int chipW = Math.min(82, Math.max(54, w / 4));
-        UiRender.borderedRect(context, x + w - chipW - 10, y + 9, chipW, 18, theme.accentSoft(), theme.accent());
+        UiRender.borderedRect(context, x + w - chipW - 10, y + 9, chipW, 18, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
         UiRender.centeredText(context, textRenderer, "DIRECT", x + w - chipW / 2 - 10, y + 14, theme.text());
         return;
     }
 
-    UiRender.borderedRect(context, x + 10, y + 8, 22, 22, theme.accentSoft(), theme.accent());
+    UiRender.v2IconBox(context, x + 10, y + 8, 22, true);
     IconRenderer.drawCentered(context, selected.icon, x + 21, y + 19, 18);
 
     UiRender.text(context, textRenderer, selected.title, x + 42, y + 8, theme.text());
@@ -3886,7 +3881,7 @@ private String trimHeaderText(String text, int maxWidth) {
     int w = contentWidth();
     int h = Math.max(1, sidebarPanelBottom() - y);
 
-    UiRender.panel(context, x, y, w, h, theme.panel(), theme.border(), theme.accent());
+    UiRender.v2Panel(context, x, y, w, h);
 
     if (isSearching()) {
         if (searchResultCount == 0) {
@@ -3931,14 +3926,14 @@ private String trimHeaderText(String text, int maxWidth) {
     }
 
     private void drawHomeCard(DrawContext context, Theme theme, int x, int y, int w, int h, String title, String description, IconType icon) {
-        UiRender.card(context, x, y, w, h, theme.panelAlt(), theme.border());
-        UiRender.borderedRect(context, x + 12, y + 12, 22, 22, theme.accentSoft(), theme.accent());
+        UiRender.v2Card(context, x, y, w, h, false, false);
+        UiRender.v2IconBox(context, x + 12, y + 12, 22, true);
         IconRenderer.drawCentered(context, icon, x + 23, y + 23, 18);
         int textW = Math.max(20, w - 54);
         UiRender.text(context, textRenderer, trimText(title, textW), x + 44, y + 13, theme.text());
         UiRender.text(context, textRenderer, trimText(description, textW), x + 44, y + 28, theme.mutedText());
-        UiRender.rect(context, x + 12, y + h - 20, w - 24, 3, theme.accentSoft());
-        UiRender.rect(context, x + 12, y + h - 20, (w - 24) / 2, 3, theme.accent());
+        UiRender.rect(context, x + 12, y + h - 20, w - 24, 3, UiRender.V2_PANEL_ALT);
+        UiRender.gradientHorizontal(context, x + 12, y + h - 20, (w - 24) / 2, 3, UiRender.V2_ACCENT_PURPLE, UiRender.V2_ACCENT);
     }
 
     private int drawCenteredWrapped(DrawContext context, String text, int centerX, int y, int maxWidth, int color, int bottom) {

@@ -104,6 +104,7 @@ public final class ThemeStudioPage {
         int leftY = y;
         int rightY = stickyY;
 
+        leftY = addTopActionRow(widgets, state, actions, x, leftY, leftW);
         leftY = addLibrarySection(widgets, state, actions, x, leftY, leftW);
         leftY = addEditorSection(widgets, state, actions, x, leftY, leftW);
         leftY = addPrimaryActions(widgets, state, actions, x, leftY, leftW);
@@ -116,17 +117,40 @@ public final class ThemeStudioPage {
     }
 
     private static int addCompactWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
+        y = addTopActionRow(widgets, state, actions, x, y, w);
+        y = addCompactLivePreviewSection(widgets, state, x, y, w);
         y = addLibrarySection(widgets, state, actions, x, y, w);
         y = addEditorSection(widgets, state, actions, x, y, w);
         y = addSecondaryActions(widgets, state, actions, x, y, w);
         y = addPrimaryActions(widgets, state, actions, x, y, w);
-        y = addCompactLivePreviewSection(widgets, state, x, y, w);
         return y + GAP;
+    }
+
+    private static int addTopActionRow(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
+        widgets.add(new SectionLabelWidget(x, y, w, "Theme Studio", state.dirty() ? "Unsaved Changes" : "Edit dashboard"));
+        y += 28;
+
+        int columns = w >= 660 ? 5 : w >= 500 ? 3 : w >= 360 ? 2 : 1;
+        int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
+        int index = 0;
+
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Create", "New theme", IconType.THEMES, actions::createTheme));
+        index++;
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Duplicate", "Copy theme", IconType.PRESETS, () -> actions.duplicateTheme(state.selectedThemeId())));
+        index++;
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, state.dirty() ? "Save" : "Save", "Save changes", IconType.THEMES, () -> actions.saveTheme(state.selectedThemeId())));
+        index++;
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Reset", "Reset draft", IconType.FOG, actions::resetTheme));
+        index++;
+        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Library", "Reload themes", IconType.PRESETS, actions::reloadThemes));
+        index++;
+
+        return y + ((index + columns - 1) / columns) * 40 + GAP;
     }
 
     private static int addLibrarySection(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
         Theme selected = ThemeManager.byId(state.selectedThemeId());
-        widgets.add(new SectionLabelWidget(x, y, w, "Theme Studio", state.dirty() ? "Unsaved Changes" : "Custom themes"));
+        widgets.add(new SectionLabelWidget(x, y, w, "Custom Themes", state.dirty() ? "Draft active" : "Manage library"));
         y += 28;
 
         if (!CustomThemeManager.hasCustomThemes()) {
@@ -354,17 +378,13 @@ public final class ThemeStudioPage {
     }
 
     private static int addSecondaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Manage", "Theme library"));
+        widgets.add(new SectionLabelWidget(x, y, w, "Library Tools", "Import and cleanup"));
         y += 28;
 
         int columns = w >= 430 ? 2 : 1;
         int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
         int index = 0;
 
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Create", "Create a custom theme from the active theme.", IconType.THEMES, actions::createTheme));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Duplicate", "Duplicate the selected theme.", IconType.PRESETS, () -> actions.duplicateTheme(state.selectedThemeId())));
-        index++;
         widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Delete", "Delete the selected custom theme.", IconType.ADVANCED, () -> actions.deleteTheme(state.selectedThemeId())));
         index++;
         widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns), buttonW, "Export Theme", "Export selected custom theme.", IconType.THEMES, () -> actions.exportTheme(state.selectedThemeId())));
@@ -432,7 +452,7 @@ public final class ThemeStudioPage {
         public void render(DrawContext context, TextRenderer textRenderer, int mouseX, int mouseY, float delta) {
             Theme theme = state.previewTheme();
 
-            UiRender.card(context, x, y, width, height, theme.background(), theme.border());
+            UiRender.v2Card(context, x, y, width, height, false, false);
             if (compact) {
                 renderCompact(context, textRenderer, theme);
                 return;
@@ -442,17 +462,17 @@ public final class ThemeStudioPage {
             UiRender.text(context, textRenderer, trim(textRenderer, "Preview: " + theme.displayName(), width - 28), x + 14, y + 15, theme.text());
 
             int sampleY = y + 42;
-            UiRender.borderedRect(context, x + 12, sampleY, width - 24, 42, theme.panel(), theme.border());
+            UiRender.borderedRect(context, x + 12, sampleY, width - 24, 42, UiRender.V2_CARD, theme.border());
             UiRender.text(context, textRenderer, "Panel card", x + 22, sampleY + 8, theme.text());
             UiRender.text(context, textRenderer, trim(textRenderer, "Muted copy and border sample.", width - 48), x + 22, sampleY + 24, theme.mutedText());
 
             int buttonY = sampleY + 52;
             int buttonW = Math.min(116, Math.max(76, (width - 34) / 2));
-            UiRender.borderedRect(context, x + 12, buttonY, buttonW, 24, theme.accentSoft(), theme.accent());
+            UiRender.borderedRect(context, x + 12, buttonY, buttonW, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
             UiRender.centeredText(context, textRenderer, "Selected", x + 12 + buttonW / 2, buttonY + 8, theme.text());
 
             int secondaryX = x + 22 + buttonW;
-            UiRender.borderedRect(context, secondaryX, buttonY, buttonW, 24, theme.panelAlt(), theme.border());
+            UiRender.borderedRect(context, secondaryX, buttonY, buttonW, 24, UiRender.V2_PANEL_ALT, UiRender.V2_BORDER);
             UiRender.centeredText(context, textRenderer, "Button", secondaryX + buttonW / 2, buttonY + 8, theme.mutedText());
 
             int nextY = drawPreviewControls(context, theme, buttonY + 38);
@@ -469,14 +489,14 @@ public final class ThemeStudioPage {
 
             int sampleY = y + 34;
             if (innerW < 300) {
-                UiRender.borderedRect(context, innerX, sampleY, innerW, 24, theme.panel(), theme.border());
+                UiRender.borderedRect(context, innerX, sampleY, innerW, 24, UiRender.V2_CARD, theme.border());
                 UiRender.text(context, textRenderer, trim(textRenderer, "Panel card", innerW - 16), innerX + 8, sampleY + 8, theme.text());
 
                 int buttonW = (innerW - 8) / 2;
                 int buttonY = sampleY + 32;
-                UiRender.borderedRect(context, innerX, buttonY, buttonW, 24, theme.accentSoft(), theme.accent());
+                UiRender.borderedRect(context, innerX, buttonY, buttonW, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
                 UiRender.centeredText(context, textRenderer, "Selected", innerX + buttonW / 2, buttonY + 8, theme.text());
-                UiRender.borderedRect(context, innerX + buttonW + 8, buttonY, buttonW, 24, theme.panelAlt(), theme.border());
+                UiRender.borderedRect(context, innerX + buttonW + 8, buttonY, buttonW, 24, UiRender.V2_PANEL_ALT, UiRender.V2_BORDER);
                 UiRender.centeredText(context, textRenderer, "Button", innerX + buttonW + 8 + buttonW / 2, buttonY + 8, theme.mutedText());
 
                 UiRender.gradientHorizontal(context, innerX, y + height - 14, innerW, 4, theme.accentSoft(), theme.accent());
@@ -485,16 +505,16 @@ public final class ThemeStudioPage {
 
             int buttonW = Math.min(92, Math.max(58, (innerW - 12) / 3));
             int panelW = Math.max(64, innerW - buttonW * 2 - 20);
-            UiRender.borderedRect(context, innerX, sampleY, panelW, 28, theme.panel(), theme.border());
+            UiRender.borderedRect(context, innerX, sampleY, panelW, 28, UiRender.V2_CARD, theme.border());
             UiRender.text(context, textRenderer, trim(textRenderer, "Panel", panelW - 16), innerX + 8, sampleY + 6, theme.text());
             UiRender.text(context, textRenderer, trim(textRenderer, "Muted sample", panelW - 16), innerX + 8, sampleY + 18, theme.mutedText());
 
             int selectedX = innerX + panelW + 8;
-            UiRender.borderedRect(context, selectedX, sampleY, buttonW, 28, theme.accentSoft(), theme.accent());
+            UiRender.borderedRect(context, selectedX, sampleY, buttonW, 28, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
             UiRender.centeredText(context, textRenderer, "Selected", selectedX + buttonW / 2, sampleY + 10, theme.text());
 
             int normalX = selectedX + buttonW + 8;
-            UiRender.borderedRect(context, normalX, sampleY, buttonW, 28, theme.panelAlt(), theme.border());
+            UiRender.borderedRect(context, normalX, sampleY, buttonW, 28, UiRender.V2_PANEL_ALT, UiRender.V2_BORDER);
             UiRender.centeredText(context, textRenderer, "Button", normalX + buttonW / 2, sampleY + 10, theme.mutedText());
 
             int stripY = y + height - 18;

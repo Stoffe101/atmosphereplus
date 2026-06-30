@@ -29,15 +29,12 @@ public class BiomeMappingRowWidget extends AtmosphereWidget {
     public void render(DrawContext context, TextRenderer textRenderer, int mouseX, int mouseY, float delta) {
         Theme theme = ThemeManager.current();
         boolean hover = isHovered(mouseX, mouseY);
-        int fill = pickerOpen ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
-        int border = pickerOpen ? theme.accent() : hover ? theme.accentSoft() : theme.border();
-
-        UiRender.card(context, x, y, width, height, fill, border);
+        UiRender.v2Card(context, x, y, width, height, hover, pickerOpen);
 
         int tileSize = 18;
         int tileX = x + 8;
         int tileY = y + 8;
-        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, theme.panelAlt(), pickerOpen ? theme.accent() : theme.border());
+        UiRender.v2IconBox(context, tileX, tileY, tileSize, pickerOpen || hover);
         IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 13);
 
         int buttonW = Math.min(Math.max(102, width / 3), Math.max(96, width - 118));
@@ -45,8 +42,8 @@ public class BiomeMappingRowWidget extends AtmosphereWidget {
         int buttonY = y + 6;
         int buttonH = 22;
         boolean buttonHover = UiRender.hovered(mouseX, mouseY, buttonX, buttonY, buttonW, buttonH);
-        int buttonFill = pickerOpen ? theme.accentSoft() : buttonHover ? theme.panel() : theme.panelAlt();
-        int buttonBorder = pickerOpen || buttonHover ? theme.accent() : theme.border();
+        int buttonFill = pickerOpen ? UiRender.V2_ACCENT_SOFT : buttonHover ? UiRender.V2_CARD_HOVER : UiRender.V2_PANEL_ALT;
+        int buttonBorder = pickerOpen || buttonHover ? UiRender.V2_ACCENT : UiRender.V2_BORDER;
         UiRender.borderedRect(context, buttonX, buttonY, buttonW, buttonH, buttonFill, buttonBorder);
 
         int nameW = Math.max(24, buttonX - (tileX + tileSize + 8) - 6);

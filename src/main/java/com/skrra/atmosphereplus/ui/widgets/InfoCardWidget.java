@@ -25,17 +25,16 @@ public class InfoCardWidget extends AtmosphereWidget {
     public void render(DrawContext context, TextRenderer textRenderer, int mouseX, int mouseY, float delta) {
         Theme theme = ThemeManager.current();
 
-        UiRender.card(context, x, y, width, height, theme.panel(), theme.border());
-        context.fill(x, y + 4, x + 2, y + height - 4, theme.accentSoft());
+        UiRender.v2Card(context, x, y, width, height, false, false);
 
-        int tileSize = 20;
+        int tileSize = UiRender.V2_ICON_BOX;
         int tileX = x + 9;
         int tileY = y + 8;
-        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, theme.panelAlt(), theme.border());
+        UiRender.v2IconBox(context, tileX, tileY, tileSize, false);
         IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 15);
 
-        int textX = x + 38;
-        int textW = Math.max(0, width - 48);
+        int textX = x + 40;
+        int textW = Math.max(0, width - 50);
         UiRender.text(context, textRenderer, trim(textRenderer, title, textW), textX, y + 7, theme.text());
 
         if (description == null || description.isBlank() || textW <= 0) {

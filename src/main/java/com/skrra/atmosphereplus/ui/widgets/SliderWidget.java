@@ -26,7 +26,7 @@ public class SliderWidget extends AtmosphereWidget {
     }
 
     public SliderWidget(int x, int y, int width, String label, String description, float min, float max, Supplier<Float> getter, Consumer<Float> setter, Function<Float, String> formatter) {
-        super(x, y, width, 48);
+        super(x, y, width, UiRender.V2_SLIDER_HEIGHT);
         this.label = label;
         this.description = description;
         this.tooltip = description;
@@ -45,26 +45,26 @@ public class SliderWidget extends AtmosphereWidget {
         float percent = (value - min) / (max - min);
         percent = MathUtil.clamp(percent, 0f, 1f);
 
-        UiRender.card(context, x, y, width, height, hover ? theme.panelAlt() : theme.panel(), hover ? theme.accentSoft() : theme.border());
+        UiRender.v2Card(context, x, y, width, height, hover, false);
 
         String valueText = format(value);
         int valueWidth = textRenderer.getWidth(valueText);
         int valueX = x + width - 12 - valueWidth;
         int labelMaxWidth = Math.max(40, valueX - (x + 12) - 10);
 
-        UiRender.text(context, textRenderer, trim(textRenderer, label, labelMaxWidth), x + 12, y + 7, theme.text());
-        UiRender.text(context, textRenderer, valueText, valueX, y + 7, theme.mutedText());
+        UiRender.text(context, textRenderer, trim(textRenderer, label, labelMaxWidth), x + 12, y + 6, theme.text());
+        UiRender.text(context, textRenderer, valueText, valueX, y + 6, theme.mutedText());
 
         if (description != null && !description.isBlank()) {
-            UiRender.text(context, textRenderer, trim(textRenderer, description, width - 24), x + 12, y + 20, theme.mutedText());
+            UiRender.text(context, textRenderer, trim(textRenderer, description, width - 24), x + 12, y + 18, theme.mutedText());
         }
 
         int barX = x + 12;
-        int barY = y + 36;
+        int barY = y + height - 11;
         int barW = width - 24;
 
-        context.fill(barX, barY, barX + barW, barY + 3, theme.panelAlt());
-        UiRender.gradientHorizontal(context, barX, barY, (int) (barW * percent), 3, theme.accentSoft(), theme.accent());
+        context.fill(barX, barY, barX + barW, barY + 3, UiRender.V2_PANEL_ALT);
+        UiRender.gradientHorizontal(context, barX, barY, (int) (barW * percent), 3, UiRender.V2_ACCENT_PURPLE, UiRender.V2_ACCENT);
 
         int knobX = barX + (int) (barW * percent);
         context.fill(knobX - 3, barY - 4, knobX + 3, barY + 7, 0xFFFAFAFA);

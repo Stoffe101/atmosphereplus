@@ -1,5 +1,19 @@
 # Atmosphere+ Changelog
 
+## 0.5.0-beta.1
+
+### Changed
+
+- Introduced the Atmosphere+ UI v2 visual redesign with a darker neon dashboard style inspired by the Theme Studio concept.
+- Refreshed shared UI surfaces for panels, cards, buttons, sliders, toggles, section dividers, selected states, and icon boxes.
+- Redesigned the main screen shell with a stronger sidebar, right-aligned search bar, compact version placement, and cleaner content panels.
+- Updated Theme Studio with a top action strip, compact dashboard cards, refreshed live preview panel styling, and safer responsive behavior.
+- Reduced excessive scrolling at high GUI scale by keeping Theme Studio preview compact on constrained layouts while preserving the side preview on wider layouts.
+
+### Notes
+
+- This is a visual/UI redesign pass only. Presets, fog behavior, Biome Atmospheres automation, renderer behavior, and release automation are unchanged.
+
 ## 0.4.0-beta.3
 
 ### Changed

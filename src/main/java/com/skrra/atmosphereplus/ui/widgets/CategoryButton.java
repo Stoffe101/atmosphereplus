@@ -33,22 +33,17 @@ public class CategoryButton extends AtmosphereWidget {
         int buttonY = y + 1;
         int buttonW = width - 8;
         int buttonH = height - 2;
-        int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : 0x00000000;
         int textColor = active || hover ? theme.text() : theme.mutedText();
 
-        if (fill != 0) {
-            context.fill(buttonX, buttonY, buttonX + buttonW, buttonY + buttonH, fill);
-            if (active) {
-                context.fill(buttonX, buttonY, buttonX + 2, buttonY + buttonH, theme.accent());
-            }
+        if (active || hover) {
+            UiRender.v2Card(context, buttonX, buttonY, buttonW, buttonH, hover, active);
         }
 
         int tileX = buttonX + 8;
         int tileY = y + 2;
         int tileSize = 16;
-        int tileFill = active ? theme.accentSoft() : hover ? theme.panel() : theme.panelAlt();
 
-        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, tileFill, active ? theme.accent() : theme.border());
+        UiRender.v2IconBox(context, tileX, tileY, tileSize, active || hover);
         IconRenderer.drawCentered(context, category.icon, tileX + tileSize / 2, tileY + tileSize / 2, 14);
 
         UiRender.text(context, textRenderer, trim(textRenderer, category.title, buttonW - 40), buttonX + 32, y + 6, textColor);

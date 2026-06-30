@@ -18,7 +18,7 @@ public class ChoiceButtonWidget extends AtmosphereWidget {
     private final Runnable action;
 
     public ChoiceButtonWidget(int x, int y, int width, String label, String description, IconType icon, Supplier<Boolean> activeSupplier, Runnable action) {
-        super(x, y, width, 38);
+        super(x, y, width, UiRender.V2_ROW_HEIGHT);
         this.label = label;
         this.description = description;
         this.icon = icon;
@@ -33,28 +33,21 @@ public class ChoiceButtonWidget extends AtmosphereWidget {
         boolean active = activeSupplier.get();
         boolean hover = isHovered(mouseX, mouseY);
 
-        int fill = active ? theme.accentSoft() : hover ? theme.panelAlt() : theme.panel();
-        int border = active ? theme.accent() : hover ? theme.accentSoft() : theme.border();
-
-        UiRender.card(context, x, y, width, height, fill, border);
-
-        if (active) {
-            context.fill(x, y + 4, x + 2, y + height - 4, theme.accent());
-        }
+        UiRender.v2Card(context, x, y, width, height, hover, active);
 
         int tileX = x + 9;
         int tileY = y + 8;
-        int tileSize = 20;
+        int tileSize = UiRender.V2_ICON_BOX;
 
-        UiRender.borderedRect(context, tileX, tileY, tileSize, tileSize, active ? theme.accentSoft() : theme.panelAlt(), active ? theme.accent() : theme.border());
+        UiRender.v2IconBox(context, tileX, tileY, tileSize, active || hover);
         IconRenderer.drawCentered(context, icon, tileX + tileSize / 2, tileY + tileSize / 2, 15);
 
-        int textX = x + 38;
-        int textW = width - 48;
+        int textX = x + 40;
+        int textW = width - 50;
         UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + 6, theme.text());
 
         if (description != null && !description.isBlank()) {
-            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 20, active ? theme.accent() : theme.mutedText());
+            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 20, active ? UiRender.V2_ACCENT : theme.mutedText());
         }
     }
 
