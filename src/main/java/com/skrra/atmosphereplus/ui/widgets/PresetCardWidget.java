@@ -51,7 +51,7 @@ public class PresetCardWidget extends AtmosphereWidget {
 
         if (active && textW > 72) {
             int chipW = 36;
-            UiRender.borderedRect(context, x + width - chipW - 8, y + 7, chipW, 13, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
+            UiRender.borderedRect(context, x + width - chipW - 8, y + 7, chipW, 13, UiRender.V2_ACCENT_SOFT(), UiRender.V2_ACCENT());
             UiRender.centeredText(context, textRenderer, "ON", x + width - chipW / 2 - 8, y + 10, theme.text());
             textW -= chipW + 8;
         }

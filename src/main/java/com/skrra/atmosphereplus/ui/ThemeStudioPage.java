@@ -62,13 +62,13 @@ public final class ThemeStudioPage {
         V2Layout.ThemeStudioSpec spec = V2Layout.themeStudio(contentX, contentW, viewportHeight);
 
         if (spec.sidePreview()) {
-            // Separate, non-overlapping columns: nothing can hide behind the preview here,
-            // so no sticky-overlay click guard is needed for this layout.
-            state.clearStickyOverlay();
-
+            // Separate, non-overlapping X ranges: the preview sits in its own column and is
+            // pinned to viewportY (sticky), while the editor column scrolls independently.
+            // Nothing can ever render behind anything else here, so no locking or click guard
+            // is needed for this layout.
             int y = contentY;
             widgets.add(new StudioTabsWidget(contentX, y, contentW, actions::focusThemeSearch));
-            y += V2DesignTokens.TAB_TO_CONTENT_GAP;
+            y += 30 + V2DesignTokens.TAB_TO_CONTENT_GAP;
 
             y = addToolbar(widgets, state, actions, spec.editorX(), y, spec.editorW(), spec.compactDensity());
             int bodyTop = y;
@@ -83,28 +83,25 @@ public final class ThemeStudioPage {
             return leftY + GAP;
         }
 
-        // Compact/stacked layout: the live preview becomes a sticky band pinned to the top of
-        // the viewport so it never scrolls out of view, while everything else scrolls beneath it.
+        // Compact/stacked layout: only the live preview is locked to the viewport (a real
+        // fixed header, not an overlay). Everything else — tabs, toolbar, selected theme,
+        // editor, library — scrolls normally in a viewport AtmosphereScreen clips to start
+        // right at the preview's bottom edge, so scrolled content is cut off there rather
+        // than drawn behind/through the preview.
         int previewCardH = compactPreviewHeight(contentW);
         int previewBandH = previewCardH + 24;
-        // Block clicks/tooltips only inside the overlay's exact drawn rectangle (no extra
-        // padding folded in) so visible controls right below/beside it stay interactive.
-        state.setStickyOverlay(contentX, viewportY, contentW, previewBandH);
+        addLivePreviewSection(widgets, state, contentX, viewportY, contentW, previewCardH, true);
 
         int y = contentY + previewBandH + GAP;
         widgets.add(new StudioTabsWidget(contentX, y, contentW, actions::focusThemeSearch));
-        y += V2DesignTokens.TAB_TO_CONTENT_GAP;
+        y += 30 + V2DesignTokens.TAB_TO_CONTENT_GAP;
 
         y = addToolbar(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
         y = addSelectedThemeCard(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
         y = addEditorSection(widgets, state, actions, contentX, y, contentW, spec.columns(), spec.compactDensity());
         y = addLibrarySection(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
-        int finalY = y + GAP;
 
-        // Added last so it paints over anything that has scrolled underneath it.
-        addLivePreviewSection(widgets, state, contentX, viewportY, contentW, previewCardH, true);
-
-        return finalY;
+        return y + GAP;
     }
 
     private record ToolbarItem(String label, String tooltip, IconType icon, Supplier<Boolean> active, Runnable action) {
@@ -325,9 +322,19 @@ public final class ThemeStudioPage {
     }
 
     private static void addLivePreviewSection(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w, int previewCardH, boolean compact) {
-        widgets.add(new SectionLabelWidget(x, y, w, compact ? "Live Preview (sticky)" : "Live Preview", state.dirty() ? "Unsaved Changes" : "Current preview"));
+        AtmosphereWidget label = new SectionLabelWidget(x, y, w, "Live Preview", state.dirty() ? "Unsaved Changes" : "Current preview");
         y += 24;
-        widgets.add(new ThemePreviewWidget(x, y, w, previewCardH, state, compact));
+        AtmosphereWidget preview = new ThemePreviewWidget(x, y, w, previewCardH, state, compact);
+
+        if (compact) {
+            // Real fixed header, not an overlay: AtmosphereScreen renders this in its own
+            // unclipped pass and derives the scrollable viewport's top bound from it.
+            label.lockToViewport();
+            preview.lockToViewport();
+        }
+
+        widgets.add(label);
+        widgets.add(preview);
     }
 
     private static int previewHeight(int width) {
@@ -399,9 +406,9 @@ public final class ThemeStudioPage {
         public void render(DrawContext context, TextRenderer textRenderer, int mouseX, int mouseY, float delta) {
             int tabW = Math.min(132, Math.max(98, width / 4));
             UiRender.v2Rule(context, x, y + height - 1, width, tabW);
-            UiRender.borderedRect(context, x, y, tabW, height, UiRender.V2_CARD, UiRender.V2_BORDER);
-            UiRender.centeredText(context, textRenderer, "Theme Studio", x + tabW / 2, y + 10, UiRender.V2_TEXT);
-            UiRender.text(context, textRenderer, "Custom Themes", x + tabW + 24, y + 10, UiRender.V2_MUTED);
+            UiRender.borderedRect(context, x, y, tabW, height, UiRender.V2_CARD(), UiRender.V2_BORDER());
+            UiRender.centeredText(context, textRenderer, "Theme Studio", x + tabW / 2, y + 10, UiRender.V2_TEXT());
+            UiRender.text(context, textRenderer, "Custom Themes", x + tabW + 24, y + 10, UiRender.V2_MUTED());
         }
 
         @Override
@@ -445,7 +452,7 @@ public final class ThemeStudioPage {
             int textX = iconX + iconSize + 7;
             int textW = Math.max(0, x + width - textX - 7);
             if (textW > 6) {
-                UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + (height - 8) / 2, active ? UiRender.V2_ACCENT : theme.text());
+                UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + (height - 8) / 2, active ? UiRender.V2_ACCENT() : theme.text());
             }
         }
 
@@ -487,13 +494,13 @@ public final class ThemeStudioPage {
             int chipW = applied ? 52 : 0;
             int textX = iconX + iconSize + 10;
             int textW = width - (textX - x) - 16 - chipW;
-            UiRender.text(context, textRenderer, trim(textRenderer, name, textW), textX, y + 10, UiRender.V2_TEXT);
-            UiRender.text(context, textRenderer, trim(textRenderer, status, textW), textX, y + height - 18, applied ? UiRender.V2_ACCENT : UiRender.V2_MUTED);
+            UiRender.text(context, textRenderer, trim(textRenderer, name, textW), textX, y + 10, UiRender.V2_TEXT());
+            UiRender.text(context, textRenderer, trim(textRenderer, status, textW), textX, y + height - 18, applied ? UiRender.V2_ACCENT() : UiRender.V2_MUTED());
 
             if (applied && width > 150) {
                 int chipX = x + width - chipW - 10;
-                UiRender.borderedRect(context, chipX, y + (height - 18) / 2, chipW, 18, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT_PURPLE);
-                UiRender.centeredText(context, textRenderer, "Applied", chipX + chipW / 2, y + (height - 18) / 2 + 5, UiRender.V2_TEXT);
+                UiRender.borderedRect(context, chipX, y + (height - 18) / 2, chipW, 18, UiRender.V2_ACCENT_SOFT(), UiRender.V2_ACCENT_PURPLE());
+                UiRender.centeredText(context, textRenderer, "Applied", chipX + chipW / 2, y + (height - 18) / 2 + 5, UiRender.V2_TEXT());
             }
         }
 
@@ -590,15 +597,15 @@ public final class ThemeStudioPage {
             int swatchX = x + pad;
             int swatchY = y + pad;
             int swatchCenterY = swatchY + swatch / 2;
-            UiRender.borderedRect(context, swatchX, swatchY, swatch, swatch, color, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
+            UiRender.borderedRect(context, swatchX, swatchY, swatch, swatch, color, focused ? UiRender.V2_ACCENT() : UiRender.V2_BORDER());
 
             int hexY = hexY();
             int labelX = swatchX + swatch + 8;
             int labelW = Math.max(20, hexX() - labelX - 6);
-            UiRender.text(context, textRenderer, trim(textRenderer, token.label, labelW), labelX, swatchCenterY - 4, UiRender.V2_TEXT);
+            UiRender.text(context, textRenderer, trim(textRenderer, token.label, labelW), labelX, swatchCenterY - 4, UiRender.V2_TEXT());
 
-            UiRender.borderedRect(context, hexX(), hexY, hexW(), hexH(), focused ? UiRender.V2_ACCENT_SOFT : UiRender.V2_PANEL_ALT, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
-            UiRender.centeredText(context, textRenderer, trim(textRenderer, state.hexInput(token), hexW() - 8), hexX() + hexW() / 2, hexY + 5, focused ? UiRender.V2_TEXT : UiRender.V2_MUTED);
+            UiRender.borderedRect(context, hexX(), hexY, hexW(), hexH(), focused ? UiRender.V2_ACCENT_SOFT() : UiRender.V2_PANEL_ALT(), focused ? UiRender.V2_ACCENT() : UiRender.V2_BORDER());
+            UiRender.centeredText(context, textRenderer, trim(textRenderer, state.hexInput(token), hexW() - 8), hexX() + hexW() / 2, hexY + 5, focused ? UiRender.V2_TEXT() : UiRender.V2_MUTED());
 
             int[] values = {red(color), green(color), blue(color)};
             int trackX = trackX();
@@ -614,7 +621,7 @@ public final class ThemeStudioPage {
             UiRender.text(context, textRenderer, tag, x + pad(), midY - 4, high);
 
             int barY = midY - 1;
-            UiRender.rect(context, trackX, barY, trackW, 3, UiRender.V2_PANEL_ALT);
+            UiRender.rect(context, trackX, barY, trackW, 3, UiRender.V2_PANEL_ALT());
             int filled = Math.max(2, trackW * value / 255);
             UiRender.gradientHorizontal(context, trackX, barY, filled, 3, low, high);
 
@@ -625,7 +632,7 @@ public final class ThemeStudioPage {
 
             String valueText = String.valueOf(value);
             int valueX = trackX + trackW + VALUE_COLUMN_W - textRenderer.getWidth(valueText) - 2;
-            UiRender.text(context, textRenderer, valueText, valueX, midY - 4, UiRender.V2_MUTED);
+            UiRender.text(context, textRenderer, valueText, valueX, midY - 4, UiRender.V2_MUTED());
         }
 
         private int channelAt(double mouseX, double mouseY) {
@@ -719,17 +726,17 @@ public final class ThemeStudioPage {
             UiRender.text(context, textRenderer, trim(textRenderer, "Preview: " + theme.displayName(), width - 28), x + 14, y + 15, theme.text());
 
             int sampleY = y + 42;
-            UiRender.borderedRect(context, x + 12, sampleY, width - 24, 42, UiRender.V2_CARD, theme.border());
+            UiRender.borderedRect(context, x + 12, sampleY, width - 24, 42, UiRender.V2_CARD(), theme.border());
             UiRender.text(context, textRenderer, "Panel card", x + 22, sampleY + 8, theme.text());
             UiRender.text(context, textRenderer, trim(textRenderer, "Muted copy and border sample.", width - 48), x + 22, sampleY + 24, theme.mutedText());
 
             int buttonY = sampleY + 52;
             int buttonW = Math.min(116, Math.max(76, (width - 34) / 2));
-            UiRender.borderedRect(context, x + 12, buttonY, buttonW, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
+            UiRender.borderedRect(context, x + 12, buttonY, buttonW, 24, UiRender.V2_ACCENT_SOFT(), UiRender.V2_ACCENT());
             UiRender.centeredText(context, textRenderer, "Selected", x + 12 + buttonW / 2, buttonY + 8, theme.text());
 
             int secondaryX = x + 22 + buttonW;
-            UiRender.borderedRect(context, secondaryX, buttonY, buttonW, 24, UiRender.V2_PANEL_ALT, UiRender.V2_BORDER);
+            UiRender.borderedRect(context, secondaryX, buttonY, buttonW, 24, UiRender.V2_PANEL_ALT(), UiRender.V2_BORDER());
             UiRender.centeredText(context, textRenderer, "Button", secondaryX + buttonW / 2, buttonY + 8, theme.mutedText());
 
             int nextY = drawPreviewControls(context, theme, buttonY + 38);
@@ -746,14 +753,14 @@ public final class ThemeStudioPage {
 
             int sampleY = y + 34;
             if (innerW < 300) {
-                UiRender.borderedRect(context, innerX, sampleY, innerW, 24, UiRender.V2_CARD, theme.border());
+                UiRender.borderedRect(context, innerX, sampleY, innerW, 24, UiRender.V2_CARD(), theme.border());
                 UiRender.text(context, textRenderer, trim(textRenderer, "Panel card", innerW - 16), innerX + 8, sampleY + 8, theme.text());
 
                 int buttonW = (innerW - 8) / 2;
                 int buttonY = sampleY + 32;
-                UiRender.borderedRect(context, innerX, buttonY, buttonW, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
+                UiRender.borderedRect(context, innerX, buttonY, buttonW, 24, UiRender.V2_ACCENT_SOFT(), UiRender.V2_ACCENT());
                 UiRender.centeredText(context, textRenderer, "Selected", innerX + buttonW / 2, buttonY + 8, theme.text());
-                UiRender.borderedRect(context, innerX + buttonW + 8, buttonY, buttonW, 24, UiRender.V2_PANEL_ALT, UiRender.V2_BORDER);
+                UiRender.borderedRect(context, innerX + buttonW + 8, buttonY, buttonW, 24, UiRender.V2_PANEL_ALT(), UiRender.V2_BORDER());
                 UiRender.centeredText(context, textRenderer, "Button", innerX + buttonW + 8 + buttonW / 2, buttonY + 8, theme.mutedText());
 
                 // Only draw the accent strip where it actually has clearance below the button
@@ -767,16 +774,16 @@ public final class ThemeStudioPage {
 
             int buttonW = Math.min(92, Math.max(58, (innerW - 12) / 3));
             int panelW = Math.max(64, innerW - buttonW * 2 - 20);
-            UiRender.borderedRect(context, innerX, sampleY, panelW, 28, UiRender.V2_CARD, theme.border());
+            UiRender.borderedRect(context, innerX, sampleY, panelW, 28, UiRender.V2_CARD(), theme.border());
             UiRender.text(context, textRenderer, trim(textRenderer, "Panel", panelW - 16), innerX + 8, sampleY + 6, theme.text());
             UiRender.text(context, textRenderer, trim(textRenderer, "Muted sample", panelW - 16), innerX + 8, sampleY + 18, theme.mutedText());
 
             int selectedX = innerX + panelW + 8;
-            UiRender.borderedRect(context, selectedX, sampleY, buttonW, 28, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
+            UiRender.borderedRect(context, selectedX, sampleY, buttonW, 28, UiRender.V2_ACCENT_SOFT(), UiRender.V2_ACCENT());
             UiRender.centeredText(context, textRenderer, "Selected", selectedX + buttonW / 2, sampleY + 10, theme.text());
 
             int normalX = selectedX + buttonW + 8;
-            UiRender.borderedRect(context, normalX, sampleY, buttonW, 28, UiRender.V2_PANEL_ALT, UiRender.V2_BORDER);
+            UiRender.borderedRect(context, normalX, sampleY, buttonW, 28, UiRender.V2_PANEL_ALT(), UiRender.V2_BORDER());
             UiRender.centeredText(context, textRenderer, "Button", normalX + buttonW / 2, sampleY + 10, theme.mutedText());
 
             int stripY = y + height - 18;

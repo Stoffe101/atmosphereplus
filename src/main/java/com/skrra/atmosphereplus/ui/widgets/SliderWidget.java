@@ -63,8 +63,8 @@ public class SliderWidget extends AtmosphereWidget {
         int barY = y + height - 11;
         int barW = width - 24;
 
-        context.fill(barX, barY, barX + barW, barY + 3, UiRender.V2_PANEL_ALT);
-        UiRender.gradientHorizontal(context, barX, barY, (int) (barW * percent), 3, UiRender.V2_ACCENT_PURPLE, UiRender.V2_ACCENT);
+        context.fill(barX, barY, barX + barW, barY + 3, UiRender.V2_PANEL_ALT());
+        UiRender.gradientHorizontal(context, barX, barY, (int) (barW * percent), 3, UiRender.V2_ACCENT_PURPLE(), UiRender.V2_ACCENT());
 
         int knobX = barX + (int) (barW * percent);
         context.fill(knobX - 3, barY - 4, knobX + 3, barY + 7, 0xFFFAFAFA);

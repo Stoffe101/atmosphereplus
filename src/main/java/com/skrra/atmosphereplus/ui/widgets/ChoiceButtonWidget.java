@@ -47,7 +47,7 @@ public class ChoiceButtonWidget extends AtmosphereWidget {
         UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + 6, theme.text());
 
         if (description != null && !description.isBlank()) {
-            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 20, active ? UiRender.V2_ACCENT : theme.mutedText());
+            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 20, active ? UiRender.V2_ACCENT() : theme.mutedText());
         }
     }
 

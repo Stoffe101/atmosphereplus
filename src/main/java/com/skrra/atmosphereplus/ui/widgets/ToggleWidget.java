@@ -44,8 +44,8 @@ public class ToggleWidget extends AtmosphereWidget {
             UiRender.text(context, textRenderer, trim(textRenderer, description, textW), x + 12, y + 21, theme.mutedText());
         }
 
-        int fill = enabled ? UiRender.V2_ACCENT_SOFT : UiRender.V2_PANEL_ALT;
-        int border = enabled ? UiRender.V2_ACCENT : UiRender.V2_BORDER;
+        int fill = enabled ? UiRender.V2_ACCENT_SOFT() : UiRender.V2_PANEL_ALT();
+        int border = enabled ? UiRender.V2_ACCENT() : UiRender.V2_BORDER();
 
         UiRender.borderedRect(context, switchX, switchY, switchW, switchH, fill, border);
 

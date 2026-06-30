@@ -9,12 +9,30 @@ public abstract class AtmosphereWidget {
     protected int width;
     protected int height;
     protected String tooltip;
+    // Widgets pinned outside the scrollable viewport (e.g. a sticky preview header) opt in via
+    // lockToViewport(). AtmosphereScreen renders/click-tests these in a separate, unclipped pass
+    // and derives the scrollable viewport's top bound from their combined bounds, instead of any
+    // page hand-rolling its own overlay/click-blocking band.
+    protected boolean scrollLocked = false;
 
     protected AtmosphereWidget(int x, int y, int width, int height) {
         this.x = x;
         this.y = y;
         this.width = width;
         this.height = height;
+    }
+
+    public boolean isScrollLocked() {
+        return scrollLocked;
+    }
+
+    public AtmosphereWidget lockToViewport() {
+        this.scrollLocked = true;
+        return this;
+    }
+
+    public int bottom() {
+        return y + height;
     }
 
     public abstract void render(DrawContext context, TextRenderer textRenderer, int mouseX, int mouseY, float delta);

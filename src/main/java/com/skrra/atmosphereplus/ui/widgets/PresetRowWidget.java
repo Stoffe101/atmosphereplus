@@ -52,8 +52,8 @@ public class PresetRowWidget extends AtmosphereWidget {
 
         UiRender.v2Card(context, x, y, width, height, hover, active);
 
-        int starFill = starHover ? UiRender.V2_CARD_HOVER : UiRender.V2_PANEL_ALT;
-        UiRender.borderedRect(context, starX(), y + 9, 20, 20, starFill, favorite ? UiRender.V2_ACCENT_PURPLE : UiRender.V2_BORDER);
+        int starFill = starHover ? UiRender.V2_CARD_HOVER() : UiRender.V2_PANEL_ALT();
+        UiRender.borderedRect(context, starX(), y + 9, 20, 20, starFill, favorite ? UiRender.V2_ACCENT_PURPLE() : UiRender.V2_BORDER());
         UiRender.centeredText(context, textRenderer, favorite ? "\u2605" : "\u2606", starX() + 10, y + 15, favorite ? theme.accent() : theme.mutedText());
 
         int tileSize = 18;

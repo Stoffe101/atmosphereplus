@@ -83,6 +83,10 @@ public class AtmosphereScreen extends Screen {
     private int scrollOffset = 0;
     private int maxScroll = 0;
     private int contentBottom = 0;
+    // Top Y of the scrollable viewport, derived each rebuild from any scroll-locked widgets'
+    // bounds (e.g. Theme Studio's sticky preview). Equals the normal content top when nothing
+    // is locked, so this has no effect on categories that don't use lockToViewport().
+    private int scrollViewportTop = 0;
 
     private enum PresetPackMode {
         NONE,
@@ -310,6 +314,7 @@ private int footerBarHeight() {
         finalY = addSearchResultWidgets(contentX, contentY, contentW);
         maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
         scrollOffset = Math.min(scrollOffset, maxScroll);
+        updateScrollViewportTop();
         return;
     }
 
@@ -333,6 +338,17 @@ private int footerBarHeight() {
 
     maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
     scrollOffset = Math.min(scrollOffset, maxScroll);
+    updateScrollViewportTop();
+}
+
+private void updateScrollViewportTop() {
+    int top = windowY + layout().contentTopOffset();
+    for (AtmosphereWidget widget : widgets) {
+        if (widget.isScrollLocked()) {
+            top = Math.max(top, widget.bottom());
+        }
+    }
+    scrollViewportTop = top;
 }
 
 
@@ -3745,8 +3761,8 @@ private String trimHeaderText(String text, int maxWidth) {
     int uiMouseY = modalOpen ? -100000 : mouseY;
 
     UiRender.v2Window(context, windowX, windowY, windowW, windowH);
-    UiRender.gradientHorizontal(context, windowX + 1, windowY + 1, windowW - 2, layout().topBarHeight(), UiRender.V2_BACKGROUND_DEEP, UiRender.V2_PANEL);
-    UiRender.rect(context, windowX + 1, windowY + layout().topBarHeight(), windowW - 2, 1, UiRender.V2_BORDER);
+    UiRender.gradientHorizontal(context, windowX + 1, windowY + 1, windowW - 2, layout().topBarHeight(), UiRender.V2_BACKGROUND_DEEP(), UiRender.V2_PANEL());
+    UiRender.rect(context, windowX + 1, windowY + layout().topBarHeight(), windowW - 2, 1, UiRender.V2_BORDER());
 
     drawSidebar(context, theme);
     drawBranding(context, theme);
@@ -3763,8 +3779,20 @@ private String trimHeaderText(String text, int maxWidth) {
 
     int contentClipLeft = contentWidgetLeft();
     int contentClipRight = contentWidgetLeft() + contentWidgetWidth();
-    context.enableScissor(contentClipLeft, windowY + layout().contentTopOffset() - 12, contentClipRight, sidebarPanelBottom() - contentPadding());
-    renderContentWidgets(context, uiMouseX, uiMouseY, delta);
+    int contentClipTop = windowY + layout().contentTopOffset() - 12;
+    int contentClipBottom = sidebarPanelBottom() - contentPadding();
+
+    // Scroll-locked content (e.g. a sticky preview header) renders in the full content area,
+    // never clipped by the scrollable viewport below it.
+    context.enableScissor(contentClipLeft, contentClipTop, contentClipRight, contentClipBottom);
+    renderContentWidgets(context, uiMouseX, uiMouseY, delta, true);
+    context.disableScissor();
+
+    // Scrollable content is clipped to start at scrollViewportTop, so anything that has
+    // scrolled up underneath locked content is cut off entirely rather than painted over
+    // (no semi-transparent ghosting through card backgrounds).
+    context.enableScissor(contentClipLeft, Math.max(contentClipTop, scrollViewportTop), contentClipRight, contentClipBottom);
+    renderContentWidgets(context, uiMouseX, uiMouseY, delta, false);
     context.disableScissor();
 
     renderScrollIndicator(context, theme);
@@ -3783,11 +3811,15 @@ private String trimHeaderText(String text, int maxWidth) {
         }
     }
 
-    private void renderContentWidgets(DrawContext context, int mouseX, int mouseY, float delta) {
+    private void renderContentWidgets(DrawContext context, int mouseX, int mouseY, float delta, boolean scrollLocked) {
         for (AtmosphereWidget widget : widgets) {
-            if (!(widget instanceof CategoryButton)) {
-                widget.render(context, textRenderer, mouseX, mouseY, delta);
+            if (widget instanceof CategoryButton) {
+                continue;
             }
+            if (widget.isScrollLocked() != scrollLocked) {
+                continue;
+            }
+            widget.render(context, textRenderer, mouseX, mouseY, delta);
         }
     }
 
@@ -3814,7 +3846,7 @@ private String trimHeaderText(String text, int maxWidth) {
         int logoX = sidebarLeft() + 12;
         int logoY = windowY + 12;
 
-        UiRender.borderedRect(context, logoX, logoY, 24, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
+        UiRender.borderedRect(context, logoX, logoY, 24, 24, UiRender.V2_ACCENT_SOFT(), UiRender.V2_ACCENT());
         IconRenderer.drawCentered(context, IconType.WEATHER, logoX + 12, logoY + 12, 18);
 
         if (sidebarWidth() >= 118) {
@@ -3826,8 +3858,8 @@ private String trimHeaderText(String text, int maxWidth) {
     }
 
     private void drawSearchBar(DrawContext context, Theme theme) {
-        int border = searchFocused ? UiRender.V2_ACCENT : isSearching() ? UiRender.V2_ACCENT_PURPLE : UiRender.V2_BORDER;
-        int fill = isSearching() ? UiRender.V2_ACCENT_SOFT : UiRender.V2_BACKGROUND_DEEP;
+        int border = searchFocused ? UiRender.V2_ACCENT() : isSearching() ? UiRender.V2_ACCENT_PURPLE() : UiRender.V2_BORDER();
+        int fill = isSearching() ? UiRender.V2_ACCENT_SOFT() : UiRender.V2_BACKGROUND_DEEP();
 
         UiRender.borderedRect(context, searchX, searchY, searchW, searchH, fill, border);
 
@@ -3859,7 +3891,7 @@ private String trimHeaderText(String text, int maxWidth) {
 
     private void drawTopButtons(DrawContext context, Theme theme, int mouseX, int mouseY) {
         boolean closeHover = UiRender.hovered(mouseX, mouseY, closeX, closeY, closeSize, closeSize);
-        UiRender.borderedRect(context, closeX, closeY, closeSize, closeSize, closeHover ? UiRender.V2_ACCENT_SOFT : UiRender.V2_BACKGROUND_DEEP, closeHover ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
+        UiRender.borderedRect(context, closeX, closeY, closeSize, closeSize, closeHover ? UiRender.V2_ACCENT_SOFT() : UiRender.V2_BACKGROUND_DEEP(), closeHover ? UiRender.V2_ACCENT() : UiRender.V2_BORDER());
         UiRender.centeredText(context, textRenderer, "X", closeX + closeSize / 2, closeY + 8, closeHover ? theme.text() : theme.mutedText());
     }
 
@@ -3880,7 +3912,7 @@ private String trimHeaderText(String text, int maxWidth) {
         UiRender.centeredText(context, textRenderer, "Categories hidden", x + w / 2, y + 74, theme.mutedText());
         UiRender.centeredText(context, textRenderer, "Clear search", x + w / 2, y + 94, theme.mutedText());
 
-        UiRender.borderedRect(context, x + 16, y + 122, w - 32, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_BORDER);
+        UiRender.borderedRect(context, x + 16, y + 122, w - 32, 24, UiRender.V2_ACCENT_SOFT(), UiRender.V2_BORDER());
         UiRender.centeredText(context, textRenderer, searchResultCount + " result" + (searchResultCount == 1 ? "" : "s"), x + w / 2, y + 130, theme.text());
         return;
     }
@@ -3893,8 +3925,8 @@ private String trimHeaderText(String text, int maxWidth) {
     private void drawFooterBar(DrawContext context, Theme theme) {
         int y = windowY + windowH - footerBarHeight();
         int h = footerBarHeight();
-        UiRender.gradientHorizontal(context, windowX + 1, y, windowW - 2, h - 1, UiRender.V2_BACKGROUND_DEEP, UiRender.V2_PANEL);
-        UiRender.rect(context, windowX + 1, y, windowW - 2, 1, UiRender.V2_BORDER);
+        UiRender.gradientHorizontal(context, windowX + 1, y, windowW - 2, h - 1, UiRender.V2_BACKGROUND_DEEP(), UiRender.V2_PANEL());
+        UiRender.rect(context, windowX + 1, y, windowW - 2, 1, UiRender.V2_BORDER());
 
         String tip = selected == UiCategory.THEME_STUDIO
                 ? "Tip: Changes apply instantly to the preview. Save your theme to use it across profiles."
@@ -3907,7 +3939,7 @@ private String trimHeaderText(String text, int maxWidth) {
         int doneH = Math.min(24, h - 12);
         int doneX = windowX + windowW - layout().outerMargin() - doneW;
         int doneY = y + (h - doneH) / 2;
-        UiRender.borderedRect(context, doneX, doneY, doneW, doneH, UiRender.V2_SELECTED, UiRender.V2_ACCENT);
+        UiRender.borderedRect(context, doneX, doneY, doneW, doneH, UiRender.V2_SELECTED(), UiRender.V2_ACCENT());
         UiRender.centeredText(context, textRenderer, "Done", doneX + doneW / 2, doneY + 8, theme.text());
     }
 
@@ -3926,7 +3958,7 @@ private String trimHeaderText(String text, int maxWidth) {
         UiRender.text(context, textRenderer, trimHeaderText(searchResultCount + " direct result" + (searchResultCount == 1 ? "" : "s") + " for " + searchQuery, w - 150), x + 42, y + 22, theme.text());
 
         int chipW = Math.min(82, Math.max(54, w / 4));
-        UiRender.borderedRect(context, x + w - chipW - 10, y + 9, chipW, 18, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
+        UiRender.borderedRect(context, x + w - chipW - 10, y + 9, chipW, 18, UiRender.V2_ACCENT_SOFT(), UiRender.V2_ACCENT());
         UiRender.centeredText(context, textRenderer, "DIRECT", x + w - chipW / 2 - 10, y + 14, theme.text());
         return;
     }
@@ -3995,8 +4027,8 @@ private String trimHeaderText(String text, int maxWidth) {
         int textW = Math.max(20, w - 54);
         UiRender.text(context, textRenderer, trimText(title, textW), x + 44, y + 13, theme.text());
         UiRender.text(context, textRenderer, trimText(description, textW), x + 44, y + 28, theme.mutedText());
-        UiRender.rect(context, x + 12, y + h - 20, w - 24, 3, UiRender.V2_PANEL_ALT);
-        UiRender.gradientHorizontal(context, x + 12, y + h - 20, (w - 24) / 2, 3, UiRender.V2_ACCENT_PURPLE, UiRender.V2_ACCENT);
+        UiRender.rect(context, x + 12, y + h - 20, w - 24, 3, UiRender.V2_PANEL_ALT());
+        UiRender.gradientHorizontal(context, x + 12, y + h - 20, (w - 24) / 2, 3, UiRender.V2_ACCENT_PURPLE(), UiRender.V2_ACCENT());
     }
 
     private int drawCenteredWrapped(DrawContext context, String text, int centerX, int y, int maxWidth, int color, int bottom) {
@@ -4311,10 +4343,8 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return;
         }
 
-        ThemeStudioState.StickyOverlay stickyOverlay = (selected == UiCategory.THEME_STUDIO && !isSearching()) ? themeStudioState.stickyOverlay() : null;
-
         for (AtmosphereWidget widget : widgets) {
-            if (stickyOverlay != null && stickyOverlay.contains(mouseX, mouseY)) {
+            if (!widget.isScrollLocked() && mouseY < scrollViewportTop) {
                 continue;
             }
             if (widget.isHoveredPublic(mouseX, mouseY) && widget.getTooltip() != null && !widget.getTooltip().isEmpty()) {
@@ -4350,10 +4380,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         x = Math.max(6, Math.min(x, width - boxW - 6));
         y = Math.max(6, Math.min(y, height - boxH - 6));
 
-        UiRender.borderedRect(context, x, y, boxW, boxH, UiRender.V2_BACKGROUND_DEEP, UiRender.V2_BORDER_SOFT);
+        UiRender.borderedRect(context, x, y, boxW, boxH, UiRender.V2_BACKGROUND_DEEP(), UiRender.V2_BORDER_SOFT());
         UiRender.v2Rule(context, x + 6, y + 4, boxW - 12, 54);
         for (int i = 0; i < lines.size(); i++) {
-            UiRender.text(context, textRenderer, lines.get(i), x + 7, y + 9 + i * 11, UiRender.V2_TEXT);
+            UiRender.text(context, textRenderer, lines.get(i), x + 7, y + 9 + i * 11, UiRender.V2_TEXT());
         }
     }
 
@@ -4443,10 +4473,8 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             themeStudioState.setThemeSearchFocused(false);
         }
 
-        ThemeStudioState.StickyOverlay stickyOverlay = (selected == UiCategory.THEME_STUDIO && !isSearching()) ? themeStudioState.stickyOverlay() : null;
-
         for (AtmosphereWidget widget : widgets) {
-            if (stickyOverlay != null && stickyOverlay.contains(click.x(), click.y())) {
+            if (!widget.isScrollLocked() && click.y() < scrollViewportTop) {
                 continue;
             }
             if (widget.mouseClicked(click.x(), click.y(), click.button())) {

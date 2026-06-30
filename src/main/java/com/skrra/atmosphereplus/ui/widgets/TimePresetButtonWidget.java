@@ -42,10 +42,10 @@ public class TimePresetButtonWidget extends AtmosphereWidget {
         int dotY = y + 13;
 
         if (active) {
-            context.fill(dotX - 2, dotY - 2, dotX + 8, dotY + 8, UiRender.V2_ACCENT_SOFT);
-            context.fill(dotX, dotY, dotX + 6, dotY + 6, UiRender.V2_ACCENT);
+            context.fill(dotX - 2, dotY - 2, dotX + 8, dotY + 8, UiRender.V2_ACCENT_SOFT());
+            context.fill(dotX, dotY, dotX + 6, dotY + 6, UiRender.V2_ACCENT());
         } else {
-            context.fill(dotX, dotY, dotX + 6, dotY + 6, hover ? UiRender.V2_ACCENT : UiRender.V2_BORDER_SOFT);
+            context.fill(dotX, dotY, dotX + 6, dotY + 6, hover ? UiRender.V2_ACCENT() : UiRender.V2_BORDER_SOFT());
         }
     }
 

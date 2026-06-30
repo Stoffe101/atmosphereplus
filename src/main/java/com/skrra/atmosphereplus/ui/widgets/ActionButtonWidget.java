@@ -41,7 +41,7 @@ public class ActionButtonWidget extends AtmosphereWidget {
         UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + 6, theme.text());
 
         if (description != null && !description.isBlank()) {
-            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 19, hover ? UiRender.V2_TEXT : theme.mutedText());
+            UiRender.text(context, textRenderer, trim(textRenderer, description, textW), textX, y + 19, hover ? UiRender.V2_TEXT() : theme.mutedText());
         }
     }
 

@@ -1,24 +1,72 @@
 package com.skrra.atmosphereplus.ui;
 
+import com.skrra.atmosphereplus.themes.Theme;
+import com.skrra.atmosphereplus.themes.ThemeManager;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 public final class UiRender {
-    public static final int V2_BACKGROUND = V2DesignTokens.WINDOW_BACKGROUND;
-    public static final int V2_BACKGROUND_DEEP = V2DesignTokens.WINDOW_BACKGROUND_DEEP;
-    public static final int V2_PANEL = V2DesignTokens.PANEL_BACKGROUND;
-    public static final int V2_PANEL_ALT = 0xD0182542;
-    public static final int V2_CARD = V2DesignTokens.CARD_BACKGROUND;
-    public static final int V2_CARD_HOVER = V2DesignTokens.CARD_HOVER_BACKGROUND;
-    public static final int V2_SELECTED = V2DesignTokens.SELECTED_BACKGROUND;
-    public static final int V2_BORDER = V2DesignTokens.BORDER;
-    public static final int V2_BORDER_SOFT = V2DesignTokens.BORDER_SOFT;
-    public static final int V2_ACCENT = V2DesignTokens.ACCENT_BLUE;
-    public static final int V2_ACCENT_PURPLE = V2DesignTokens.ACCENT_PURPLE;
-    public static final int V2_ACCENT_SOFT = V2DesignTokens.ACCENT_SOFT;
-    public static final int V2_TEXT = V2DesignTokens.TEXT_PRIMARY;
-    public static final int V2_MUTED = V2DesignTokens.TEXT_MUTED;
+    // V2 chrome colors are derived live from the active Atmosphere+ theme (built-in or custom)
+    // instead of being fixed constants, so theme presets meaningfully change the dashboard's
+    // mood rather than only tinting a handful of text labels. Semantic colors (danger/warning/
+    // success) stay fixed on purpose — they signal state, not branding.
+    public static int V2_BACKGROUND() {
+        return currentTheme().background();
+    }
+
+    public static int V2_BACKGROUND_DEEP() {
+        return darken(currentTheme().background(), 0.35f, 0xF8);
+    }
+
+    public static int V2_PANEL() {
+        return currentTheme().panel();
+    }
+
+    public static int V2_PANEL_ALT() {
+        return currentTheme().panelAlt();
+    }
+
+    public static int V2_CARD() {
+        return withAlpha(lerpColor(currentTheme().panel(), currentTheme().panelAlt(), 0.5f), 0xC7);
+    }
+
+    public static int V2_CARD_HOVER() {
+        return withAlpha(lighten(currentTheme().panelAlt(), 0.18f), 0xE0);
+    }
+
+    public static int V2_SELECTED() {
+        return withAlpha(lerpColor(currentTheme().panel(), currentTheme().accent(), 0.45f), 0xD5);
+    }
+
+    public static int V2_BORDER() {
+        return currentTheme().border();
+    }
+
+    public static int V2_BORDER_SOFT() {
+        return withAlpha(currentTheme().border(), 0x77);
+    }
+
+    public static int V2_ACCENT() {
+        return currentTheme().accent();
+    }
+
+    public static int V2_ACCENT_PURPLE() {
+        return rotateHue(currentTheme().accent(), 45f);
+    }
+
+    public static int V2_ACCENT_SOFT() {
+        return currentTheme().accentSoft();
+    }
+
+    public static int V2_TEXT() {
+        return currentTheme().text();
+    }
+
+    public static int V2_MUTED() {
+        return currentTheme().mutedText();
+    }
+
     public static final int V2_DANGER = V2DesignTokens.DANGER;
     public static final int V2_WARNING = V2DesignTokens.WARNING;
     public static final int V2_SUCCESS = V2DesignTokens.SUCCESS;
@@ -35,6 +83,10 @@ public final class UiRender {
     private UiRender() {
     }
 
+    private static Theme currentTheme() {
+        return ThemeManager.current();
+    }
+
     public static void rect(DrawContext ctx, int x, int y, int w, int h, int color) {
         ctx.fill(x, y, x + w, y + h, color);
     }
@@ -46,40 +98,40 @@ public final class UiRender {
 
     public static void v2Window(DrawContext ctx, int x, int y, int w, int h) {
         ctx.fill(x + 2, y + 2, x + w + 2, y + h + 2, 0x55000000);
-        ctx.fill(x, y, x + w, y + h, V2_BACKGROUND);
-        gradientHorizontal(ctx, x + 1, y + 1, w - 2, 1, V2_ACCENT, V2_ACCENT_PURPLE);
-        border(ctx, x, y, w, h, V2_BORDER);
+        ctx.fill(x, y, x + w, y + h, V2_BACKGROUND());
+        gradientHorizontal(ctx, x + 1, y + 1, w - 2, 1, V2_ACCENT(), V2_ACCENT_PURPLE());
+        border(ctx, x, y, w, h, V2_BORDER());
     }
 
     public static void v2Panel(DrawContext ctx, int x, int y, int w, int h) {
         ctx.fill(x + 1, y + 2, x + w + 1, y + h + 2, 0x33000000);
-        gradientHorizontal(ctx, x, y, w, h, V2_PANEL, V2_BACKGROUND_DEEP);
+        gradientHorizontal(ctx, x, y, w, h, V2_PANEL(), V2_BACKGROUND_DEEP());
         ctx.fill(x, y, x + w, y + 1, 0x33FFFFFF);
-        border(ctx, x, y, w, h, V2_BORDER);
+        border(ctx, x, y, w, h, V2_BORDER());
     }
 
     public static void v2Card(DrawContext ctx, int x, int y, int w, int h, boolean hovered, boolean selected) {
-        int fill = selected ? V2_SELECTED : hovered ? V2_CARD_HOVER : V2_CARD;
-        int border = selected ? V2_ACCENT : hovered ? V2_BORDER_SOFT : V2_BORDER;
+        int fill = selected ? V2_SELECTED() : hovered ? V2_CARD_HOVER() : V2_CARD();
+        int border = selected ? V2_ACCENT() : hovered ? V2_BORDER_SOFT() : V2_BORDER();
         ctx.fill(x + 1, y + 2, x + w + 1, y + h + 2, 0x28000000);
-        gradientHorizontal(ctx, x, y, w, h, fill, selected ? 0xDD1D2B5A : fill);
+        gradientHorizontal(ctx, x, y, w, h, fill, selected ? withAlpha(lerpColor(currentTheme().panel(), currentTheme().accent(), 0.25f), 0xDD) : fill);
         ctx.fill(x, y, x + w, y + 1, 0x2FFFFFFF);
         border(ctx, x, y, w, h, border);
         if (selected) {
-            gradientHorizontal(ctx, x, y, 3, h, V2_ACCENT, V2_ACCENT_PURPLE);
+            gradientHorizontal(ctx, x, y, 3, h, V2_ACCENT(), V2_ACCENT_PURPLE());
         }
     }
 
     public static void v2IconBox(DrawContext ctx, int x, int y, int size, boolean active) {
-        borderedRect(ctx, x, y, size, size, active ? V2_ACCENT_SOFT : V2_PANEL_ALT, active ? V2_ACCENT : V2_BORDER);
+        borderedRect(ctx, x, y, size, size, active ? V2_ACCENT_SOFT() : V2_PANEL_ALT(), active ? V2_ACCENT() : V2_BORDER());
         if (active) {
-            ctx.fill(x + size - 2, y + 2, x + size - 1, y + size - 2, V2_ACCENT_PURPLE);
+            ctx.fill(x + size - 2, y + 2, x + size - 1, y + size - 2, V2_ACCENT_PURPLE());
         }
     }
 
     public static void v2Rule(DrawContext ctx, int x, int y, int w, int accentWidth) {
-        rect(ctx, x, y, w, 1, V2_BORDER);
-        gradientHorizontal(ctx, x, y, Math.min(w, Math.max(24, accentWidth)), 1, V2_ACCENT, V2_ACCENT_PURPLE);
+        rect(ctx, x, y, w, 1, V2_BORDER());
+        gradientHorizontal(ctx, x, y, Math.min(w, Math.max(24, accentWidth)), 1, V2_ACCENT(), V2_ACCENT_PURPLE());
     }
 
     public static void panel(DrawContext ctx, int x, int y, int w, int h, int fill, int border, int accent) {
@@ -125,6 +177,96 @@ public final class UiRender {
 
     public static boolean hovered(double mouseX, double mouseY, int x, int y, int w, int h) {
         return mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return ((alpha & 255) << 24) | (color & 0x00FFFFFF);
+    }
+
+    private static int darken(int color, float amount, int alpha) {
+        int black = withAlpha(0, 255);
+        return withAlpha(lerpColor(color, black, amount), alpha);
+    }
+
+    private static int lighten(int color, float amount) {
+        int white = withAlpha(0xFFFFFF, 255);
+        return lerpColor(color, white, amount);
+    }
+
+    private static int rotateHue(int color, float degrees) {
+        int a = (color >>> 24) & 255;
+        float r = ((color >>> 16) & 255) / 255f;
+        float g = ((color >>> 8) & 255) / 255f;
+        float b = (color & 255) / 255f;
+
+        float max = Math.max(r, Math.max(g, b));
+        float min = Math.min(r, Math.min(g, b));
+        float delta = max - min;
+
+        float h;
+        if (delta < 1e-6f) {
+            h = 0f;
+        } else if (max == r) {
+            h = ((g - b) / delta) % 6f;
+        } else if (max == g) {
+            h = (b - r) / delta + 2f;
+        } else {
+            h = (r - g) / delta + 4f;
+        }
+        h *= 60f;
+        if (h < 0f) {
+            h += 360f;
+        }
+
+        float s = max <= 1e-6f ? 0f : delta / max;
+        float v = max;
+
+        h = (h + degrees) % 360f;
+        if (h < 0f) {
+            h += 360f;
+        }
+
+        float c = v * s;
+        float x = c * (1f - Math.abs((h / 60f) % 2f - 1f));
+        float m = v - c;
+        float rr;
+        float gg;
+        float bb;
+        if (h < 60f) {
+            rr = c;
+            gg = x;
+            bb = 0f;
+        } else if (h < 120f) {
+            rr = x;
+            gg = c;
+            bb = 0f;
+        } else if (h < 180f) {
+            rr = 0f;
+            gg = c;
+            bb = x;
+        } else if (h < 240f) {
+            rr = 0f;
+            gg = x;
+            bb = c;
+        } else if (h < 300f) {
+            rr = x;
+            gg = 0f;
+            bb = c;
+        } else {
+            rr = c;
+            gg = 0f;
+            bb = x;
+        }
+
+        int red = clamp255(Math.round((rr + m) * 255f));
+        int green = clamp255(Math.round((gg + m) * 255f));
+        int blue = clamp255(Math.round((bb + m) * 255f));
+
+        return (a << 24) | (red << 16) | (green << 8) | blue;
+    }
+
+    private static int clamp255(int value) {
+        return Math.max(0, Math.min(255, value));
     }
 
     private static int lerpColor(int from, int to, float progress) {

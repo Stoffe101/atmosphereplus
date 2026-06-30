@@ -42,8 +42,8 @@ public class BiomeMappingRowWidget extends AtmosphereWidget {
         int buttonY = y + 6;
         int buttonH = 22;
         boolean buttonHover = UiRender.hovered(mouseX, mouseY, buttonX, buttonY, buttonW, buttonH);
-        int buttonFill = pickerOpen ? UiRender.V2_ACCENT_SOFT : buttonHover ? UiRender.V2_CARD_HOVER : UiRender.V2_PANEL_ALT;
-        int buttonBorder = pickerOpen || buttonHover ? UiRender.V2_ACCENT : UiRender.V2_BORDER;
+        int buttonFill = pickerOpen ? UiRender.V2_ACCENT_SOFT() : buttonHover ? UiRender.V2_CARD_HOVER() : UiRender.V2_PANEL_ALT();
+        int buttonBorder = pickerOpen || buttonHover ? UiRender.V2_ACCENT() : UiRender.V2_BORDER();
         UiRender.borderedRect(context, buttonX, buttonY, buttonW, buttonH, buttonFill, buttonBorder);
 
         int nameW = Math.max(24, buttonX - (tileX + tileSize + 8) - 6);
