@@ -4,7 +4,7 @@
 
 It changes what *you* see: weather, time, fog, lighting, particles, clouds, profiles, presets, biome-based preset automation, and a few renderer controls that work best without shader packs.
 
-Version `0.4.0-beta.3` is a polish update for Preset Packs, End presets, Theme Studio, and responsive Home layout.
+Version `0.4.0-beta.3` is a polish update for Preset Packs, End presets, Theme Studio compact layouts, and responsive Home layout.
 
 ## Target
 

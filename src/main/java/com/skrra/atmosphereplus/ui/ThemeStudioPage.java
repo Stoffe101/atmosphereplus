@@ -23,8 +23,8 @@ public final class ThemeStudioPage {
 
     private enum LayoutMode {
         WIDE,
-        MEDIUM,
-        NARROW
+        STANDARD,
+        COMPACT
     }
 
     private ThemeStudioPage() {
@@ -69,23 +69,23 @@ public final class ThemeStudioPage {
 
         return switch (mode) {
             case WIDE -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, viewportY, contentW, 58);
-            case MEDIUM -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, viewportY, contentW, 50);
-            case NARROW -> addStackedWidgets(widgets, state, actions, contentX, contentY, contentW);
+            case STANDARD -> addTwoColumnWidgets(widgets, state, actions, contentX, contentY, viewportY, contentW, 50);
+            case COMPACT -> addCompactWidgets(widgets, state, actions, contentX, contentY, contentW);
         };
     }
 
     private static LayoutMode layoutMode(int width, int viewportHeight) {
-        if (viewportHeight < stickyColumnHeight(width)) {
-            return LayoutMode.NARROW;
+        if (width < 620 || viewportHeight < 300) {
+            return LayoutMode.COMPACT;
         }
 
         if (width >= 820) {
             return LayoutMode.WIDE;
         }
         if (width >= 620) {
-            return LayoutMode.MEDIUM;
+            return viewportHeight >= stickyColumnHeight(width) ? LayoutMode.STANDARD : LayoutMode.COMPACT;
         }
-        return LayoutMode.NARROW;
+        return LayoutMode.COMPACT;
     }
 
     private static int stickyColumnHeight(int width) {
@@ -115,13 +115,13 @@ public final class ThemeStudioPage {
         return Math.max(leftY, y + Math.max(0, rightY - stickyY));
     }
 
-    private static int addStackedWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
+    private static int addCompactWidgets(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
         y = addLibrarySection(widgets, state, actions, x, y, w);
-        y = addLivePreviewSection(widgets, state, x, y, w);
         y = addEditorSection(widgets, state, actions, x, y, w);
-        y = addPrimaryActions(widgets, state, actions, x, y, w);
         y = addSecondaryActions(widgets, state, actions, x, y, w);
-        return y;
+        y = addPrimaryActions(widgets, state, actions, x, y, w);
+        y = addCompactLivePreviewSection(widgets, state, x, y, w);
+        return y + GAP;
     }
 
     private static int addLibrarySection(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
@@ -314,8 +314,16 @@ public final class ThemeStudioPage {
         widgets.add(new SectionLabelWidget(x, y, w, "Live Preview", state.dirty() ? "Unsaved Changes" : "Current preview"));
         y += 28;
         int previewH = previewHeight(w);
-        widgets.add(new ThemePreviewWidget(x, y, w, previewH, state));
+        widgets.add(new ThemePreviewWidget(x, y, w, previewH, state, false));
         return y + previewH + GAP;
+    }
+
+    private static int addCompactLivePreviewSection(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w) {
+        widgets.add(new SectionLabelWidget(x, y, w, "Compact Preview", state.dirty() ? "Unsaved Changes" : "Current preview"));
+        y += 28;
+        int previewH = compactPreviewHeight(w);
+        widgets.add(new ThemePreviewWidget(x, y, w, previewH, state, true));
+        return y + previewH + SMALL_GAP;
     }
 
     private static int previewHeight(int width) {
@@ -326,6 +334,10 @@ public final class ThemeStudioPage {
             return 188;
         }
         return 202;
+    }
+
+    private static int compactPreviewHeight(int width) {
+        return width >= 360 ? 92 : 104;
     }
 
     private static int addPrimaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w) {
@@ -407,10 +419,12 @@ public final class ThemeStudioPage {
 
     private static final class ThemePreviewWidget extends AtmosphereWidget {
         private final ThemeStudioState state;
+        private final boolean compact;
 
-        private ThemePreviewWidget(int x, int y, int width, int height, ThemeStudioState state) {
+        private ThemePreviewWidget(int x, int y, int width, int height, ThemeStudioState state, boolean compact) {
             super(x, y, width, height);
             this.state = state;
+            this.compact = compact;
             this.tooltip = "Live preview of the selected theme draft.";
         }
 
@@ -419,6 +433,11 @@ public final class ThemeStudioPage {
             Theme theme = state.previewTheme();
 
             UiRender.card(context, x, y, width, height, theme.background(), theme.border());
+            if (compact) {
+                renderCompact(context, textRenderer, theme);
+                return;
+            }
+
             UiRender.gradientHorizontal(context, x + 8, y + 8, width - 16, 24, theme.panel(), theme.panelAlt());
             UiRender.text(context, textRenderer, trim(textRenderer, "Preview: " + theme.displayName(), width - 28), x + 14, y + 15, theme.text());
 
@@ -440,6 +459,48 @@ public final class ThemeStudioPage {
 
             int[] colors = {theme.accent(), theme.accentSoft(), theme.border(), theme.text(), theme.mutedText()};
             drawSwatches(context, theme, colors, nextY + 8);
+        }
+
+        private void renderCompact(DrawContext context, TextRenderer textRenderer, Theme theme) {
+            int innerX = x + 10;
+            int innerW = width - 20;
+            UiRender.gradientHorizontal(context, innerX, y + 8, innerW, 18, theme.panel(), theme.panelAlt());
+            UiRender.text(context, textRenderer, trim(textRenderer, "Preview: " + theme.displayName(), innerW - 12), innerX + 6, y + 13, theme.text());
+
+            int sampleY = y + 34;
+            if (innerW < 300) {
+                UiRender.borderedRect(context, innerX, sampleY, innerW, 24, theme.panel(), theme.border());
+                UiRender.text(context, textRenderer, trim(textRenderer, "Panel card", innerW - 16), innerX + 8, sampleY + 8, theme.text());
+
+                int buttonW = (innerW - 8) / 2;
+                int buttonY = sampleY + 32;
+                UiRender.borderedRect(context, innerX, buttonY, buttonW, 24, theme.accentSoft(), theme.accent());
+                UiRender.centeredText(context, textRenderer, "Selected", innerX + buttonW / 2, buttonY + 8, theme.text());
+                UiRender.borderedRect(context, innerX + buttonW + 8, buttonY, buttonW, 24, theme.panelAlt(), theme.border());
+                UiRender.centeredText(context, textRenderer, "Button", innerX + buttonW + 8 + buttonW / 2, buttonY + 8, theme.mutedText());
+
+                UiRender.gradientHorizontal(context, innerX, y + height - 14, innerW, 4, theme.accentSoft(), theme.accent());
+                return;
+            }
+
+            int buttonW = Math.min(92, Math.max(58, (innerW - 12) / 3));
+            int panelW = Math.max(64, innerW - buttonW * 2 - 20);
+            UiRender.borderedRect(context, innerX, sampleY, panelW, 28, theme.panel(), theme.border());
+            UiRender.text(context, textRenderer, trim(textRenderer, "Panel", panelW - 16), innerX + 8, sampleY + 6, theme.text());
+            UiRender.text(context, textRenderer, trim(textRenderer, "Muted sample", panelW - 16), innerX + 8, sampleY + 18, theme.mutedText());
+
+            int selectedX = innerX + panelW + 8;
+            UiRender.borderedRect(context, selectedX, sampleY, buttonW, 28, theme.accentSoft(), theme.accent());
+            UiRender.centeredText(context, textRenderer, "Selected", selectedX + buttonW / 2, sampleY + 10, theme.text());
+
+            int normalX = selectedX + buttonW + 8;
+            UiRender.borderedRect(context, normalX, sampleY, buttonW, 28, theme.panelAlt(), theme.border());
+            UiRender.centeredText(context, textRenderer, "Button", normalX + buttonW / 2, sampleY + 10, theme.mutedText());
+
+            int stripY = y + height - 18;
+            UiRender.gradientHorizontal(context, innerX, stripY, Math.max(20, innerW - 76), 4, theme.accentSoft(), theme.accent());
+            UiRender.borderedRect(context, x + width - 54, stripY - 6, 38, 16, theme.accentSoft(), theme.accent());
+            context.fill(x + width - 28, stripY - 3, x + width - 18, stripY + 7, theme.text());
         }
 
         private int drawPreviewControls(DrawContext context, Theme theme, int topY) {
