@@ -1125,198 +1125,221 @@ private int addParticlesWidgets(int contentX, int contentY, int contentW) {
 }
 
 
+private record AdvancedAction(String label, String description, IconType icon, Runnable action) {
+}
+
+private int addActionGrid(int x, int y, int w, AdvancedAction... items) {
+    int gap = layout().sectionGap();
+    int columns = responsiveColumns(w, 3, 200);
+    int cardW = responsiveCardWidth(w, columns, gap);
+    int rowH = UiRender.V2_BUTTON_HEIGHT;
+    int rowStep = rowH + 4;
+
+    for (int i = 0; i < items.length; i++) {
+        AdvancedAction item = items[i];
+        int cardX = x + (i % columns) * (cardW + gap);
+        int cardY = y + (i / columns) * rowStep;
+        widgets.add(new ActionButtonWidget(cardX, cardY, cardW, item.label(), item.description(), item.icon(), item.action()));
+    }
+
+    int rows = (items.length + columns - 1) / columns;
+    return y + rows * rowStep;
+}
+
 private int addCompatibilityWidgets(int contentX, int contentY, int contentW) {
     int y = contentY;
-    int cardW = (contentW - 12) / 2;
+    int gap = layout().sectionGap();
 
-    widgets.add(new ActionButtonWidget(contentX, y, contentW, "Compatibility Status", CompatibilityUtil.renderCompatibilitySummary(), IconType.ADVANCED, () -> {
-        NotificationUtil.show(CompatibilityUtil.renderCompatibilitySummary());
-    }));
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Compatibility", "Sodium and Iris detection"));
+    y += 26;
 
-    y += 42;
+    y = addActionGrid(contentX, y, contentW,
+            new AdvancedAction("Compatibility Status", CompatibilityUtil.renderCompatibilitySummary(), IconType.ADVANCED, () -> NotificationUtil.show(CompatibilityUtil.renderCompatibilitySummary())),
+            new AdvancedAction("Sodium", CompatibilityUtil.sodiumStatus(), IconType.LIGHTING, () -> NotificationUtil.show("Sodium: " + CompatibilityUtil.sodiumStatus())),
+            new AdvancedAction("Iris / Shaders", CompatibilityUtil.irisStatus(), IconType.SKY, () -> NotificationUtil.show("Iris: shader packs can override sky/cloud renderer hooks"))
+    );
 
-    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Sodium", CompatibilityUtil.sodiumStatus(), IconType.LIGHTING, () -> {
-        NotificationUtil.show("Sodium: " + CompatibilityUtil.sodiumStatus());
-    }));
-
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Iris / Shaders", CompatibilityUtil.irisStatus(), IconType.SKY, () -> {
-        NotificationUtil.show("Iris: shader packs can override sky/cloud renderer hooks");
-    }));
-
-    y += 42;
-
-    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Reset Renderer", "Reset cloud height, stars and experimental renderer values.", IconType.ADVANCED, () -> {
-        resetRendererSettings();
-        clearActivePreset();
-        rebuildWidgets();
-    }));
-
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Shader Safe Reset", "Reset fog, sky/clouds, lighting and renderer values.", IconType.FOG, () -> {
-        resetFog();
-        resetSky();
-        resetLighting();
-        resetRendererSettings();
-        NotificationUtil.show("Shader-sensitive visuals reset");
-        rebuildWidgets();
-    }));
-
-    y += 42;
-
-    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Vanilla Safe Mode", "Reset all visual overrides to vanilla-style defaults.", IconType.HOME, () -> {
-        applyVanillaSafeMode();
-        NotificationUtil.show("Applied Vanilla Safe Mode");
-        rebuildWidgets();
-    }));
-
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Sodium/Iris Safe", "Safe setup for Sodium/Iris and shader packs.", IconType.SKY, () -> {
-        applySodiumIrisSafeMode();
-        NotificationUtil.show("Applied Sodium/Iris Safe Mode");
-        rebuildWidgets();
-    }));
-
-    y += 42;
-
-    widgets.add(new ActionButtonWidget(contentX, y, cardW, ConfigManager.get().shaderAwareWarnings ? "Warnings: On" : "Warnings: Off", "Toggle shader-aware warning messages.", IconType.ADVANCED, () -> {
-        ConfigManager.get().shaderAwareWarnings = !ConfigManager.get().shaderAwareWarnings;
-        ConfigManager.save();
-        NotificationUtil.toggled("Shader-aware warnings", ConfigManager.get().shaderAwareWarnings);
-        rebuildWidgets();
-    }));
-
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Known Working", "Cloud height and star brightness work best without shader packs.", IconType.PRESETS, () -> {
-        NotificationUtil.show("Known working: cloud height and stars. Shader-limited: most shader packs.");
-    }));
-
-    return y + 46;
+    return y + gap;
 }
 
 private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
-    int cardW = (contentW - 12) / 2;
     int y = contentY;
+    int gap = layout().sectionGap();
 
     y = addCompatibilityWidgets(contentX, y, contentW);
-    y += 10;
 
-    addResetButton(contentX, y, cardW, "Reset All Visuals", "Reset weather, time, sky, fog, lighting and particles after confirmation.", IconType.ADVANCED, this::confirmResetAllVisuals);
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Safe Modes", "Renderer and compatibility presets"));
+    y += 26;
 
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Performance Clear", "Apply a low-visual-intensity preset for cleaner gameplay.", IconType.PRESETS, () -> {
-        applyPerformanceClear();
-        NotificationUtil.show("Applied Performance Clear");
-        rebuildWidgets();
-    }));
+    y = addActionGrid(contentX, y, contentW,
+            new AdvancedAction("Reset Renderer", "Reset cloud height, stars and experimental renderer values.", IconType.ADVANCED, () -> {
+                resetRendererSettings();
+                clearActivePreset();
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Shader Safe Reset", "Reset fog, sky/clouds, lighting and renderer values.", IconType.FOG, () -> {
+                resetFog();
+                resetSky();
+                resetLighting();
+                resetRendererSettings();
+                NotificationUtil.show("Shader-sensitive visuals reset");
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Vanilla Safe Mode", "Reset all visual overrides to vanilla-style defaults.", IconType.HOME, () -> {
+                applyVanillaSafeMode();
+                NotificationUtil.show("Applied Vanilla Safe Mode");
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Sodium/Iris Safe", "Safe setup for Sodium/Iris and shader packs.", IconType.SKY, () -> {
+                applySodiumIrisSafeMode();
+                NotificationUtil.show("Applied Sodium/Iris Safe Mode");
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Performance Clear", "Apply a low-visual-intensity preset for cleaner gameplay.", IconType.PRESETS, () -> {
+                applyPerformanceClear();
+                NotificationUtil.show("Applied Performance Clear");
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Shader Friendly Preset", "Use a safer setup when Iris shader packs override fog/sky/lighting.", IconType.ADVANCED, () -> {
+                applyShaderFriendly();
+                NotificationUtil.show("Applied Shader Friendly");
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Screenshot Clear", "Apply a clean sunny setup with no clouds and fewer particles.", IconType.SKY, () -> {
+                applyScreenshotClear();
+                NotificationUtil.show("Applied Screenshot Clear");
+                rebuildWidgets();
+            })
+    );
 
-    y += 52;
+    y += gap;
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Quick Resets", "Restore individual visual categories"));
+    y += 26;
 
-    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Shader Friendly Preset", "Use a safer setup when Iris shader packs override fog/sky/lighting.", IconType.ADVANCED, () -> {
-        applyShaderFriendly();
-        NotificationUtil.show("Applied Shader Friendly");
-        rebuildWidgets();
-    }));
+    y = addActionGrid(contentX, y, contentW,
+            new AdvancedAction("Reset All Visuals", "Reset weather, time, sky, fog, lighting and particles after confirmation.", IconType.ADVANCED, () -> {
+                confirmResetAllVisuals();
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Reset Weather", "Restore server weather, full rain intensity and thunder sounds.", IconType.WEATHER, () -> {
+                resetWeather();
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Reset Time", "Return to server time and default visual time.", IconType.TIME, () -> {
+                resetTime();
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Reset Sky / Clouds", "Return cloud visuals to server/default settings.", IconType.SKY, () -> {
+                resetSky();
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Reset Fog", "Disable custom fog and restore default fog values.", IconType.FOG, () -> {
+                resetFog();
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Reset Lighting", "Disable fullbright and restore gamma to 100%.", IconType.LIGHTING, () -> {
+                resetLighting();
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Reset Particles", "Restore normal particle amount.", IconType.PARTICLES, () -> {
+                resetParticles();
+                rebuildWidgets();
+            })
+    );
 
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Screenshot Clear", "Apply a clean sunny setup with no clouds and fewer particles.", IconType.SKY, () -> {
-        applyScreenshotClear();
-        NotificationUtil.show("Applied Screenshot Clear");
-        rebuildWidgets();
-    }));
+    y += gap;
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Navigate", "Jump to other pages"));
+    y += 26;
 
-    y += 52;
+    y = addActionGrid(contentX, y, contentW,
+            new AdvancedAction("Profiles", "Go to save, load, rename, export or import profiles.", IconType.PRESETS, () -> {
+                selected = UiCategory.PROFILES;
+                scrollOffset = 0;
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Presets", "Go to built-in atmosphere presets.", IconType.SKY, () -> {
+                selected = UiCategory.PRESETS;
+                scrollOffset = 0;
+                rebuildWidgets();
+            })
+    );
 
-    addResetButton(contentX, y, cardW, "Reset Weather", "Restore server weather, full rain intensity and thunder sounds.", IconType.WEATHER, this::resetWeather);
-    addResetButton(contentX + cardW + 12, y, cardW, "Reset Time", "Return to server time and default visual time.", IconType.TIME, this::resetTime);
+    y += gap;
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Profile Backup", "Export, import and clear profile slots"));
+    y += 26;
 
-    y += 52;
+    y = addActionGrid(contentX, y, contentW,
+            new AdvancedAction("Export Profiles", "Write profile slots to config/atmosphereplus-profiles-backup.json.", IconType.PRESETS, () -> {
+                ProfileManager.exportProfiles();
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Import Profiles", "Import profile backup after confirmation.", IconType.PRESETS, this::confirmImportProfiles),
+            new AdvancedAction("Clear All Profiles", "Clear all profile slots after confirmation.", IconType.ADVANCED, this::confirmClearAllProfiles)
+    );
 
-    addResetButton(contentX, y, cardW, "Reset Sky / Clouds", "Return cloud visuals to server/default settings.", IconType.SKY, this::resetSky);
-    addResetButton(contentX + cardW + 12, y, cardW, "Reset Fog", "Disable custom fog and restore default fog values.", IconType.FOG, this::resetFog);
+    y += gap;
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Info", "Build and warning details"));
+    y += 26;
 
-    y += 52;
+    y = addActionGrid(contentX, y, contentW,
+            new AdvancedAction(ConfigManager.get().shaderAwareWarnings ? "Warnings: On" : "Warnings: Off", "Toggle shader-aware warning messages.", IconType.ADVANCED, () -> {
+                ConfigManager.get().shaderAwareWarnings = !ConfigManager.get().shaderAwareWarnings;
+                ConfigManager.save();
+                NotificationUtil.toggled("Shader-aware warnings", ConfigManager.get().shaderAwareWarnings);
+                rebuildWidgets();
+            }),
+            new AdvancedAction("Known Working", "Cloud height and star brightness work best without shader packs.", IconType.PRESETS, () -> NotificationUtil.show("Known working: cloud height and stars. Shader-limited: most shader packs.")),
+            new AdvancedAction("Version Info", "Current dev build: " + AtmospherePlusClient.VERSION, IconType.ADVANCED, () -> NotificationUtil.show("Atmosphere+ " + AtmospherePlusClient.VERSION)),
+            new AdvancedAction("Known Issues", "Cloud distance is disabled for now; check KNOWN_ISSUES.md in the ZIP.", IconType.FOG, () -> NotificationUtil.show("Known issue: cloud distance disabled for now"))
+    );
 
-    addResetButton(contentX, y, cardW, "Reset Lighting", "Disable fullbright and restore gamma to 100%.", IconType.LIGHTING, this::resetLighting);
-    addResetButton(contentX + cardW + 12, y, cardW, "Reset Particles", "Restore normal particle amount.", IconType.PARTICLES, this::resetParticles);
-
-    y += 52;
-
-    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Profiles", "Go to save, load, rename, export or import profiles.", IconType.PRESETS, () -> {
-        selected = UiCategory.PROFILES;
-        scrollOffset = 0;
-        rebuildWidgets();
-    }));
-
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Presets", "Go to built-in atmosphere presets.", IconType.SKY, () -> {
-        selected = UiCategory.PRESETS;
-        scrollOffset = 0;
-        rebuildWidgets();
-    }));
-
-    y += 52;
-
-    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Export Profiles", "Write profile slots to config/atmosphereplus-profiles-backup.json.", IconType.PRESETS, () -> {
-        ProfileManager.exportProfiles();
-        rebuildWidgets();
-    }));
-
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Import Profiles", "Import profile backup after confirmation.", IconType.PRESETS, this::confirmImportProfiles));
-
-    y += 52;
-
-    widgets.add(new ActionButtonWidget(contentX, y, cardW, "Clear All Profiles", "Clear all profile slots after confirmation.", IconType.ADVANCED, this::confirmClearAllProfiles));
-
-    widgets.add(new ActionButtonWidget(contentX + cardW + 12, y, cardW, "Version Info", "Current dev build: " + AtmospherePlusClient.VERSION, IconType.ADVANCED, () -> {
-        NotificationUtil.show("Atmosphere+ " + AtmospherePlusClient.VERSION);
-    }));
-
-    y += 52;
-
-    widgets.add(new ActionButtonWidget(contentX, y, contentW, "Known Issues", "Cloud distance is disabled for now; check KNOWN_ISSUES.md in the ZIP.", IconType.FOG, () -> {
-        NotificationUtil.show("Known issue: cloud distance disabled for now");
-    }));
-
-    return y + 52;
+    return y + gap;
 }
 
     private int addThemeWidgets(int contentX, int contentY, int contentW) {
         int y = contentY;
-        widgets.add(new SectionLabelWidget(contentX, y, contentW, "Built-in Themes", "Browse and apply bundled themes"));
-        y += 30;
+        int gap = layout().sectionGap();
+        int rowH = UiRender.V2_ROW_HEIGHT;
 
-        int columns = contentW >= 520 ? 2 : 1;
-        int gap = 10;
-        int themeW = (contentW - gap * (columns - 1)) / columns;
+        widgets.add(new SectionLabelWidget(contentX, y, contentW, "Built-in Themes", "Browse and apply bundled themes"));
+        y += 26;
+
+        int columns = responsiveColumns(contentW, 3, 190);
+        int themeW = responsiveCardWidth(contentW, columns, gap);
         int index = 0;
 
         for (String themeId : ThemeManager.builtIns().keySet()) {
             int col = index % columns;
             int row = index / columns;
             int x = contentX + col * (themeW + gap);
-            int widgetY = y + row * 48;
+            int widgetY = y + row * (rowH + gap);
             String label = ThemeManager.builtIns().get(themeId).displayName();
 
-            widgets.add(new ToggleWidget(x, widgetY, themeW, label, "Switches the Atmosphere+ interface to the " + label + " theme.", () -> ConfigManager.get().theme.equals(themeId), v -> {
-                if (v) {
-                    ThemeManager.setTheme(themeId);
-                    themeStudioState.selectCurrentTheme();
-                }
+            widgets.add(new ChoiceButtonWidget(x, widgetY, themeW, label, "Built-in theme", IconType.THEMES, () -> ConfigManager.get().theme.equals(themeId), () -> {
+                ThemeManager.setTheme(themeId);
+                themeStudioState.selectCurrentTheme();
+                rebuildWidgets();
             }));
 
             index++;
         }
 
-        y += ((index + columns - 1) / columns) * 48 + 10;
+        y += ((index + columns - 1) / columns) * (rowH + gap);
         widgets.add(new SectionLabelWidget(contentX, y, contentW, "Custom Themes", "Custom theme library"));
-        y += 30;
+        y += 26;
 
         if (!CustomThemeManager.hasCustomThemes()) {
             widgets.add(new InfoCardWidget(
                     contentX,
                     y,
                     contentW,
-                    66,
+                    58,
                     "No custom themes yet",
                     "Open Theme Studio to create a theme or duplicate an existing one.",
                     IconType.THEMES
             ));
 
-            return y + 76;
+            return y + 58 + gap;
         }
 
         index = 0;
@@ -1324,20 +1347,19 @@ private int addAdvancedWidgets(int contentX, int contentY, int contentW) {
             int col = index % columns;
             int row = index / columns;
             int x = contentX + col * (themeW + gap);
-            int widgetY = y + row * 48;
+            int widgetY = y + row * (rowH + gap);
             String themeId = data.id;
 
-            widgets.add(new ToggleWidget(x, widgetY, themeW, data.displayName, "Apply this custom theme.", () -> ConfigManager.get().theme.equals(themeId), v -> {
-                if (v) {
-                    ThemeManager.setTheme(themeId);
-                    themeStudioState.selectTheme(themeId);
-                }
+            widgets.add(new ChoiceButtonWidget(x, widgetY, themeW, data.displayName, "Custom theme", IconType.THEMES, () -> ConfigManager.get().theme.equals(themeId), () -> {
+                ThemeManager.setTheme(themeId);
+                themeStudioState.selectTheme(themeId);
+                rebuildWidgets();
             }));
 
             index++;
         }
 
-        return y + ((index + columns - 1) / columns) * 48 + 10;
+        return y + ((index + columns - 1) / columns) * (rowH + gap) + gap;
     }
 
 private ThemeStudioPage.Actions themeStudioActions() {
@@ -4289,10 +4311,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return;
         }
 
-        int stickyOverlayBottom = (selected == UiCategory.THEME_STUDIO && !isSearching()) ? themeStudioState.stickyOverlayBottom() : -1;
+        ThemeStudioState.StickyOverlay stickyOverlay = (selected == UiCategory.THEME_STUDIO && !isSearching()) ? themeStudioState.stickyOverlay() : null;
 
         for (AtmosphereWidget widget : widgets) {
-            if (stickyOverlayBottom > 0 && mouseY < stickyOverlayBottom) {
+            if (stickyOverlay != null && stickyOverlay.contains(mouseX, mouseY)) {
                 continue;
             }
             if (widget.isHoveredPublic(mouseX, mouseY) && widget.getTooltip() != null && !widget.getTooltip().isEmpty()) {
@@ -4421,10 +4443,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             themeStudioState.setThemeSearchFocused(false);
         }
 
-        int stickyOverlayBottom = (selected == UiCategory.THEME_STUDIO && !isSearching()) ? themeStudioState.stickyOverlayBottom() : -1;
+        ThemeStudioState.StickyOverlay stickyOverlay = (selected == UiCategory.THEME_STUDIO && !isSearching()) ? themeStudioState.stickyOverlay() : null;
 
         for (AtmosphereWidget widget : widgets) {
-            if (stickyOverlayBottom > 0 && click.y() < stickyOverlayBottom) {
+            if (stickyOverlay != null && stickyOverlay.contains(click.x(), click.y())) {
                 continue;
             }
             if (widget.mouseClicked(click.x(), click.y(), click.button())) {

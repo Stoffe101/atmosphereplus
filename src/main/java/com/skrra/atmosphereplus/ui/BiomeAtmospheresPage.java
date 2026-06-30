@@ -74,71 +74,77 @@ public final class BiomeAtmospheresPage {
     }
 
     private static int addControls(List<AtmosphereWidget> widgets, Actions actions, BiomeAtmosphereConfig config, boolean cavePresetPickerOpen, int x, int y, int width) {
+        int gap = 10;
+
         widgets.add(new SectionLabelWidget(x, y, width, "Biome Atmospheres", "Client-side preset automation"));
-        y += 30;
+        y += 26;
 
         widgets.add(new InfoCardWidget(
                 x,
                 y,
                 width,
-                76,
+                64,
                 "Automation: " + automationStatusTitle(config),
                 automationStatusDescription(config),
                 IconType.SKY
         ));
-        y += 88;
+        y += 64 + gap;
 
-        widgets.add(new ToggleWidget(x, y, width, "Enable Biome Atmospheres", "Opt in to client-side biome preset automation.", () -> config.enabled, actions::setEnabled));
-        y += 46;
+        // Independent on/off toggles: compact into a multi-column row instead of stacking
+        // each one full-width.
+        int toggleCols = width >= 560 ? 3 : width >= 360 ? 2 : 1;
+        int toggleW = (width - gap * (toggleCols - 1)) / toggleCols;
+        int toggleRowH = 46;
+        int t = 0;
 
-        widgets.add(new ChoiceButtonWidget(x, y, width, config.paused ? "Resume Automation" : "Pause Automation", config.paused ? "Continue automatic biome preset changes." : "Temporarily stop automatic biome preset changes.", IconType.SKY, () -> !config.paused, () -> actions.setPaused(!config.paused)));
-        y += 46;
+        widgets.add(new ToggleWidget(x + (t % toggleCols) * (toggleW + gap), y + (t / toggleCols) * toggleRowH, toggleW, "Enable Biome Atmospheres", "Opt in to client-side biome preset automation.", () -> config.enabled, actions::setEnabled));
+        t++;
+        widgets.add(new ToggleWidget(x + (t % toggleCols) * (toggleW + gap), y + (t / toggleCols) * toggleRowH, toggleW, "Manual changes pause automation", "Pause automation when you manually change atmosphere settings.", () -> config.manualChangesPause, actions::setManualPause));
+        t++;
+        widgets.add(new ToggleWidget(x + (t % toggleCols) * (toggleW + gap), y + (t / toggleCols) * toggleRowH, toggleW, "Show Automation Toasts", "Show brief Biome Atmospheres status notifications.", () -> config.showAutomationToasts, actions::setShowAutomationToasts));
+        t++;
 
-        widgets.add(new ToggleWidget(x, y, width, "Manual changes pause automation", "Pause automation when you manually change atmosphere settings.", () -> config.manualChangesPause, actions::setManualPause));
-        y += 46;
+        y += ((t + toggleCols - 1) / toggleCols) * toggleRowH + gap;
 
-        widgets.add(new ToggleWidget(x, y, width, "Show Automation Toasts", "Show brief Biome Atmospheres status notifications.", () -> config.showAutomationToasts, actions::setShowAutomationToasts));
-        y += 46;
+        // Value-cycling choices: same treatment, grouped into their own grid (different
+        // widget height than the toggles above, so kept in a separate grid to stay aligned).
+        int choiceCols = width >= 560 ? 2 : 1;
+        int choiceW = (width - gap * (choiceCols - 1)) / choiceCols;
+        int choiceRowH = UiRender.V2_ROW_HEIGHT + 8;
+        int c = 0;
 
         widgets.add(new ChoiceButtonWidget(
-                x,
-                y,
-                width,
+                x + (c % choiceCols) * (choiceW + gap), y + (c / choiceCols) * choiceRowH, choiceW,
+                config.paused ? "Resume Automation" : "Pause Automation",
+                config.paused ? "Continue automatic biome preset changes." : "Temporarily stop automatic biome preset changes.",
+                IconType.SKY, () -> !config.paused, () -> actions.setPaused(!config.paused)
+        ));
+        c++;
+        widgets.add(new ChoiceButtonWidget(
+                x + (c % choiceCols) * (choiceW + gap), y + (c / choiceCols) * choiceRowH, choiceW,
                 "Transition Speed: " + TransitionSpeed.parse(config.transitionSpeed).label(),
                 "Ease-in-out speed used when applying mapped presets.",
-                IconType.TIME,
-                () -> TransitionSpeed.parse(config.transitionSpeed) != TransitionSpeed.INSTANT,
-                actions::cycleTransitionSpeed
+                IconType.TIME, () -> TransitionSpeed.parse(config.transitionSpeed) != TransitionSpeed.INSTANT, actions::cycleTransitionSpeed
         ));
-        y += 46;
-
+        c++;
         widgets.add(new ChoiceButtonWidget(
-                x,
-                y,
-                width,
+                x + (c % choiceCols) * (choiceW + gap), y + (c / choiceCols) * choiceRowH, choiceW,
                 "Minimum Biome Time: " + BiomeAtmosphereManager.minimumBiomeTimeLabel(config.minimumBiomeTimeMs),
                 "Wait this long in a biome category before transitioning.",
-                IconType.SKY,
-                () -> config.minimumBiomeTimeMs > 0,
-                actions::cycleMinimumBiomeTime
+                IconType.SKY, () -> config.minimumBiomeTimeMs > 0, actions::cycleMinimumBiomeTime
         ));
-        y += 54;
-
-        widgets.add(new SectionLabelWidget(x, y, width, "Cave Handling", "Underground automation behavior"));
-        y += 30;
+        c++;
 
         CaveHandlingMode caveMode = CaveHandlingMode.parse(config.caveHandlingMode);
         widgets.add(new ChoiceButtonWidget(
-                x,
-                y,
-                width,
+                x + (c % choiceCols) * (choiceW + gap), y + (c / choiceCols) * choiceRowH, choiceW,
                 "Cave Handling: " + caveMode.label(),
                 caveModeDescription(caveMode),
-                IconType.FOG,
-                () -> caveMode != CaveHandlingMode.IGNORE,
-                actions::cycleCaveHandlingMode
+                IconType.FOG, () -> caveMode != CaveHandlingMode.IGNORE, actions::cycleCaveHandlingMode
         ));
-        y += 46;
+        c++;
+
+        y += ((c + choiceCols - 1) / choiceCols) * choiceRowH + gap;
 
         if (caveMode == CaveHandlingMode.APPLY_CAVE_PRESET) {
             PresetReference cavePreset = PresetLibraryManager.reference(config.cavePresetId);
@@ -152,27 +158,27 @@ public final class BiomeAtmospheresPage {
                     cavePresetPickerOpen,
                     actions::toggleCavePresetPicker
             ));
-            y += 42;
+            y += 42 + gap / 2;
 
             if (cavePresetPickerOpen) {
-                y = addCavePresetPicker(widgets, actions, config.cavePresetId, x, y, width) + 8;
+                y = addCavePresetPicker(widgets, actions, config.cavePresetId, x, y, width) + gap / 2;
             }
         }
 
         widgets.add(new SectionLabelWidget(x, y, width, "Current Status", "Detected category and applied preset"));
-        y += 30;
+        y += 26;
 
         EnvironmentSnapshot environment = EnvironmentDetector.current();
         widgets.add(new InfoCardWidget(
                 x,
                 y,
                 width,
-                62,
+                58,
                 "Environment: " + environment.type().label(),
                 "Can See Sky: " + (environment.canSeeSky() ? "Yes" : "No") + " - Automation: " + BiomeAtmosphereManager.automationStateLabel(),
                 IconType.SKY
         ));
-        y += 74;
+        y += 58 + gap;
 
         PresetReference last = PresetLibraryManager.reference(config.lastAppliedPreset);
         String lastPreset = last == null ? "None" : last.displayName();
@@ -184,13 +190,13 @@ public final class BiomeAtmospheresPage {
                 x,
                 y,
                 width,
-                68,
+                62,
                 "Biome: " + BiomeAtmosphereManager.currentCategoryLabel(),
                 status,
                 IconType.PRESETS
         ));
 
-        return y + 80;
+        return y + 62 + gap;
     }
 
     private static String caveModeDescription(CaveHandlingMode mode) {
@@ -226,9 +232,9 @@ public final class BiomeAtmospheresPage {
 
     private static int addMappings(List<AtmosphereWidget> widgets, Actions actions, BiomeAtmosphereConfig config, BiomeCategory pickerCategory, int x, int y, int width) {
         widgets.add(new SectionLabelWidget(x, y, width, "Biome Mapping", "Category to preset"));
-        y += 30;
+        y += 26;
 
-        int columns = width >= 560 ? 2 : 1;
+        int columns = width >= 900 ? 3 : width >= 560 ? 2 : 1;
         int gap = 10;
         int columnW = (width - gap * (columns - 1)) / columns;
         int[] columnY = new int[columns];

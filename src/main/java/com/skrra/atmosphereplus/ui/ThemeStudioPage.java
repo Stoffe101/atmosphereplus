@@ -64,11 +64,11 @@ public final class ThemeStudioPage {
         if (spec.sidePreview()) {
             // Separate, non-overlapping columns: nothing can hide behind the preview here,
             // so no sticky-overlay click guard is needed for this layout.
-            state.setStickyOverlayBottom(-1);
+            state.clearStickyOverlay();
 
             int y = contentY;
             widgets.add(new StudioTabsWidget(contentX, y, contentW, actions::focusThemeSearch));
-            y += V2DesignTokens.TOP_BAR_HEIGHT_COMPACT;
+            y += V2DesignTokens.TAB_TO_CONTENT_GAP;
 
             y = addToolbar(widgets, state, actions, spec.editorX(), y, spec.editorW(), spec.compactDensity());
             int bodyTop = y;
@@ -87,11 +87,13 @@ public final class ThemeStudioPage {
         // the viewport so it never scrolls out of view, while everything else scrolls beneath it.
         int previewCardH = compactPreviewHeight(contentW);
         int previewBandH = previewCardH + 24;
-        state.setStickyOverlayBottom(viewportY + previewBandH + GAP);
+        // Block clicks/tooltips only inside the overlay's exact drawn rectangle (no extra
+        // padding folded in) so visible controls right below/beside it stay interactive.
+        state.setStickyOverlay(contentX, viewportY, contentW, previewBandH);
 
         int y = contentY + previewBandH + GAP;
         widgets.add(new StudioTabsWidget(contentX, y, contentW, actions::focusThemeSearch));
-        y += V2DesignTokens.TOP_BAR_HEIGHT_COMPACT;
+        y += V2DesignTokens.TAB_TO_CONTENT_GAP;
 
         y = addToolbar(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
         y = addSelectedThemeCard(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
@@ -122,19 +124,20 @@ public final class ThemeStudioPage {
                 new ToolbarItem("Library", "Reload custom themes from disk.", IconType.PRESETS, null, actions::reloadThemes),
         };
 
-        int columns = Math.max(2, Math.min(items.length, w / 104));
+        int columns = Math.max(2, Math.min(items.length, w / 112));
         int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
-        int rowH = compact ? 24 : 26;
+        int rowH = compact ? 26 : 28;
+        int rowStep = rowH + V2DesignTokens.TOOLBAR_ROW_GAP;
 
         for (int i = 0; i < items.length; i++) {
             ToolbarItem item = items[i];
             int bx = actionX(x, buttonW, columns, i);
-            int by = actionY(y, i, columns, rowH);
+            int by = y + (i / columns) * rowStep;
             widgets.add(new ToolbarButtonWidget(bx, by, buttonW, rowH, item.label(), item.tooltip(), item.icon(), item.active(), item.action()));
         }
 
         int rows = (items.length + columns - 1) / columns;
-        return y + rows * rowH + GAP;
+        return y + rows * rowStep - V2DesignTokens.TOOLBAR_ROW_GAP + GAP;
     }
 
     private static int addSelectedThemeCard(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean compact) {
@@ -329,24 +332,20 @@ public final class ThemeStudioPage {
 
     private static int previewHeight(int width) {
         if (width >= 430) {
-            return 176;
-        }
-        if (width >= 320) {
             return 188;
         }
-        return 202;
+        if (width >= 320) {
+            return 200;
+        }
+        return 214;
     }
 
     private static int compactPreviewHeight(int width) {
-        return width >= 360 ? 92 : 104;
+        return width >= 360 ? 100 : 112;
     }
 
     private static int actionX(int x, int buttonW, int columns, int index) {
         return x + (index % columns) * (buttonW + SMALL_GAP);
-    }
-
-    private static int actionY(int y, int index, int columns, int rowH) {
-        return y + (index / columns) * rowH;
     }
 
     private static int red(int color) {
@@ -437,14 +436,14 @@ public final class ThemeStudioPage {
             boolean active = activeSupplier != null && activeSupplier.get();
             UiRender.v2Card(context, x, y, width, height, hover, active);
 
-            int iconSize = Math.min(13, height - 8);
-            int iconX = x + 6;
+            int iconSize = Math.min(14, height - 10);
+            int iconX = x + 7;
             int iconY = y + (height - iconSize) / 2;
             UiRender.v2IconBox(context, iconX, iconY, iconSize, active || hover);
             IconRenderer.drawCentered(context, icon, iconX + iconSize / 2, iconY + iconSize / 2, Math.max(9, iconSize - 3));
 
-            int textX = iconX + iconSize + 6;
-            int textW = Math.max(0, x + width - textX - 6);
+            int textX = iconX + iconSize + 7;
+            int textW = Math.max(0, x + width - textX - 7);
             if (textW > 6) {
                 UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + (height - 8) / 2, active ? UiRender.V2_ACCENT : theme.text());
             }
@@ -526,24 +525,27 @@ public final class ThemeStudioPage {
             this.tooltip = "Click the hex field to type a color, or drag a red, green, or blue slider.";
         }
 
+        private static final int TAG_COLUMN_W = 14;
+        private static final int VALUE_COLUMN_W = 26;
+
         private int pad() {
             return compact ? 8 : 10;
         }
 
         private int headerH() {
-            return compact ? 22 : 26;
+            return compact ? 24 : 28;
         }
 
         private int channelRowH() {
-            return compact ? 15 : 17;
+            return compact ? 16 : 18;
         }
 
         private int channelGap() {
-            return compact ? 3 : 4;
+            return compact ? 4 : 5;
         }
 
         private int channelsTop() {
-            return y + pad() + headerH() + (compact ? 4 : 6);
+            return y + pad() + headerH() + (compact ? 5 : 7);
         }
 
         private int channelRowY(int channel) {
@@ -551,11 +553,11 @@ public final class ThemeStudioPage {
         }
 
         private int trackX() {
-            return x + pad() + 14;
+            return x + pad() + TAG_COLUMN_W;
         }
 
         private int trackW() {
-            return Math.max(20, width - pad() * 2 - 14 - 26);
+            return Math.max(24, width - pad() * 2 - TAG_COLUMN_W - VALUE_COLUMN_W);
         }
 
         private int hexW() {
@@ -564,6 +566,16 @@ public final class ThemeStudioPage {
 
         private int hexX() {
             return x + width - hexW() - pad();
+        }
+
+        private int hexH() {
+            return 18;
+        }
+
+        private int hexY() {
+            int swatch = compact ? 16 : 20;
+            int swatchCenterY = y + pad() + swatch / 2;
+            return swatchCenterY - hexH() / 2;
         }
 
         @Override
@@ -577,14 +589,16 @@ public final class ThemeStudioPage {
             int swatch = compact ? 16 : 20;
             int swatchX = x + pad;
             int swatchY = y + pad;
+            int swatchCenterY = swatchY + swatch / 2;
             UiRender.borderedRect(context, swatchX, swatchY, swatch, swatch, color, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
 
+            int hexY = hexY();
             int labelX = swatchX + swatch + 8;
             int labelW = Math.max(20, hexX() - labelX - 6);
-            UiRender.text(context, textRenderer, trim(textRenderer, token.label, labelW), labelX, swatchY + swatch / 2 - 4, UiRender.V2_TEXT);
+            UiRender.text(context, textRenderer, trim(textRenderer, token.label, labelW), labelX, swatchCenterY - 4, UiRender.V2_TEXT);
 
-            UiRender.borderedRect(context, hexX(), y + pad - 1, hexW(), 18, focused ? UiRender.V2_ACCENT_SOFT : UiRender.V2_PANEL_ALT, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
-            UiRender.centeredText(context, textRenderer, trim(textRenderer, state.hexInput(token), hexW() - 8), hexX() + hexW() / 2, y + pad + 5, focused ? UiRender.V2_TEXT : UiRender.V2_MUTED);
+            UiRender.borderedRect(context, hexX(), hexY, hexW(), hexH(), focused ? UiRender.V2_ACCENT_SOFT : UiRender.V2_PANEL_ALT, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
+            UiRender.centeredText(context, textRenderer, trim(textRenderer, state.hexInput(token), hexW() - 8), hexX() + hexW() / 2, hexY + 5, focused ? UiRender.V2_TEXT : UiRender.V2_MUTED);
 
             int[] values = {red(color), green(color), blue(color)};
             int trackX = trackX();
@@ -595,19 +609,23 @@ public final class ThemeStudioPage {
         }
 
         private void drawChannelSlider(DrawContext context, TextRenderer textRenderer, int rowY, int rowH, String tag, int value, int trackX, int trackW, int low, int high) {
-            UiRender.text(context, textRenderer, tag, x + pad(), rowY, UiRender.V2_MUTED);
+            int midY = rowY + rowH / 2;
 
-            int barY = rowY + rowH / 2 - 1;
+            UiRender.text(context, textRenderer, tag, x + pad(), midY - 4, high);
+
+            int barY = midY - 1;
             UiRender.rect(context, trackX, barY, trackW, 3, UiRender.V2_PANEL_ALT);
-            int filled = Math.max(1, trackW * value / 255);
+            int filled = Math.max(2, trackW * value / 255);
             UiRender.gradientHorizontal(context, trackX, barY, filled, 3, low, high);
 
-            int knobX = trackX + filled;
-            context.fill(knobX - 2, barY - 3, knobX + 2, barY + 6, 0xFFFAFAFA);
-            context.fill(knobX - 1, barY - 2, knobX + 1, barY + 5, high);
+            int knobX = trackX + filled - 1;
+            int knobH = rowH - 4;
+            context.fill(knobX - 3, midY - knobH / 2, knobX + 3, midY + knobH / 2, 0xFFFAFAFA);
+            context.fill(knobX - 2, midY - knobH / 2 + 1, knobX + 2, midY + knobH / 2 - 1, high);
 
             String valueText = String.valueOf(value);
-            UiRender.text(context, textRenderer, valueText, trackX + trackW + 6, rowY, UiRender.V2_MUTED);
+            int valueX = trackX + trackW + VALUE_COLUMN_W - textRenderer.getWidth(valueText) - 2;
+            UiRender.text(context, textRenderer, valueText, valueX, midY - 4, UiRender.V2_MUTED);
         }
 
         private int channelAt(double mouseX, double mouseY) {
@@ -615,7 +633,7 @@ public final class ThemeStudioPage {
             int trackW = trackW();
             for (int channel = 0; channel < 3; channel++) {
                 int rowY = channelRowY(channel);
-                if (UiRender.hovered(mouseX, mouseY, trackX - 4, rowY - 2, trackW + 8, channelRowH() + 4)) {
+                if (UiRender.hovered(mouseX, mouseY, trackX - 5, rowY - 3, trackW + 10, channelRowH() + 6)) {
                     return channel;
                 }
             }
@@ -640,7 +658,7 @@ public final class ThemeStudioPage {
                 return false;
             }
 
-            if (UiRender.hovered(mouseX, mouseY, hexX(), y + pad() - 1, hexW(), 18)) {
+            if (UiRender.hovered(mouseX, mouseY, hexX(), hexY(), hexW(), hexH())) {
                 state.focusHex(token);
                 return true;
             }
@@ -738,7 +756,12 @@ public final class ThemeStudioPage {
                 UiRender.borderedRect(context, innerX + buttonW + 8, buttonY, buttonW, 24, UiRender.V2_PANEL_ALT, UiRender.V2_BORDER);
                 UiRender.centeredText(context, textRenderer, "Button", innerX + buttonW + 8 + buttonW / 2, buttonY + 8, theme.mutedText());
 
-                UiRender.gradientHorizontal(context, innerX, y + height - 14, innerW, 4, theme.accentSoft(), theme.accent());
+                // Only draw the accent strip where it actually has clearance below the button
+                // row, otherwise it visually collides with it on short cards.
+                int stripY = buttonY + 24 + 6;
+                if (stripY + 4 <= y + height - 4) {
+                    UiRender.gradientHorizontal(context, innerX, stripY, innerW, 4, theme.accentSoft(), theme.accent());
+                }
                 return;
             }
 

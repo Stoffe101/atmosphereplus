@@ -56,17 +56,30 @@ public class ThemeStudioState {
     private String themeSearch = "";
     private boolean themeSearchFocused = false;
     private final Map<String, String> hexInputs = new HashMap<>();
-    // Bottom Y of the sticky live-preview overlay in compact layouts (screen space), or -1 when
-    // inactive. Editor widgets that have scrolled underneath the opaque overlay must not be
-    // clickable there, since they are still visually painted over by it.
-    private int stickyOverlayBottom = -1;
+    // Exact screen-space rectangle of the sticky live-preview overlay in compact layouts, or
+    // null when inactive (e.g. wide/side-preview layouts, where the preview sits in its own
+    // non-overlapping column and nothing can hide behind it). Editor widgets that have scrolled
+    // underneath the opaque overlay must not be clickable there, since they are still visually
+    // painted over by it — but only exactly where the overlay is actually drawn, not a wider
+    // band, or visible controls beside/below it would be blocked too.
+    private StickyOverlay stickyOverlay = null;
 
-    public int stickyOverlayBottom() {
-        return stickyOverlayBottom;
+    public record StickyOverlay(int x, int y, int width, int height) {
+        public boolean contains(double pointX, double pointY) {
+            return pointX >= x && pointX <= x + width && pointY >= y && pointY <= y + height;
+        }
     }
 
-    public void setStickyOverlayBottom(int y) {
-        stickyOverlayBottom = y;
+    public StickyOverlay stickyOverlay() {
+        return stickyOverlay;
+    }
+
+    public void setStickyOverlay(int x, int y, int width, int height) {
+        stickyOverlay = new StickyOverlay(x, y, width, height);
+    }
+
+    public void clearStickyOverlay() {
+        stickyOverlay = null;
     }
 
     public String selectedThemeId() {

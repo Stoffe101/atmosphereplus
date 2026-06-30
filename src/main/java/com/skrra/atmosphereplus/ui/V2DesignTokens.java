@@ -41,8 +41,8 @@ public final class V2DesignTokens {
     public static final int NAV_ROW_HEIGHT_COMPACT = 21;
     public static final int ACTION_CARD_HEIGHT = 38;
     public static final int ACTION_CARD_HEIGHT_COMPACT = 32;
-    public static final int SETTING_CARD_HEIGHT = 118;
-    public static final int SETTING_CARD_HEIGHT_COMPACT = 96;
+    public static final int SETTING_CARD_HEIGHT = 124;
+    public static final int SETTING_CARD_HEIGHT_COMPACT = 104;
     public static final int ICON_BOX_SIZE = 22;
     public static final int ICON_BOX_SIZE_COMPACT = 18;
     public static final int BUTTON_HEIGHT = 34;
@@ -50,6 +50,8 @@ public final class V2DesignTokens {
     public static final int SLIDER_HEIGHT = 44;
     public static final int PREVIEW_MIN_WIDTH = 230;
     public static final int PREVIEW_MAX_WIDTH = 320;
+    public static final int TAB_TO_CONTENT_GAP = 8;
+    public static final int TOOLBAR_ROW_GAP = 4;
 
     private V2DesignTokens() {
     }
