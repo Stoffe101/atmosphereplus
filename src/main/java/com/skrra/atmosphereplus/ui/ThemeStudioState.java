@@ -56,6 +56,18 @@ public class ThemeStudioState {
     private String themeSearch = "";
     private boolean themeSearchFocused = false;
     private final Map<String, String> hexInputs = new HashMap<>();
+    // Bottom Y of the sticky live-preview overlay in compact layouts (screen space), or -1 when
+    // inactive. Editor widgets that have scrolled underneath the opaque overlay must not be
+    // clickable there, since they are still visually painted over by it.
+    private int stickyOverlayBottom = -1;
+
+    public int stickyOverlayBottom() {
+        return stickyOverlayBottom;
+    }
+
+    public void setStickyOverlayBottom(int y) {
+        stickyOverlayBottom = y;
+    }
 
     public String selectedThemeId() {
         resolveSelectedThemeId();

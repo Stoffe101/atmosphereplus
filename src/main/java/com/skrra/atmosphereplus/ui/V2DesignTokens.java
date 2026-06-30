@@ -41,8 +41,8 @@ public final class V2DesignTokens {
     public static final int NAV_ROW_HEIGHT_COMPACT = 21;
     public static final int ACTION_CARD_HEIGHT = 38;
     public static final int ACTION_CARD_HEIGHT_COMPACT = 32;
-    public static final int SETTING_CARD_HEIGHT = 86;
-    public static final int SETTING_CARD_HEIGHT_COMPACT = 72;
+    public static final int SETTING_CARD_HEIGHT = 118;
+    public static final int SETTING_CARD_HEIGHT_COMPACT = 96;
     public static final int ICON_BOX_SIZE = 22;
     public static final int ICON_BOX_SIZE_COMPACT = 18;
     public static final int BUTTON_HEIGHT = 34;

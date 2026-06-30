@@ -4289,7 +4289,12 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return;
         }
 
+        int stickyOverlayBottom = (selected == UiCategory.THEME_STUDIO && !isSearching()) ? themeStudioState.stickyOverlayBottom() : -1;
+
         for (AtmosphereWidget widget : widgets) {
+            if (stickyOverlayBottom > 0 && mouseY < stickyOverlayBottom) {
+                continue;
+            }
             if (widget.isHoveredPublic(mouseX, mouseY) && widget.getTooltip() != null && !widget.getTooltip().isEmpty()) {
                 drawV2Tooltip(context, widget.getTooltip(), mouseX, mouseY);
                 return;
@@ -4416,7 +4421,12 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             themeStudioState.setThemeSearchFocused(false);
         }
 
+        int stickyOverlayBottom = (selected == UiCategory.THEME_STUDIO && !isSearching()) ? themeStudioState.stickyOverlayBottom() : -1;
+
         for (AtmosphereWidget widget : widgets) {
+            if (stickyOverlayBottom > 0 && click.y() < stickyOverlayBottom) {
+                continue;
+            }
             if (widget.mouseClicked(click.x(), click.y(), click.button())) {
                 return true;
             }

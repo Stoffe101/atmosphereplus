@@ -14,6 +14,7 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 public final class ThemeStudioPage {
     private static final int GAP = V2DesignTokens.SECTION_GAP;
@@ -60,48 +61,80 @@ public final class ThemeStudioPage {
         int viewportHeight = Math.max(0, viewportBottom - viewportY);
         V2Layout.ThemeStudioSpec spec = V2Layout.themeStudio(contentX, contentW, viewportHeight);
 
-        int y = contentY;
+        if (spec.sidePreview()) {
+            // Separate, non-overlapping columns: nothing can hide behind the preview here,
+            // so no sticky-overlay click guard is needed for this layout.
+            state.setStickyOverlayBottom(-1);
+
+            int y = contentY;
+            widgets.add(new StudioTabsWidget(contentX, y, contentW, actions::focusThemeSearch));
+            y += V2DesignTokens.TOP_BAR_HEIGHT_COMPACT;
+
+            y = addToolbar(widgets, state, actions, spec.editorX(), y, spec.editorW(), spec.compactDensity());
+            int bodyTop = y;
+
+            int leftY = addSelectedThemeCard(widgets, state, actions, spec.editorX(), bodyTop, spec.editorW(), spec.compactDensity());
+            leftY = addEditorSection(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.columns(), spec.compactDensity());
+            leftY = addLibrarySection(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.compactDensity());
+
+            int previewCardH = previewHeight(spec.previewW());
+            addLivePreviewSection(widgets, state, spec.previewX(), viewportY, spec.previewW(), previewCardH, false);
+
+            return leftY + GAP;
+        }
+
+        // Compact/stacked layout: the live preview becomes a sticky band pinned to the top of
+        // the viewport so it never scrolls out of view, while everything else scrolls beneath it.
+        int previewCardH = compactPreviewHeight(contentW);
+        int previewBandH = previewCardH + 24;
+        state.setStickyOverlayBottom(viewportY + previewBandH + GAP);
+
+        int y = contentY + previewBandH + GAP;
         widgets.add(new StudioTabsWidget(contentX, y, contentW, actions::focusThemeSearch));
         y += V2DesignTokens.TOP_BAR_HEIGHT_COMPACT;
 
-        y = addTopActionRow(widgets, state, actions, contentX, y, spec.sidePreview() ? spec.editorW() : contentW, spec.actionColumns(), spec.compactDensity());
-        int bodyTop = y;
+        y = addToolbar(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
+        y = addSelectedThemeCard(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
+        y = addEditorSection(widgets, state, actions, contentX, y, contentW, spec.columns(), spec.compactDensity());
+        y = addLibrarySection(widgets, state, actions, contentX, y, contentW, spec.compactDensity());
+        int finalY = y + GAP;
 
-        int leftY = addSelectedThemeCard(widgets, state, actions, spec.editorX(), bodyTop, spec.editorW(), spec.compactDensity());
-        leftY = addEditorSection(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.columns(), spec.compactDensity());
+        // Added last so it paints over anything that has scrolled underneath it.
+        addLivePreviewSection(widgets, state, contentX, viewportY, contentW, previewCardH, true);
 
-        if (spec.sidePreview()) {
-            leftY = addPrimaryActions(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.compactDensity());
-            leftY = addLibrarySection(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.compactDensity());
-            leftY = addSecondaryActions(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.compactDensity());
-            int previewY = addLivePreviewSection(widgets, state, spec.previewX(), bodyTop, spec.previewW(), spec.compactDensity());
-            return Math.max(leftY, previewY) + GAP;
-        }
-
-        leftY = addCompactLivePreviewSection(widgets, state, contentX, leftY, contentW);
-        leftY = addPrimaryActions(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.compactDensity());
-        leftY = addLibrarySection(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.compactDensity());
-        leftY = addSecondaryActions(widgets, state, actions, spec.editorX(), leftY, spec.editorW(), spec.compactDensity());
-        return leftY + GAP;
+        return finalY;
     }
 
-    private static int addTopActionRow(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, int columns, boolean compact) {
+    private record ToolbarItem(String label, String tooltip, IconType icon, Supplier<Boolean> active, Runnable action) {
+    }
+
+    private static int addToolbar(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean compact) {
+        ToolbarItem[] items = {
+                new ToolbarItem("Create", "Create a new custom theme.", IconType.THEMES, null, actions::createTheme),
+                new ToolbarItem("Duplicate", "Duplicate the selected theme into a new custom theme.", IconType.PRESETS, null, () -> actions.duplicateTheme(state.selectedThemeId())),
+                new ToolbarItem("Save", "Save changes to the selected theme.", IconType.THEMES, null, () -> actions.saveTheme(state.selectedThemeId())),
+                new ToolbarItem("Reset", "Reset the draft to its base theme.", IconType.FOG, null, actions::resetTheme),
+                new ToolbarItem(state.advancedMode() ? "Simple Mode" : "Advanced Mode", state.advancedMode() ? "Return to core color cards." : "Show grouped color controls.", IconType.ADVANCED, state::advancedMode, actions::toggleAdvancedMode),
+                new ToolbarItem("Revert", "Discard unsaved edits.", IconType.PRESETS, null, actions::revertTheme),
+                new ToolbarItem("Delete", "Delete the selected custom theme.", IconType.ADVANCED, null, () -> actions.deleteTheme(state.selectedThemeId())),
+                new ToolbarItem("Export", "Export the selected custom theme.", IconType.THEMES, null, () -> actions.exportTheme(state.selectedThemeId())),
+                new ToolbarItem("Import", "Import a theme from config.", IconType.PRESETS, null, actions::importTheme),
+                new ToolbarItem("Library", "Reload custom themes from disk.", IconType.PRESETS, null, actions::reloadThemes),
+        };
+
+        int columns = Math.max(2, Math.min(items.length, w / 104));
         int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
-        int index = 0;
+        int rowH = compact ? 24 : 26;
 
-        int rowH = compact ? 36 : 42;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, "Create", "New theme", IconType.THEMES, actions::createTheme));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, "Duplicate", "Copy theme", IconType.PRESETS, () -> actions.duplicateTheme(state.selectedThemeId())));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, state.dirty() ? "Save" : "Save", "Save changes", IconType.THEMES, () -> actions.saveTheme(state.selectedThemeId())));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, "Reset", "Reset draft", IconType.FOG, actions::resetTheme));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, "Library", "Reload themes", IconType.PRESETS, actions::reloadThemes));
-        index++;
+        for (int i = 0; i < items.length; i++) {
+            ToolbarItem item = items[i];
+            int bx = actionX(x, buttonW, columns, i);
+            int by = actionY(y, i, columns, rowH);
+            widgets.add(new ToolbarButtonWidget(bx, by, buttonW, rowH, item.label(), item.tooltip(), item.icon(), item.active(), item.action()));
+        }
 
-        return y + ((index + columns - 1) / columns) * rowH + GAP;
+        int rows = (items.length + columns - 1) / columns;
+        return y + rows * rowH + GAP;
     }
 
     private static int addSelectedThemeCard(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean compact) {
@@ -252,9 +285,7 @@ public final class ThemeStudioPage {
                     ThemeStudioState.Token.TEXT,
                     ThemeStudioState.Token.MUTED_TEXT
             };
-            y = addColorCardGrid(widgets, state, x, y, w, columns, compact, tokens);
-            widgets.add(new ActionButtonWidget(x, y, w, "Advanced Options", "Tweaks for all theme tokens.", IconType.ADVANCED, actions::toggleAdvancedMode));
-            return y + (compact ? 38 : 42) + GAP;
+            return addColorCardGrid(widgets, state, x, y, w, columns, compact, tokens) + GAP;
         }
 
         for (ThemeStudioState.EditorSection section : ThemeStudioState.EditorSection.values()) {
@@ -278,19 +309,6 @@ public final class ThemeStudioPage {
         return y + GAP;
     }
 
-    private static int addPrimaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean compact) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Mode", "Editor controls"));
-        y += 28;
-
-        int columns = w >= 430 ? 2 : 1;
-        int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
-
-        widgets.add(new ActionButtonWidget(x, y, buttonW, state.advancedMode() ? "Simple Mode" : "Advanced Mode", state.advancedMode() ? "Return to core color cards." : "Show grouped color controls.", IconType.ADVANCED, actions::toggleAdvancedMode));
-        widgets.add(new ActionButtonWidget(x + (columns > 1 ? buttonW + SMALL_GAP : 0), y + (columns > 1 ? 0 : 40), buttonW, "Revert", "Discard unsaved edits.", IconType.PRESETS, actions::revertTheme));
-
-        return y + (columns > 1 ? (compact ? 36 : 40) : (compact ? 72 : 80)) + GAP;
-    }
-
     private static int addColorCardGrid(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w, int columns, boolean compact, ThemeStudioState.Token[] tokens) {
         columns = Math.max(1, Math.min(columns, w >= 430 ? 2 : 1));
         int cardH = compact ? V2DesignTokens.SETTING_CARD_HEIGHT_COMPACT : V2DesignTokens.SETTING_CARD_HEIGHT;
@@ -303,20 +321,10 @@ public final class ThemeStudioPage {
         return y + ((tokens.length + columns - 1) / columns) * (cardH + SMALL_GAP);
     }
 
-    private static int addLivePreviewSection(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w, boolean compact) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Live Preview", state.dirty() ? "Unsaved Changes" : "Current preview"));
-        y += 28;
-        int previewH = compact ? compactPreviewHeight(w) + 58 : previewHeight(w);
-        widgets.add(new ThemePreviewWidget(x, y, w, previewH, state, compact));
-        return y + previewH + GAP;
-    }
-
-    private static int addCompactLivePreviewSection(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Compact Preview", state.dirty() ? "Unsaved Changes" : "Current preview"));
-        y += 28;
-        int previewH = compactPreviewHeight(w);
-        widgets.add(new ThemePreviewWidget(x, y, w, previewH, state, true));
-        return y + previewH + SMALL_GAP;
+    private static void addLivePreviewSection(List<AtmosphereWidget> widgets, ThemeStudioState state, int x, int y, int w, int previewCardH, boolean compact) {
+        widgets.add(new SectionLabelWidget(x, y, w, compact ? "Live Preview (sticky)" : "Live Preview", state.dirty() ? "Unsaved Changes" : "Current preview"));
+        y += 24;
+        widgets.add(new ThemePreviewWidget(x, y, w, previewCardH, state, compact));
     }
 
     private static int previewHeight(int width) {
@@ -331,27 +339,6 @@ public final class ThemeStudioPage {
 
     private static int compactPreviewHeight(int width) {
         return width >= 360 ? 92 : 104;
-    }
-
-    private static int addSecondaryActions(List<AtmosphereWidget> widgets, ThemeStudioState state, Actions actions, int x, int y, int w, boolean compact) {
-        widgets.add(new SectionLabelWidget(x, y, w, "Library Tools", "Import and cleanup"));
-        y += 28;
-
-        int columns = w >= 430 ? 2 : 1;
-        int buttonW = (w - SMALL_GAP * (columns - 1)) / columns;
-        int index = 0;
-
-        int rowH = compact ? 36 : 40;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, "Delete", "Delete the selected custom theme.", IconType.ADVANCED, () -> actions.deleteTheme(state.selectedThemeId())));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, "Export Theme", "Export selected custom theme.", IconType.THEMES, () -> actions.exportTheme(state.selectedThemeId())));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, "Import Theme", "Import theme from config.", IconType.PRESETS, actions::importTheme));
-        index++;
-        widgets.add(new ActionButtonWidget(actionX(x, buttonW, columns, index), actionY(y, index, columns, rowH), buttonW, "Reload", "Reload custom themes from disk.", IconType.ADVANCED, actions::reloadThemes));
-        index++;
-
-        return y + ((index + columns - 1) / columns) * rowH + GAP;
     }
 
     private static int actionX(int x, int buttonW, int columns, int index) {
@@ -428,6 +415,51 @@ public final class ThemeStudioPage {
         }
     }
 
+    private static final class ToolbarButtonWidget extends AtmosphereWidget {
+        private final String label;
+        private final IconType icon;
+        private final Supplier<Boolean> activeSupplier;
+        private final Runnable action;
+
+        private ToolbarButtonWidget(int x, int y, int width, int height, String label, String tooltip, IconType icon, Supplier<Boolean> activeSupplier, Runnable action) {
+            super(x, y, width, height);
+            this.label = label;
+            this.icon = icon;
+            this.activeSupplier = activeSupplier;
+            this.action = action;
+            this.tooltip = tooltip;
+        }
+
+        @Override
+        public void render(DrawContext context, TextRenderer textRenderer, int mouseX, int mouseY, float delta) {
+            Theme theme = ThemeManager.current();
+            boolean hover = isHovered(mouseX, mouseY);
+            boolean active = activeSupplier != null && activeSupplier.get();
+            UiRender.v2Card(context, x, y, width, height, hover, active);
+
+            int iconSize = Math.min(13, height - 8);
+            int iconX = x + 6;
+            int iconY = y + (height - iconSize) / 2;
+            UiRender.v2IconBox(context, iconX, iconY, iconSize, active || hover);
+            IconRenderer.drawCentered(context, icon, iconX + iconSize / 2, iconY + iconSize / 2, Math.max(9, iconSize - 3));
+
+            int textX = iconX + iconSize + 6;
+            int textW = Math.max(0, x + width - textX - 6);
+            if (textW > 6) {
+                UiRender.text(context, textRenderer, trim(textRenderer, label, textW), textX, y + (height - 8) / 2, active ? UiRender.V2_ACCENT : theme.text());
+            }
+        }
+
+        @Override
+        public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (button == 0 && isHovered(mouseX, mouseY)) {
+                action.run();
+                return true;
+            }
+            return false;
+        }
+    }
+
     private static final class SelectedThemeWidget extends AtmosphereWidget {
         private final String name;
         private final String status;
@@ -477,16 +509,61 @@ public final class ThemeStudioPage {
     }
 
     private static final class ThemeColorCardWidget extends AtmosphereWidget {
+        private static final int[] CHANNEL_LOW = {0xFF5A1E30, 0xFF17422A, 0xFF172D58};
+        private static final int[] CHANNEL_HIGH = {0xFFFF5E8B, 0xFF6BFFB8, 0xFF6D88FF};
+        private static final String[] CHANNEL_TAG = {"R", "G", "B"};
+
         private final ThemeStudioState state;
         private final ThemeStudioState.Token token;
         private final boolean compact;
+        private int draggingChannel = -1;
 
         private ThemeColorCardWidget(int x, int y, int width, int height, ThemeStudioState state, ThemeStudioState.Token token, boolean compact) {
             super(x, y, width, height);
             this.state = state;
             this.token = token;
             this.compact = compact;
-            this.tooltip = "Click the hex field to type a color, or click a red, green, or blue strip.";
+            this.tooltip = "Click the hex field to type a color, or drag a red, green, or blue slider.";
+        }
+
+        private int pad() {
+            return compact ? 8 : 10;
+        }
+
+        private int headerH() {
+            return compact ? 22 : 26;
+        }
+
+        private int channelRowH() {
+            return compact ? 15 : 17;
+        }
+
+        private int channelGap() {
+            return compact ? 3 : 4;
+        }
+
+        private int channelsTop() {
+            return y + pad() + headerH() + (compact ? 4 : 6);
+        }
+
+        private int channelRowY(int channel) {
+            return channelsTop() + channel * (channelRowH() + channelGap());
+        }
+
+        private int trackX() {
+            return x + pad() + 14;
+        }
+
+        private int trackW() {
+            return Math.max(20, width - pad() * 2 - 14 - 26);
+        }
+
+        private int hexW() {
+            return Math.min(94, Math.max(68, width / 3));
+        }
+
+        private int hexX() {
+            return x + width - hexW() - pad();
         }
 
         @Override
@@ -496,27 +573,65 @@ public final class ThemeStudioPage {
             int color = state.color(token);
             UiRender.v2Card(context, x, y, width, height, hover, focused);
 
-            int pad = compact ? 8 : 10;
-            int swatch = compact ? 18 : 22;
-            UiRender.borderedRect(context, x + pad, y + pad + 18, swatch, swatch, color, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
+            int pad = pad();
+            int swatch = compact ? 16 : 20;
+            int swatchX = x + pad;
+            int swatchY = y + pad;
+            UiRender.borderedRect(context, swatchX, swatchY, swatch, swatch, color, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
 
-            UiRender.text(context, textRenderer, trim(textRenderer, token.label, width - pad * 2 - 18), x + pad, y + pad, UiRender.V2_TEXT);
-            int hexW = Math.min(94, Math.max(68, width / 3));
-            int hexX = x + width - hexW - pad;
-            UiRender.borderedRect(context, hexX, y + pad + 16, hexW, 20, focused ? UiRender.V2_ACCENT_SOFT : UiRender.V2_PANEL_ALT, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
-            UiRender.centeredText(context, textRenderer, trim(textRenderer, state.hexInput(token), hexW - 8), hexX + hexW / 2, y + pad + 22, focused ? UiRender.V2_TEXT : UiRender.V2_MUTED);
+            int labelX = swatchX + swatch + 8;
+            int labelW = Math.max(20, hexX() - labelX - 6);
+            UiRender.text(context, textRenderer, trim(textRenderer, token.label, labelW), labelX, swatchY + swatch / 2 - 4, UiRender.V2_TEXT);
 
-            int stripX = x + pad;
-            int stripY = y + height - (compact ? 24 : 30);
-            int stripW = width - pad * 2;
-            drawChannel(context, stripX, stripY, stripW, red(color), 0xFF5A1E30, 0xFFFF5E8B);
-            drawChannel(context, stripX, stripY + 7, stripW, green(color), 0xFF17422A, 0xFF6BFFB8);
-            drawChannel(context, stripX, stripY + 14, stripW, blue(color), 0xFF172D58, 0xFF6D88FF);
+            UiRender.borderedRect(context, hexX(), y + pad - 1, hexW(), 18, focused ? UiRender.V2_ACCENT_SOFT : UiRender.V2_PANEL_ALT, focused ? UiRender.V2_ACCENT : UiRender.V2_BORDER);
+            UiRender.centeredText(context, textRenderer, trim(textRenderer, state.hexInput(token), hexW() - 8), hexX() + hexW() / 2, y + pad + 5, focused ? UiRender.V2_TEXT : UiRender.V2_MUTED);
+
+            int[] values = {red(color), green(color), blue(color)};
+            int trackX = trackX();
+            int trackW = trackW();
+            for (int channel = 0; channel < 3; channel++) {
+                drawChannelSlider(context, textRenderer, channelRowY(channel), channelRowH(), CHANNEL_TAG[channel], values[channel], trackX, trackW, CHANNEL_LOW[channel], CHANNEL_HIGH[channel]);
+            }
         }
 
-        private void drawChannel(DrawContext context, int sx, int sy, int sw, int value, int low, int high) {
-            UiRender.rect(context, sx, sy, sw, 3, UiRender.V2_PANEL_ALT);
-            UiRender.gradientHorizontal(context, sx, sy, Math.max(1, sw * value / 255), 3, low, high);
+        private void drawChannelSlider(DrawContext context, TextRenderer textRenderer, int rowY, int rowH, String tag, int value, int trackX, int trackW, int low, int high) {
+            UiRender.text(context, textRenderer, tag, x + pad(), rowY, UiRender.V2_MUTED);
+
+            int barY = rowY + rowH / 2 - 1;
+            UiRender.rect(context, trackX, barY, trackW, 3, UiRender.V2_PANEL_ALT);
+            int filled = Math.max(1, trackW * value / 255);
+            UiRender.gradientHorizontal(context, trackX, barY, filled, 3, low, high);
+
+            int knobX = trackX + filled;
+            context.fill(knobX - 2, barY - 3, knobX + 2, barY + 6, 0xFFFAFAFA);
+            context.fill(knobX - 1, barY - 2, knobX + 1, barY + 5, high);
+
+            String valueText = String.valueOf(value);
+            UiRender.text(context, textRenderer, valueText, trackX + trackW + 6, rowY, UiRender.V2_MUTED);
+        }
+
+        private int channelAt(double mouseX, double mouseY) {
+            int trackX = trackX();
+            int trackW = trackW();
+            for (int channel = 0; channel < 3; channel++) {
+                int rowY = channelRowY(channel);
+                if (UiRender.hovered(mouseX, mouseY, trackX - 4, rowY - 2, trackW + 8, channelRowH() + 4)) {
+                    return channel;
+                }
+            }
+            return -1;
+        }
+
+        private void applyChannel(int channel, double mouseX) {
+            int trackX = trackX();
+            int trackW = trackW();
+            int value = Math.max(0, Math.min(255, (int) Math.round((mouseX - trackX) * 255.0D / Math.max(1, trackW))));
+            int color = state.color(token);
+            switch (channel) {
+                case 0 -> state.setColor(token, replaceRed(color, value));
+                case 1 -> state.setColor(token, replaceGreen(color, value));
+                default -> state.setColor(token, replaceBlue(color, value));
+            }
         }
 
         @Override
@@ -525,33 +640,39 @@ public final class ThemeStudioPage {
                 return false;
             }
 
-            int pad = compact ? 8 : 10;
-            int stripY = y + height - (compact ? 24 : 30);
-            int stripW = width - pad * 2;
-            int stripX = x + pad;
-            int channel = -1;
-            if (UiRender.hovered(mouseX, mouseY, stripX, stripY - 3, stripW, 8)) {
-                channel = 0;
-            } else if (UiRender.hovered(mouseX, mouseY, stripX, stripY + 4, stripW, 8)) {
-                channel = 1;
-            } else if (UiRender.hovered(mouseX, mouseY, stripX, stripY + 11, stripW, 8)) {
-                channel = 2;
+            if (UiRender.hovered(mouseX, mouseY, hexX(), y + pad() - 1, hexW(), 18)) {
+                state.focusHex(token);
+                return true;
             }
 
+            int channel = channelAt(mouseX, mouseY);
             if (channel >= 0) {
-                int value = Math.max(0, Math.min(255, (int) ((mouseX - stripX) * 255.0D / Math.max(1, stripW))));
-                int color = state.color(token);
-                if (channel == 0) {
-                    state.setColor(token, replaceRed(color, value));
-                } else if (channel == 1) {
-                    state.setColor(token, replaceGreen(color, value));
-                } else {
-                    state.setColor(token, replaceBlue(color, value));
-                }
+                draggingChannel = channel;
+                applyChannel(channel, mouseX);
+                state.focusHex(token);
+                return true;
             }
 
             state.focusHex(token);
             return true;
+        }
+
+        @Override
+        public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+            if (button == 0 && draggingChannel >= 0) {
+                applyChannel(draggingChannel, mouseX);
+                return true;
+            }
+            return false;
+        }
+
+        @Override
+        public boolean mouseReleased(double mouseX, double mouseY, int button) {
+            if (button == 0 && draggingChannel >= 0) {
+                draggingChannel = -1;
+                return true;
+            }
+            return false;
         }
     }
 
