@@ -435,8 +435,8 @@ public final class PresetLibraryManager {
     }
 
     public static void loadCustomPresets() {
-        CUSTOM_PRESETS.clear();
         if (!Files.exists(CUSTOM_PRESETS_PATH)) {
+            CUSTOM_PRESETS.clear();
             saveCustomPresets();
             return;
         }
@@ -444,19 +444,20 @@ public final class PresetLibraryManager {
         try {
             CustomPresetFile file = GSON.fromJson(Files.readString(CUSTOM_PRESETS_PATH), CustomPresetFile.class);
             if (file == null || file.presets == null) {
-                saveCustomPresets();
                 return;
             }
 
+            Map<String, CustomPresetData> staged = new LinkedHashMap<>();
             for (CustomPresetData data : file.presets) {
                 if (isValidCustomPreset(data)) {
-                    data.id = uniqueId(slug(data.id));
-                    CUSTOM_PRESETS.put(data.id, data);
+                    data.id = uniqueLoadedId(slug(data.id), staged.keySet());
+                    staged.put(data.id, data);
                 }
             }
-        } catch (Exception ignored) {
+
             CUSTOM_PRESETS.clear();
-            saveCustomPresets();
+            CUSTOM_PRESETS.putAll(staged);
+        } catch (Exception ignored) {
         }
     }
 
@@ -538,6 +539,16 @@ public final class PresetLibraryManager {
         String candidate = cleaned;
         int suffix = 2;
         while (BUILT_INS.containsKey(candidate) || CUSTOM_PRESETS.containsKey(candidate) || reservedIds.contains(candidate)) {
+            candidate = cleaned + "_" + suffix++;
+        }
+        return candidate;
+    }
+
+    private static String uniqueLoadedId(String base, Set<String> reservedIds) {
+        String cleaned = base == null || base.isBlank() ? "custom_preset" : base;
+        String candidate = cleaned;
+        int suffix = 2;
+        while (BUILT_INS.containsKey(candidate) || reservedIds.contains(candidate)) {
             candidate = cleaned + "_" + suffix++;
         }
         return candidate;

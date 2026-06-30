@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, for example 0.4.0-beta.2 or 0.4.0"
+        description: "Release version, for example 0.4.0 or 0.4.0-beta.2"
         required: true
         type: string
       release_notes:
@@ -50,7 +50,7 @@ jobs:
 
           version="$(printf '%s' "${VERSION_INPUT}" | xargs)"
           if [[ -z "${version}" || ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$ ]]; then
-            echo "::error::Invalid version input. Use values like 0.4.0-beta.2, 0.4.0, or 1.0.0."
+            echo "::error::Invalid version input. Use values like 0.4.0, 0.4.0-beta.2, or 1.0.0."
             exit 1
           fi
 

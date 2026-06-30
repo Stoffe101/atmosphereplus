@@ -1,5 +1,23 @@
 # Atmosphere+ Changelog
 
+## 0.4.0
+
+### Stable Release
+
+- Promotes Preset Packs from beta to the stable v0.4.0 release.
+- Keeps the release focused on Preset Pack stability, documentation, and release polish.
+
+### Changed
+
+- Updated version metadata to `0.4.0`.
+- Polished README, Modrinth description, troubleshooting notes, and release checklist for the stable Preset Packs release.
+- Added screenshot capture guidance for GitHub and Modrinth release assets.
+
+### Fixed
+
+- Custom preset reload no longer overwrites the saved custom preset file when the file cannot be parsed.
+- Preset Pack import remains staged and non-destructive when pack validation fails.
+
 ## 0.4.0-beta.2
 
 ### Added

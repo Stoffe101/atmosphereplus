@@ -60,7 +60,7 @@ Preset Packs are JSON files stored in:
 config/atmosphereplus-preset-packs/
 ```
 
-If import fails, check that the file is valid JSON, uses a supported `formatVersion`, and contains at least one preset with a snapshot. Broken or unsupported packs are rejected before existing custom presets are changed.
+If import fails, check that the file is valid JSON, uses a supported `formatVersion`, and contains at least one preset with a `displayName` and `snapshot`. Broken or unsupported packs are rejected before existing custom presets are changed.
 
 Imported presets appear under My Presets. Duplicate IDs and display names are renamed automatically.
 

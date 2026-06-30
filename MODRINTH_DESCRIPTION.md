@@ -4,6 +4,8 @@ Atmosphere+ is a client-side Fabric visual control suite for Minecraft.
 
 It lets you change the atmosphere of the game locally without changing the server.
 
+Version 0.4.0 is the stable Preset Packs release.
+
 ## Features
 
 - Visual weather override
@@ -40,8 +42,10 @@ Shader packs may override sky/cloud renderer hooks. This is expected with many I
 
 ## Required
 
-- Fabric Loader
+- Minecraft 1.21.11
+- Fabric Loader 0.18.4+
 - Fabric API
+- Java 21
 
 ## Optional companion mods
 
@@ -72,6 +76,18 @@ config/atmosphereplus-preset-packs/
 To import a pack, place the `.json` file in that folder, open Presets, choose Import Preset Pack, preview the contents, and import. Imported presets appear under My Presets. Broken or unsupported packs are rejected safely.
 
 The Presets page can open the Preset Packs folder for you, and import/export messages now clearly report successful exports, missing packs, invalid packs, broken JSON, unsupported versions, empty packs, and renamed duplicate preset names.
+
+## Screenshot checklist
+
+Recommended screenshots for the gallery:
+
+- Main menu / Home page
+- Presets page
+- Preset Packs Import/Export UI
+- Nether preset before/after
+- End preset before/after
+- Mood Overlay controls
+- Biome Atmospheres page
 
 ## Client-side
 

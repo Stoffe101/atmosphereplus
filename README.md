@@ -4,11 +4,13 @@
 
 It changes what *you* see: weather, time, fog, lighting, particles, clouds, profiles, presets, biome-based preset automation, and a few renderer controls that work best without shader packs.
 
+Version `0.4.0` is the stable Preset Packs release.
+
 ## Target
 
 - Minecraft `1.21.11`
 - Fabric Loader `0.18.4+`
-- Fabric API
+- Fabric API, required
 - Java `21`
 - Environment: client-side
 
@@ -58,6 +60,7 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 
 ### Preset Packs
 
+- Stable JSON preset sharing in v0.4.0
 - Export selected presets into shareable JSON preset packs
 - Import preset packs from `config/atmosphereplus-preset-packs/`
 - Open the Preset Packs folder directly from the Presets page
@@ -66,6 +69,14 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 - Duplicate imported IDs and names are made unique automatically
 - Clear import/export messages for successful exports, missing packs, invalid packs, broken JSON, unsupported versions, empty packs, and renamed duplicate preset names
 - Broken or unsupported pack files are rejected safely without wiping or changing existing custom presets
+
+To export a pack, open Presets, choose Export Preset Pack, select one or more presets, and export. Atmosphere+ writes the JSON file to:
+
+```text
+config/atmosphereplus-preset-packs/
+```
+
+To import a pack, put the `.json` file in that folder, open Presets, choose Import Preset Pack, preview it, and import. Imported presets appear under My Presets.
 
 ### Biome Atmospheres
 
@@ -160,6 +171,10 @@ Then:
 .\gradlew runClient
 ```
 
+## Screenshots
+
+Recommended screenshots for GitHub and Modrinth are documented in `docs/screenshots/README.md`. Capture real in-game screenshots; do not use mockups.
+
 ## Releases
 
 GitHub Actions builds pushes and pull requests to `master`.
@@ -170,7 +185,7 @@ Recommended release flow:
 2. Build/test locally.
 3. Commit and push.
 4. GitHub -> Actions -> Create Release.
-5. Enter the version.
+5. Enter the version, for example `0.4.0`.
 6. The workflow builds, tags, creates the GitHub release, and uploads the normal mod jar.
 
 Manual fallback: pushing a `v*` tag still creates a GitHub release when the tag version matches `mod_version` in `gradle.properties`. The tag workflow checks for an existing release first to avoid duplicate releases.

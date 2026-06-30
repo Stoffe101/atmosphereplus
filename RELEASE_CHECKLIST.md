@@ -50,13 +50,15 @@ Do not create a local tag for the recommended flow.
 2. Go to Actions.
 3. Choose Create Release.
 4. Click Run workflow.
-5. Enter the version, for example `0.4.0-beta.2`.
+5. Enter the version, for example `0.4.0`.
 6. Optionally enter release notes.
 7. Run the workflow.
 
 The workflow validates the version, checks `gradle.properties`, verifies the tag and release do not already exist, builds with Java 21, creates tag `vX.Y.Z`, creates the GitHub release, and uploads `build/libs/atmosphereplus-X.Y.Z.jar`.
 
 Alpha, beta, and rc versions are marked as pre-release automatically.
+
+For stable releases such as `0.4.0`, confirm the release is not marked pre-release.
 
 ## 5. Manual Tag Fallback
 
@@ -74,3 +76,4 @@ The tag workflow builds the jar and creates a GitHub release when the tag versio
 - Confirm GitHub Actions built successfully.
 - Confirm the release uploaded the normal mod jar, not the sources jar.
 - Confirm the release is marked pre-release for alpha, beta, or rc versions.
+- Confirm stable releases such as `0.4.0` are not marked pre-release.
