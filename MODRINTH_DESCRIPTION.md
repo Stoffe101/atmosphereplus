@@ -16,6 +16,7 @@ It lets you change the atmosphere of the game locally without changing the serve
 - Prebuilt Presets
 - My Presets
 - Preset Packs for JSON import/export
+- Open Preset Packs Folder action
 - Nether Presets
 - End Presets
 - Mood Overlay / Color Grade
@@ -69,6 +70,8 @@ config/atmosphereplus-preset-packs/
 ```
 
 To import a pack, place the `.json` file in that folder, open Presets, choose Import Preset Pack, preview the contents, and import. Imported presets appear under My Presets. Broken or unsupported packs are rejected safely.
+
+The Presets page can open the Preset Packs folder for you, and import/export messages now clearly report successful exports, missing packs, invalid packs, broken JSON, unsupported versions, empty packs, and renamed duplicate preset names.
 
 ## Client-side
 

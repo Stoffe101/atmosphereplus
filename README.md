@@ -60,10 +60,12 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 
 - Export selected presets into shareable JSON preset packs
 - Import preset packs from `config/atmosphereplus-preset-packs/`
+- Open the Preset Packs folder directly from the Presets page
 - Preview pack name, author, description, preset count, preset names, and warnings before importing
 - Imported presets appear under My Presets
 - Duplicate imported IDs and names are made unique automatically
-- Broken or unsupported pack files are rejected safely without wiping existing custom presets
+- Clear import/export messages for successful exports, missing packs, invalid packs, broken JSON, unsupported versions, empty packs, and renamed duplicate preset names
+- Broken or unsupported pack files are rejected safely without wiping or changing existing custom presets
 
 ### Biome Atmospheres
 
@@ -160,9 +162,20 @@ Then:
 
 ## Releases
 
-GitHub Actions builds pushes and pull requests to `master`. Pushing a `v*` tag creates a GitHub release when the tag version matches `mod_version` in `gradle.properties`.
+GitHub Actions builds pushes and pull requests to `master`.
 
-See `RELEASE_CHECKLIST.md` for the local release steps.
+Recommended release flow:
+
+1. Update version files.
+2. Build/test locally.
+3. Commit and push.
+4. GitHub -> Actions -> Create Release.
+5. Enter the version.
+6. The workflow builds, tags, creates the GitHub release, and uploads the normal mod jar.
+
+Manual fallback: pushing a `v*` tag still creates a GitHub release when the tag version matches `mod_version` in `gradle.properties`. The tag workflow checks for an existing release first to avoid duplicate releases.
+
+See `RELEASE_CHECKLIST.md` for details.
 
 ## Troubleshooting
 

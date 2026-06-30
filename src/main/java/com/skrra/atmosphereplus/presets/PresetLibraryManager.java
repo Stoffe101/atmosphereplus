@@ -374,22 +374,28 @@ public final class PresetLibraryManager {
         return data;
     }
 
-    public static int importCustomPresets(List<CustomPresetData> presets) {
+    public static PresetImportResult importCustomPresets(List<CustomPresetData> presets) {
         if (presets == null || presets.isEmpty()) {
-            return 0;
+            return new PresetImportResult(0, false, false);
         }
 
         List<CustomPresetData> staged = new ArrayList<>();
         LinkedHashSet<String> stagedIds = new LinkedHashSet<>();
         LinkedHashSet<String> stagedNames = new LinkedHashSet<>();
+        boolean renamedIds = false;
+        boolean renamedNames = false;
         for (CustomPresetData source : presets) {
             if (!isValidCustomPreset(source)) {
                 continue;
             }
 
             CustomPresetData data = new CustomPresetData();
-            data.id = uniqueId(slug(source.id == null || source.id.isBlank() ? source.displayName : source.id), stagedIds);
-            data.displayName = uniqueDisplayName(source.displayName, stagedNames);
+            String requestedId = slug(source.id == null || source.id.isBlank() ? source.displayName : source.id);
+            String requestedName = source.displayName == null || source.displayName.isBlank() ? "Imported Preset" : source.displayName.trim();
+            data.id = uniqueId(requestedId, stagedIds);
+            data.displayName = uniqueDisplayName(requestedName, stagedNames);
+            renamedIds = renamedIds || !data.id.equals(requestedId);
+            renamedNames = renamedNames || !data.displayName.equals(requestedName);
             data.description = source.description == null || source.description.isBlank()
                     ? "Imported preset."
                     : source.description;
@@ -404,14 +410,14 @@ public final class PresetLibraryManager {
         }
 
         if (staged.isEmpty()) {
-            return 0;
+            return new PresetImportResult(0, false, false);
         }
 
         for (CustomPresetData data : staged) {
             CUSTOM_PRESETS.put(data.id, data);
         }
         saveCustomPresets();
-        return staged.size();
+        return new PresetImportResult(staged.size(), renamedIds, renamedNames);
     }
 
     public static boolean deleteCustomPreset(String id) {
@@ -1038,5 +1044,8 @@ public final class PresetLibraryManager {
 
     private static class CustomPresetFile {
         List<CustomPresetData> presets = new ArrayList<>();
+    }
+
+    public record PresetImportResult(int count, boolean renamedIds, boolean renamedNames) {
     }
 }

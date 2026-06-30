@@ -64,6 +64,8 @@ If import fails, check that the file is valid JSON, uses a supported `formatVers
 
 Imported presets appear under My Presets. Duplicate IDs and display names are renamed automatically.
 
+Use Presets -> Open Preset Packs Folder to open the folder. If the OS cannot open it, Atmosphere+ copies the path so you can paste it into your file manager.
+
 ## Biome Atmospheres is not changing visuals
 
 Check:

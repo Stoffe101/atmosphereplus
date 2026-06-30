@@ -42,6 +42,7 @@ import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 import org.lwjgl.glfw.GLFW;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -1818,7 +1819,10 @@ private int addPresetWidgets(int contentX, int contentY, int contentW) {
         y += 12;
     }
 
-    int actionCols = contentW >= 760 ? 3 : contentW >= 520 ? 2 : 1;
+    widgets.add(new SectionLabelWidget(contentX, y, contentW, "Preset Management", "Save, import, export and open preset packs"));
+    y += 30;
+
+    int actionCols = contentW >= 900 ? 4 : contentW >= 620 ? 2 : 1;
     int actionW = (contentW - gap * (actionCols - 1)) / actionCols;
     int actionIndex = 0;
     widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Save Current as Preset", "Create a custom preset from the current atmosphere.", IconType.PRESETS, () -> {
@@ -1840,11 +1844,7 @@ private int addPresetWidgets(int contentX, int contentY, int contentW) {
     }));
     actionIndex++;
 
-    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Reload Presets", "Reload custom presets from config.", IconType.ADVANCED, () -> {
-            PresetLibraryManager.loadCustomPresets();
-            NotificationUtil.show("Preset library reloaded");
-            rebuildWidgets();
-    }));
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Open Preset Packs Folder", "Open config/atmosphereplus-preset-packs/.", IconType.PRESETS, this::openPresetPacksFolder));
     actionIndex++;
 
     y += ((actionIndex + actionCols - 1) / actionCols) * 46 + 6;
@@ -1986,18 +1986,28 @@ private int addPresetPackImportWidgets(int contentX, int contentY, int contentW,
     widgets.add(new SectionLabelWidget(contentX, y, contentW, "Import Preset Pack", PresetPackManager.packFolder().toString()));
     y += 30;
 
-    int actionCols = contentW >= 520 ? 2 : 1;
+    int actionCols = contentW >= 820 ? 4 : contentW >= 520 ? 2 : 1;
     int actionW = (contentW - gap * (actionCols - 1)) / actionCols;
-    widgets.add(new ActionButtonWidget(contentX, y, actionW, "Refresh Packs", "Reload JSON files from the preset pack folder.", IconType.PRESETS, () -> {
+    int actionIndex = 0;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Refresh Packs", "Reload JSON files from the preset pack folder.", IconType.PRESETS, () -> {
         refreshPresetPackPreviews();
+        if (presetPackPreviews.isEmpty()) {
+            NotificationUtil.show("No preset packs found.");
+        }
         rebuildWidgets();
     }));
-    widgets.add(new ActionButtonWidget(contentX + (actionCols > 1 ? actionW + gap : 0), y + (actionCols > 1 ? 0 : 46), actionW, "Close", "Return to the preset library.", IconType.ADVANCED, () -> {
+    actionIndex++;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Open Folder", "Open config/atmosphereplus-preset-packs/.", IconType.PRESETS, this::openPresetPacksFolder));
+    actionIndex++;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Copy Folder Path", "Copy the preset pack folder path.", IconType.ADVANCED, this::copyPresetPackFolderPath));
+    actionIndex++;
+    widgets.add(new ActionButtonWidget(contentX + (actionIndex % actionCols) * (actionW + gap), y + (actionIndex / actionCols) * 46, actionW, "Close", "Return to the preset library.", IconType.ADVANCED, () -> {
         presetPackMode = PresetPackMode.NONE;
         selectedPresetPackPreview = null;
         rebuildWidgets();
     }));
-    y += actionCols > 1 ? 58 : 104;
+    actionIndex++;
+    y += ((actionIndex + actionCols - 1) / actionCols) * 46 + 12;
 
     if (presetPackPreviews.isEmpty()) {
         widgets.add(new InfoCardWidget(contentX, y, contentW, 70, "No preset packs found", "Place .json files in config/atmosphereplus-preset-packs/ and refresh.", IconType.PRESETS));
@@ -2053,7 +2063,8 @@ private int addPresetPackPreviewWidgets(PresetPackManager.PackPreview preview, i
         y += 68;
     }
 
-    widgets.add(new ActionButtonWidget(contentX, y, contentW, preview.valid() ? "Import " + preview.validPresets().size() + " Presets" : "Invalid Preset Pack", "Imported presets appear under My Presets.", IconType.PRESETS, () -> importSelectedPresetPack(preview)));
+    String importTooltip = preview.valid() ? "Imported presets appear under My Presets." : preview.failureMessage();
+    widgets.add(new ActionButtonWidget(contentX, y, contentW, preview.valid() ? "Import " + preview.validPresets().size() + " Presets" : "Invalid Preset Pack", importTooltip, IconType.PRESETS, () -> importSelectedPresetPack(preview)));
     y += 54;
 
     int shown = 0;
@@ -2121,6 +2132,9 @@ private void openPresetPackImport() {
     presetPackMode = PresetPackMode.IMPORT;
     refreshPresetPackPreviews();
     selectedPresetPackPreview = presetPackPreviews.isEmpty() ? null : presetPackPreviews.get(0);
+    if (presetPackPreviews.isEmpty()) {
+        NotificationUtil.show("No preset packs found.");
+    }
     scrollOffset = 0;
 }
 
@@ -2142,7 +2156,7 @@ private void togglePresetPackSelection(String presetId) {
 
 private void exportSelectedPresetPack() {
     if (presetPackSelection.isEmpty()) {
-        NotificationUtil.show("Select at least one preset");
+        NotificationUtil.show("No presets selected.");
         return;
     }
 
@@ -2157,7 +2171,7 @@ private void exportSelectedPresetPack() {
         NotificationUtil.show("Preset Pack exported: " + result.fileName());
         presetPackMode = PresetPackMode.NONE;
     } else {
-        NotificationUtil.show(result.message().isBlank() ? "Preset Pack export failed" : result.message());
+        NotificationUtil.show(result.message().isBlank() ? "Preset Pack export failed." : result.message());
     }
     rebuildWidgets();
 }
@@ -2167,12 +2181,39 @@ private void importSelectedPresetPack(PresetPackManager.PackPreview preview) {
     if (result.success()) {
         PresetLibraryManager.cleanFavoritePresetIds();
         NotificationUtil.show("Imported " + result.count() + " presets from " + preview.packName());
+        if (result.renamedNames()) {
+            NotificationUtil.show("Imported preset names were renamed to avoid duplicates.");
+        }
         presetPackMode = PresetPackMode.NONE;
         selectedPresetPackPreview = null;
     } else {
-        NotificationUtil.show(result.message().isBlank() ? "Invalid Preset Pack" : result.message());
+        NotificationUtil.show(result.message().isBlank() ? "Invalid preset pack." : result.message());
     }
     rebuildWidgets();
+}
+
+private void openPresetPacksFolder() {
+    PresetPackManager.FolderOpenResult result = PresetPackManager.openPackFolder();
+    if (result.success()) {
+        NotificationUtil.show("Preset Packs folder opened.");
+    } else {
+        copyPathToClipboard(result.path());
+        NotificationUtil.show(result.message() + " Path copied: " + result.path());
+    }
+    rebuildWidgets();
+}
+
+private void copyPresetPackFolderPath() {
+    Path path = PresetPackManager.packFolder().toAbsolutePath();
+    copyPathToClipboard(path);
+    NotificationUtil.show("Preset Packs folder path copied: " + path);
+}
+
+private void copyPathToClipboard(Path path) {
+    MinecraftClient client = MinecraftClient.getInstance();
+    if (client != null && client.keyboard != null && path != null) {
+        client.keyboard.setClipboard(path.toString());
+    }
 }
 
 private int addPresetCard(int index, int columns, int contentX, int contentY, int cardW, int gap, int rowH, String title, String description, IconType icon, java.util.function.Supplier<Boolean> activeSupplier, Runnable action) {

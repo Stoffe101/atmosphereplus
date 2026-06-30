@@ -1,0 +1,138 @@
+name: Create Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 0.4.0-beta.2 or 0.4.0"
+        required: true
+        type: string
+      release_notes:
+        description: "Optional release notes"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Build, tag, and publish release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Validate release input
+        id: release
+        env:
+          VERSION_INPUT: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="$(printf '%s' "${VERSION_INPUT}" | xargs)"
+          if [[ -z "${version}" || ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-(alpha|beta|rc)\.[0-9]+)?$ ]]; then
+            echo "::error::Invalid version input. Use values like 0.4.0-beta.2, 0.4.0, or 1.0.0."
+            exit 1
+          fi
+
+          mod_version="$(sed -n 's/^mod_version=//p' gradle.properties | xargs)"
+          if [[ "${version}" != "${mod_version}" ]]; then
+            echo "::error::Version input does not match mod_version in gradle.properties."
+            exit 1
+          fi
+
+          tag_name="v${version}"
+          if git rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null; then
+            echo "::error::Tag ${tag_name} already exists."
+            exit 1
+          fi
+
+          if gh release view "${tag_name}" >/dev/null 2>&1; then
+            echo "::error::Release ${tag_name} already exists."
+            exit 1
+          fi
+
+          prerelease="false"
+          if [[ "${version}" =~ (alpha|beta|rc) ]]; then
+            prerelease="true"
+          fi
+
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag_name=${tag_name}" >> "$GITHUB_OUTPUT"
+          echo "jar_path=build/libs/atmosphereplus-${version}.jar" >> "$GITHUB_OUTPUT"
+          echo "prerelease=${prerelease}" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: ./gradlew clean build
+
+      - name: Verify release jar
+        env:
+          JAR_PATH: ${{ steps.release.outputs.jar_path }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f "${JAR_PATH}" ]]; then
+            echo "::error::Expected release jar not found: ${JAR_PATH}"
+            exit 1
+          fi
+
+          if [[ "${JAR_PATH}" == *"-sources.jar" ]]; then
+            echo "::error::Refusing to upload a sources jar as the main release asset."
+            exit 1
+          fi
+
+      - name: Create and push tag
+        env:
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "${TAG_NAME}"
+          git push origin "${TAG_NAME}"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          JAR_PATH: ${{ steps.release.outputs.jar_path }}
+          PRERELEASE: ${{ steps.release.outputs.prerelease }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          prerelease_args=()
+          notes_args=(--generate-notes)
+
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          if [[ -n "${RELEASE_NOTES}" ]]; then
+            notes_args=(--notes "${RELEASE_NOTES}")
+          fi
+
+          gh release create "${TAG_NAME}" "${JAR_PATH}" \
+            --title "${TAG_NAME}" \
+            "${notes_args[@]}" \
+            "${prerelease_args[@]}"

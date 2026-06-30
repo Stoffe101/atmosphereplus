@@ -1,5 +1,27 @@
 # Atmosphere+ Changelog
 
+## 0.4.0-beta.2
+
+### Added
+
+- Open Preset Packs Folder action on the Presets page.
+- Copy Preset Packs Folder Path action in the import flow.
+- Manual GitHub Actions Create Release workflow for one-click build, tag, release, and jar upload.
+
+### Changed
+
+- Polished Preset Pack import/export messages for success, empty selections, missing packs, invalid packs, broken JSON, unsupported format versions, empty packs, and duplicate-name renames.
+- Preset Pack UI now groups save, import, export, and folder actions in a compact Preset Management section.
+- Imported preset duplicate IDs and names are still made unique automatically, and duplicate-name renames are now reported to the player.
+- The tag-based release workflow now skips release creation when a release already exists, avoiding conflicts with the manual Create Release workflow.
+- Release docs now recommend GitHub -> Actions -> Create Release as the normal release path and keep manual tags as a fallback.
+
+### Fixed
+
+- Importing invalid, broken, unsupported, or empty preset packs fails with clear messages before existing custom presets are changed.
+- Empty Preset Pack export selections are blocked with a clear message.
+- Preset Pack exports continue to sanitize file names and choose a unique filename instead of overwriting existing pack files.
+
 ## 0.4.0-beta.1
 
 ### Added

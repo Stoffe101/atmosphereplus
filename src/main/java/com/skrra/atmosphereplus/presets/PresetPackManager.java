@@ -6,6 +6,7 @@ import com.skrra.atmosphereplus.client.AtmospherePlusClient;
 import com.skrra.atmosphereplus.config.AtmosphereProfile;
 import net.fabricmc.loader.api.FabricLoader;
 
+import java.awt.Desktop;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,7 +63,7 @@ public final class PresetPackManager {
         }
 
         if (entries.isEmpty()) {
-            return new ExportResult(false, "", null, 0, "No presets selected");
+            return new ExportResult(false, "", null, 0, "No presets selected.");
         }
 
         PresetPackData pack = new PresetPackData();
@@ -79,7 +80,7 @@ public final class PresetPackManager {
             Files.writeString(path, GSON.toJson(pack));
             return new ExportResult(true, filename, path, entries.size(), "");
         } catch (IOException ex) {
-            return new ExportResult(false, filename, path, 0, "Could not write preset pack");
+            return new ExportResult(false, filename, path, 0, "Could not write preset pack.");
         }
     }
 
@@ -87,7 +88,7 @@ public final class PresetPackManager {
         List<String> warnings = new ArrayList<>();
         if (path == null || !Files.exists(path) || !Files.isRegularFile(path)) {
             warnings.add("File not found.");
-            return new PackPreview(path, fileName(path), null, List.of(), warnings, false);
+            return new PackPreview(path, fileName(path), null, List.of(), warnings, false, "Invalid preset pack.");
         }
 
         PresetPackData pack;
@@ -95,14 +96,15 @@ public final class PresetPackManager {
             pack = GSON.fromJson(Files.readString(path), PresetPackData.class);
         } catch (Exception ex) {
             warnings.add("Broken JSON.");
-            return new PackPreview(path, fileName(path), null, List.of(), warnings, false);
+            return new PackPreview(path, fileName(path), null, List.of(), warnings, false, "Import failed: broken JSON.");
         }
 
         if (pack == null) {
             warnings.add("Empty preset pack.");
-            return new PackPreview(path, fileName(path), null, List.of(), warnings, false);
+            return new PackPreview(path, fileName(path), null, List.of(), warnings, false, "Import failed: no valid presets.");
         }
 
+        boolean supportedFormat = pack.formatVersion == FORMAT_VERSION;
         if (pack.formatVersion != FORMAT_VERSION) {
             warnings.add("Unsupported format version: " + pack.formatVersion + ".");
         }
@@ -125,13 +127,23 @@ public final class PresetPackManager {
             }
         }
 
-        boolean valid = pack.formatVersion == FORMAT_VERSION && !validEntries.isEmpty();
-        return new PackPreview(path, fileName(path), pack, validEntries, warnings, valid);
+        String failureMessage = "";
+        if (!supportedFormat) {
+            failureMessage = "Import skipped: unsupported format version.";
+        } else if (validEntries.isEmpty()) {
+            failureMessage = "Import failed: no valid presets.";
+        }
+
+        boolean valid = supportedFormat && !validEntries.isEmpty();
+        return new PackPreview(path, fileName(path), pack, validEntries, warnings, valid, failureMessage);
     }
 
     public static ImportResult importPack(PackPreview preview) {
         if (preview == null || !preview.valid()) {
-            return new ImportResult(false, 0, "Invalid preset pack");
+            String message = preview == null || preview.failureMessage().isBlank()
+                    ? "Invalid preset pack."
+                    : preview.failureMessage();
+            return new ImportResult(false, 0, false, false, message);
         }
 
         List<CustomPresetData> staged = new ArrayList<>();
@@ -150,12 +162,21 @@ public final class PresetPackManager {
             staged.add(data);
         }
 
-        int imported = PresetLibraryManager.importCustomPresets(staged);
-        if (imported <= 0) {
-            return new ImportResult(false, 0, "No presets imported");
+        PresetLibraryManager.PresetImportResult imported = PresetLibraryManager.importCustomPresets(staged);
+        if (imported.count() <= 0) {
+            return new ImportResult(false, 0, false, false, "Import failed: no valid presets.");
         }
 
-        return new ImportResult(true, imported, "");
+        return new ImportResult(true, imported.count(), imported.renamedIds(), imported.renamedNames(), "");
+    }
+
+    public static FolderOpenResult openPackFolder() {
+        Path folder = packFolder().toAbsolutePath();
+        if (tryDesktopOpen(folder) || tryOsOpen(folder)) {
+            return new FolderOpenResult(true, folder, "");
+        }
+
+        return new FolderOpenResult(false, folder, "Could not open Preset Packs folder.");
     }
 
     private static boolean isValidEntry(PresetPackEntry entry) {
@@ -169,6 +190,43 @@ public final class PresetPackManager {
         try {
             Files.createDirectories(PACK_FOLDER);
         } catch (IOException ignored) {
+        }
+    }
+
+    private static boolean tryDesktopOpen(Path folder) {
+        try {
+            if (!Desktop.isDesktopSupported()) {
+                return false;
+            }
+
+            Desktop desktop = Desktop.getDesktop();
+            if (!desktop.isSupported(Desktop.Action.OPEN)) {
+                return false;
+            }
+
+            desktop.open(folder.toFile());
+            return true;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean tryOsOpen(Path folder) {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        List<String> command;
+        if (os.contains("win")) {
+            command = List.of("explorer.exe", folder.toString());
+        } else if (os.contains("mac")) {
+            command = List.of("open", folder.toString());
+        } else {
+            command = List.of("xdg-open", folder.toString());
+        }
+
+        try {
+            new ProcessBuilder(command).start();
+            return true;
+        } catch (IOException ignored) {
+            return false;
         }
     }
 
@@ -199,10 +257,13 @@ public final class PresetPackManager {
     public record ExportResult(boolean success, String fileName, Path path, int count, String message) {
     }
 
-    public record ImportResult(boolean success, int count, String message) {
+    public record ImportResult(boolean success, int count, boolean renamedIds, boolean renamedNames, String message) {
     }
 
-    public record PackPreview(Path path, String fileName, PresetPackData pack, List<PresetPackEntry> validPresets, List<String> warnings, boolean valid) {
+    public record FolderOpenResult(boolean success, Path path, String message) {
+    }
+
+    public record PackPreview(Path path, String fileName, PresetPackData pack, List<PresetPackEntry> validPresets, List<String> warnings, boolean valid, String failureMessage) {
         public String packName() {
             return pack == null || pack.packName == null || pack.packName.isBlank() ? fileName : pack.packName;
         }
