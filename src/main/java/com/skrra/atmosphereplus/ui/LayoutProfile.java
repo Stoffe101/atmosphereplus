@@ -12,20 +12,35 @@ public final class LayoutProfile {
         ULTRAWIDE
     }
 
+    // The highest GUI scale density the dashboard layout is designed for. Above this,
+    // we lay out against a clamped "virtual" canvas and shrink it back down to fit the
+    // real screen via a render-time matrix scale, instead of letting the layout starve.
+    private static final double MAX_EFFECTIVE_GUI_SCALE = 2.0D;
+
     public final Mode mode;
+    // Virtual canvas dimensions: layout math (margins, columns, widget placement) is
+    // always computed against these, never against the real scaled width/height.
     public final int scaledWidth;
     public final int scaledHeight;
     public final int framebufferWidth;
     public final int framebufferHeight;
     public final double guiScale;
+    // Multiply virtual-space coordinates by this to get real screen-space coordinates
+    // (1.0 whenever guiScale <= MAX_EFFECTIVE_GUI_SCALE, so behavior is unchanged then).
+    public final double renderScale;
+    public final int realScaledWidth;
+    public final int realScaledHeight;
 
-    private LayoutProfile(Mode mode, int scaledWidth, int scaledHeight, int framebufferWidth, int framebufferHeight, double guiScale) {
+    private LayoutProfile(Mode mode, int scaledWidth, int scaledHeight, int framebufferWidth, int framebufferHeight, double guiScale, double renderScale, int realScaledWidth, int realScaledHeight) {
         this.mode = mode;
         this.scaledWidth = scaledWidth;
         this.scaledHeight = scaledHeight;
         this.framebufferWidth = framebufferWidth;
         this.framebufferHeight = framebufferHeight;
         this.guiScale = guiScale;
+        this.renderScale = renderScale;
+        this.realScaledWidth = realScaledWidth;
+        this.realScaledHeight = realScaledHeight;
     }
 
     public static LayoutProfile create(int scaledWidth, int scaledHeight) {
@@ -41,20 +56,30 @@ public final class LayoutProfile {
             guiScale = window.getScaleFactor();
         }
 
+        double targetGuiScale = guiScale > 0 ? Math.min(guiScale, MAX_EFFECTIVE_GUI_SCALE) : MAX_EFFECTIVE_GUI_SCALE;
+        double renderScale = guiScale > 0 ? targetGuiScale / guiScale : 1.0D;
+
+        int virtualWidth = scaledWidth;
+        int virtualHeight = scaledHeight;
+        if (renderScale > 0 && renderScale != 1.0D) {
+            virtualWidth = Math.max(1, Math.round((float) (scaledWidth / renderScale)));
+            virtualHeight = Math.max(1, Math.round((float) (scaledHeight / renderScale)));
+        }
+
         Mode mode;
-        if (scaledWidth <= 740 || scaledHeight <= 430) {
+        if (virtualWidth <= 740 || virtualHeight <= 430) {
             mode = Mode.TINY;
-        } else if (scaledWidth <= 920 || scaledHeight <= 520) {
+        } else if (virtualWidth <= 920 || virtualHeight <= 520) {
             mode = Mode.COMPACT;
-        } else if (scaledWidth <= 1280) {
+        } else if (virtualWidth <= 1280) {
             mode = Mode.NORMAL;
-        } else if (scaledWidth >= 1900 || framebufferWidth >= 3000) {
+        } else if (virtualWidth >= 1900 || framebufferWidth >= 3000) {
             mode = Mode.ULTRAWIDE;
         } else {
             mode = Mode.WIDE;
         }
 
-        return new LayoutProfile(mode, scaledWidth, scaledHeight, framebufferWidth, framebufferHeight, guiScale);
+        return new LayoutProfile(mode, virtualWidth, virtualHeight, framebufferWidth, framebufferHeight, guiScale, renderScale, scaledWidth, scaledHeight);
     }
 
     public String key() {

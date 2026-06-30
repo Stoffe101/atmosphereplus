@@ -269,8 +269,8 @@ private int footerBarHeight() {
 
     windowW = Math.max(1, layoutProfile.maxWindowWidth());
     windowH = Math.max(1, layoutProfile.maxWindowHeight());
-    windowX = (width - windowW) / 2;
-    windowY = (height - windowH) / 2;
+    windowX = (layoutProfile.scaledWidth - windowW) / 2;
+    windowY = (layoutProfile.scaledHeight - windowH) / 2;
     contentBottom = windowY + windowH - footerBarHeight() - contentPadding();
 
     searchW = Math.min(300, Math.max(140, windowW / 3));
@@ -3708,6 +3708,15 @@ private String trimHeaderText(String text, int maxWidth) {
 
     renderBackdrop(context);
 
+    double renderScale = layout().renderScale;
+    if (renderScale > 0 && renderScale != 1.0D) {
+        mouseX = Math.round((float) (mouseX / renderScale));
+        mouseY = Math.round((float) (mouseY / renderScale));
+    }
+
+    context.getMatrices().pushMatrix();
+    context.getMatrices().scale((float) renderScale);
+
     Theme theme = ThemeManager.current();
     boolean modalOpen = isRenaming() || isTextPrompting() || isConfirmingAction();
     int uiMouseX = modalOpen ? -100000 : mouseX;
@@ -3740,6 +3749,8 @@ private String trimHeaderText(String text, int maxWidth) {
     renderProfileRenameOverlay(context, theme);
     renderConfirmOverlay(context, theme, mouseX, mouseY);
     renderTooltip(context, uiMouseX, uiMouseY);
+
+    context.getMatrices().popMatrix();
 }
 
     private void renderSidebarWidgets(DrawContext context, int mouseX, int mouseY, float delta) {
@@ -4139,7 +4150,7 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
         int x = windowX + windowW / 2 - modalW / 2;
         int y = windowY + windowH / 2 - modalH / 2;
 
-        context.fill(0, 0, width, height, 0xB0000000);
+        context.fill(0, 0, layout().scaledWidth, layout().scaledHeight, 0xB0000000);
         UiRender.borderedRect(context, x, y, modalW, modalH, theme.panel(), theme.accent());
 
         UiRender.text(context, textRenderer, confirmTitle, x + 16, y + 14, theme.text());
@@ -4211,7 +4222,7 @@ private void renderConfirmOverlay(DrawContext context, Theme theme, int mouseX, 
         int x = windowX + windowW / 2 - modalW / 2;
         int y = windowY + windowH / 2 - modalH / 2;
 
-        context.fill(0, 0, width, height, 0xAA000000);
+        context.fill(0, 0, layout().scaledWidth, layout().scaledHeight, 0xAA000000);
         UiRender.borderedRect(context, x, y, modalW, modalH, theme.panel(), theme.accent());
 
         String title = isTextPrompting() ? textPromptTitle : isRenamingTheme() ? "Rename Theme" : "Rename Profile " + (renamingProfileIndex + 1);
@@ -4344,8 +4355,17 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         return lines;
     }
 
+    private Click toVirtualClick(Click click) {
+        double scale = layout().renderScale;
+        if (scale <= 0 || scale == 1.0D) {
+            return click;
+        }
+        return new Click(click.x() / scale, click.y() / scale, click.buttonInfo());
+    }
+
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
+        click = toVirtualClick(click);
         if (AtmosphereKeybinds.matchesOpenMenuMouse(click)) {
             if (confirmThemeStudioCloseIfDirty()) {
                 return true;
@@ -4417,6 +4437,13 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
 
     @Override
     public boolean mouseDragged(Click click, double offsetX, double offsetY) {
+        click = toVirtualClick(click);
+        double scale = layout().renderScale;
+        if (scale > 0 && scale != 1.0D) {
+            offsetX /= scale;
+            offsetY /= scale;
+        }
+
         for (AtmosphereWidget widget : widgets) {
             if (widget.mouseDragged(click.x(), click.y(), click.button(), offsetX, offsetY)) {
                 return true;
@@ -4428,6 +4455,7 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
 
     @Override
     public boolean mouseReleased(Click click) {
+        click = toVirtualClick(click);
         for (AtmosphereWidget widget : widgets) {
             if (widget.mouseReleased(click.x(), click.y(), click.button())) {
                 return true;
@@ -4439,6 +4467,11 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+    double scrollScale = layout().renderScale;
+    if (scrollScale > 0 && scrollScale != 1.0D) {
+        mouseX /= scrollScale;
+        mouseY /= scrollScale;
+    }
     if (!isSearching() && sidebarMaxScroll > 0 && isMouseOverSidebar(mouseX, mouseY)) {
         int oldOffset = sidebarScrollOffset;
         int newOffset = (int) Math.max(0, Math.min(sidebarMaxScroll, sidebarScrollOffset - verticalAmount * 18));
