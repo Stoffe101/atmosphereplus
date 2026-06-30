@@ -4,16 +4,28 @@ import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 
 public abstract class AtmosphereWidget {
+    // Layout region a content widget belongs to. AtmosphereScreen renders and hit-tests each
+    // region in its own pass/scissor, so a page never has to hand-roll an overlay or a broad
+    // click-blocking band: it just tags its widgets and the screen does the rest.
+    public enum Region {
+        // Normal scrollable editor content: clipped to the editor's X range and to the scroll
+        // viewport top, and subject to the scroll-top hit guard.
+        CONTENT,
+        // Fixed full-width band pinned to the top of the content area (compact-mode sticky
+        // preview + primary actions). Rendered unclipped and defines where the scroll viewport
+        // begins, so scrolled CONTENT is cut off beneath it instead of ghosting through.
+        STICKY_BAND,
+        // Fixed right-hand inspector column (side layout). Rendered in its own X range, never
+        // scrolls, and never contributes to the scroll viewport top.
+        INSPECTOR
+    }
+
     protected int x;
     protected int y;
     protected int width;
     protected int height;
     protected String tooltip;
-    // Widgets pinned outside the scrollable viewport (e.g. a sticky preview header) opt in via
-    // lockToViewport(). AtmosphereScreen renders/click-tests these in a separate, unclipped pass
-    // and derives the scrollable viewport's top bound from their combined bounds, instead of any
-    // page hand-rolling its own overlay/click-blocking band.
-    protected boolean scrollLocked = false;
+    protected Region region = Region.CONTENT;
 
     protected AtmosphereWidget(int x, int y, int width, int height) {
         this.x = x;
@@ -22,13 +34,31 @@ public abstract class AtmosphereWidget {
         this.height = height;
     }
 
-    public boolean isScrollLocked() {
-        return scrollLocked;
+    public Region region() {
+        return region;
     }
 
-    public AtmosphereWidget lockToViewport() {
-        this.scrollLocked = true;
+    public AtmosphereWidget region(Region region) {
+        this.region = region;
         return this;
+    }
+
+    // A fixed region is anything that does not scroll with the editor and so must never be
+    // suppressed by the editor's scroll-top hit guard.
+    public boolean isFixedRegion() {
+        return region != Region.CONTENT;
+    }
+
+    public boolean isStickyBand() {
+        return region == Region.STICKY_BAND;
+    }
+
+    public int left() {
+        return x;
+    }
+
+    public int right() {
+        return x + width;
     }
 
     public int bottom() {

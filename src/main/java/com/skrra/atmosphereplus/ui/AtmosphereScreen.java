@@ -83,10 +83,15 @@ public class AtmosphereScreen extends Screen {
     private int scrollOffset = 0;
     private int maxScroll = 0;
     private int contentBottom = 0;
-    // Top Y of the scrollable viewport, derived each rebuild from any scroll-locked widgets'
-    // bounds (e.g. Theme Studio's sticky preview). Equals the normal content top when nothing
-    // is locked, so this has no effect on categories that don't use lockToViewport().
+    // Top Y of the scrollable editor viewport, derived each rebuild from any STICKY_BAND widgets'
+    // bottom (e.g. Theme Studio's compact-mode preview band). Equals the normal content top when
+    // there is no band, so this has no effect on pages without one.
     private int scrollViewportTop = 0;
+    // X-range the scrollable editor content is clipped to, derived from CONTENT-region widget
+    // bounds. For a normal page this spans the whole content width; in Theme Studio's side layout
+    // it covers only the editor column, so editor content can never bleed into the inspector.
+    private int editorClipLeft = 0;
+    private int editorClipRight = 0;
 
     private enum PresetPackMode {
         NONE,
@@ -314,7 +319,7 @@ private int footerBarHeight() {
         finalY = addSearchResultWidgets(contentX, contentY, contentW);
         maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
         scrollOffset = Math.min(scrollOffset, maxScroll);
-        updateScrollViewportTop();
+        updateContentRegions();
         return;
     }
 
@@ -338,17 +343,34 @@ private int footerBarHeight() {
 
     maxScroll = Math.max(0, finalY + scrollOffset - contentBottom);
     scrollOffset = Math.min(scrollOffset, maxScroll);
-    updateScrollViewportTop();
+    updateContentRegions();
 }
 
-private void updateScrollViewportTop() {
+private void updateContentRegions() {
     int top = windowY + layout().contentTopOffset();
+    int left = Integer.MAX_VALUE;
+    int right = Integer.MIN_VALUE;
+
     for (AtmosphereWidget widget : widgets) {
-        if (widget.isScrollLocked()) {
+        if (widget instanceof CategoryButton) {
+            continue;
+        }
+        if (widget.isStickyBand()) {
             top = Math.max(top, widget.bottom());
+        } else if (widget.region() == AtmosphereWidget.Region.CONTENT) {
+            left = Math.min(left, widget.left());
+            right = Math.max(right, widget.right());
         }
     }
+
     scrollViewportTop = top;
+
+    int fullLeft = contentWidgetLeft();
+    int fullRight = contentWidgetLeft() + contentWidgetWidth();
+    // +2 on the right keeps each card's 1px drop shadow from being clipped; it stays well
+    // inside the gap before the inspector column.
+    editorClipLeft = left <= right ? Math.max(fullLeft, left) : fullLeft;
+    editorClipRight = left <= right ? Math.min(fullRight, right + 2) : fullRight;
 }
 
 
@@ -3782,16 +3804,16 @@ private String trimHeaderText(String text, int maxWidth) {
     int contentClipTop = windowY + layout().contentTopOffset() - 12;
     int contentClipBottom = sidebarPanelBottom() - contentPadding();
 
-    // Scroll-locked content (e.g. a sticky preview header) renders in the full content area,
-    // never clipped by the scrollable viewport below it.
+    // Fixed regions (sticky band + inspector) render in the full content rect, never clipped by
+    // the scrollable editor viewport. They occupy disjoint areas, so a single shared clip is safe.
     context.enableScissor(contentClipLeft, contentClipTop, contentClipRight, contentClipBottom);
     renderContentWidgets(context, uiMouseX, uiMouseY, delta, true);
     context.disableScissor();
 
-    // Scrollable content is clipped to start at scrollViewportTop, so anything that has
-    // scrolled up underneath locked content is cut off entirely rather than painted over
-    // (no semi-transparent ghosting through card backgrounds).
-    context.enableScissor(contentClipLeft, Math.max(contentClipTop, scrollViewportTop), contentClipRight, contentClipBottom);
+    // Scrollable editor content is clipped to its own X range and to scrollViewportTop, so it can
+    // never bleed into the inspector column, nor ghost up beneath a sticky band — anything outside
+    // the editor viewport is cut off by the GPU scissor rather than painted over.
+    context.enableScissor(editorClipLeft, Math.max(contentClipTop, scrollViewportTop), editorClipRight, contentClipBottom);
     renderContentWidgets(context, uiMouseX, uiMouseY, delta, false);
     context.disableScissor();
 
@@ -3811,12 +3833,12 @@ private String trimHeaderText(String text, int maxWidth) {
         }
     }
 
-    private void renderContentWidgets(DrawContext context, int mouseX, int mouseY, float delta, boolean scrollLocked) {
+    private void renderContentWidgets(DrawContext context, int mouseX, int mouseY, float delta, boolean fixedRegions) {
         for (AtmosphereWidget widget : widgets) {
             if (widget instanceof CategoryButton) {
                 continue;
             }
-            if (widget.isScrollLocked() != scrollLocked) {
+            if (widget.isFixedRegion() != fixedRegions) {
                 continue;
             }
             widget.render(context, textRenderer, mouseX, mouseY, delta);
@@ -4328,8 +4350,10 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             return;
         }
 
-        int trackX = contentWidgetLeft() + contentWidgetWidth() + 4;
-        int trackY = windowY + layout().contentTopOffset() - 10;
+        // Sit at the editor column's right edge (which differs from the full content width in
+        // Theme Studio's side layout, where the inspector occupies the rest).
+        int trackX = editorClipRight + 4;
+        int trackY = Math.max(windowY + layout().contentTopOffset() - 10, scrollViewportTop);
         int trackH = Math.max(24, sidebarPanelBottom() - contentPadding() - trackY);
         int thumbH = Math.max(24, trackH * trackH / (trackH + maxScroll));
         int thumbY = trackY + (trackH - thumbH) * scrollOffset / maxScroll;
@@ -4354,11 +4378,12 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
     }
 
-    // The scrollViewportTop clip only governs the main content area's scrollable region — it
-    // must never apply to the sidebar (its own independent scroll system) or to anything a page
-    // explicitly pinned outside the scroll flow via lockToViewport().
+    // The scrollViewportTop hit guard only governs the scrollable editor region (Region.CONTENT).
+    // It must never apply to the sidebar (its own independent scroll system) or to fixed regions
+    // (STICKY_BAND / INSPECTOR), so header/sidebar/footer/inspector controls are never blocked by
+    // editor scroll logic.
     private boolean isContentScrollGuarded(AtmosphereWidget widget) {
-        return !(widget instanceof CategoryButton) && !widget.isScrollLocked();
+        return !(widget instanceof CategoryButton) && !widget.isFixedRegion();
     }
 
     private void drawV2Tooltip(DrawContext context, String tooltip, int mouseX, int mouseY) {
