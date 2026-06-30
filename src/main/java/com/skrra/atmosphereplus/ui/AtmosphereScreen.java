@@ -168,11 +168,11 @@ private LayoutProfile layout() {
 }
 
 private int sidebarPanelTop() {
-    return windowY + layout().topBarHeight() + 10;
+    return windowY + 1;
 }
 
 private int sidebarPanelBottom() {
-    return windowY + windowH - layout().outerMargin();
+    return windowY + windowH - footerBarHeight();
 }
 
 private int sidebarLeft() {
@@ -251,6 +251,10 @@ private int contentWidgetWidth() {
     return Math.max(100, contentWidth() - contentPadding() * 2 - contentScrollbarReserve());
 }
 
+private int footerBarHeight() {
+    return layout().mode == LayoutProfile.Mode.TINY ? 28 : V2DesignTokens.FOOTER_BAR_HEIGHT;
+}
+
 
 
 
@@ -267,7 +271,7 @@ private int contentWidgetWidth() {
     windowH = Math.max(1, layoutProfile.maxWindowHeight());
     windowX = (width - windowW) / 2;
     windowY = (height - windowH) / 2;
-    contentBottom = windowY + windowH - layout().outerMargin() - contentPadding();
+    contentBottom = windowY + windowH - footerBarHeight() - contentPadding();
 
     searchW = Math.min(300, Math.max(140, windowW / 3));
     searchH = 24;
@@ -3713,12 +3717,13 @@ private String trimHeaderText(String text, int maxWidth) {
     UiRender.gradientHorizontal(context, windowX + 1, windowY + 1, windowW - 2, layout().topBarHeight(), UiRender.V2_BACKGROUND_DEEP, UiRender.V2_PANEL);
     UiRender.rect(context, windowX + 1, windowY + layout().topBarHeight(), windowW - 2, 1, UiRender.V2_BORDER);
 
+    drawSidebar(context, theme);
     drawBranding(context, theme);
     drawSearchBar(context, theme);
     drawTopButtons(context, theme, uiMouseX, uiMouseY);
-    drawSidebar(context, theme);
     drawContentHeader(context, theme);
     renderContentBackground(context, theme);
+    drawFooterBar(context, theme);
 
     context.enableScissor(sidebarLeft(), sidebarListTop() - 2, sidebarRight(), sidebarListTop() + sidebarViewportHeight());
     renderSidebarWidgets(context, uiMouseX, uiMouseY, delta);
@@ -3773,14 +3778,18 @@ private String trimHeaderText(String text, int maxWidth) {
     }
 
     private void drawBranding(DrawContext context, Theme theme) {
-        int logoX = windowX + 16;
-        int logoY = windowY + 13;
+        int logoX = sidebarLeft() + 12;
+        int logoY = windowY + 12;
 
         UiRender.borderedRect(context, logoX, logoY, 24, 24, UiRender.V2_ACCENT_SOFT, UiRender.V2_ACCENT);
         IconRenderer.drawCentered(context, IconType.WEATHER, logoX + 12, logoY + 12, 18);
 
-        UiRender.text(context, textRenderer, AtmospherePlusClient.MOD_NAME, windowX + 48, windowY + 12, theme.text());
-        UiRender.text(context, textRenderer, "Settings", windowX + 48, windowY + 27, theme.mutedText());
+        if (sidebarWidth() >= 118) {
+            UiRender.text(context, textRenderer, AtmospherePlusClient.MOD_NAME, logoX + 32, windowY + 11, theme.text());
+            UiRender.text(context, textRenderer, "Settings", logoX + 32, windowY + 26, theme.mutedText());
+        } else {
+            UiRender.text(context, textRenderer, "A+", logoX + 31, windowY + 18, theme.text());
+        }
     }
 
     private void drawSearchBar(DrawContext context, Theme theme) {
@@ -3829,9 +3838,9 @@ private String trimHeaderText(String text, int maxWidth) {
 
     UiRender.v2Panel(context, x, y, w, h);
 
-    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 14, y + 10, theme.mutedText());
+    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 14, y + 46, theme.mutedText());
     UiRender.text(context, textRenderer, "Atmosphere+ " + AtmospherePlusClient.VERSION, x + 14, y + h - 24, theme.mutedText());
-    UiRender.v2Rule(context, x + 14, y + 29, w - 28, 72);
+    UiRender.v2Rule(context, x + 14, y + 63, w - 28, 72);
 
     if (isSearching()) {
         UiRender.centeredText(context, textRenderer, "Direct results", x + w / 2, y + 54, theme.accent());
@@ -3847,6 +3856,27 @@ private String trimHeaderText(String text, int maxWidth) {
             UiRender.centeredText(context, textRenderer, "No category matches", x + w / 2, y + 64, theme.mutedText());
         }
 }
+
+    private void drawFooterBar(DrawContext context, Theme theme) {
+        int y = windowY + windowH - footerBarHeight();
+        int h = footerBarHeight();
+        UiRender.gradientHorizontal(context, windowX + 1, y, windowW - 2, h - 1, UiRender.V2_BACKGROUND_DEEP, UiRender.V2_PANEL);
+        UiRender.rect(context, windowX + 1, y, windowW - 2, 1, UiRender.V2_BORDER);
+
+        String tip = selected == UiCategory.THEME_STUDIO
+                ? "Tip: Changes apply instantly to the preview. Save your theme to use it across profiles."
+                : "Tip: Search can jump directly to weather, time, fog, presets, themes, and profiles.";
+        int textX = contentLeft() + 14;
+        int textY = y + Math.max(8, (h - 8) / 2);
+        UiRender.text(context, textRenderer, trimHeaderText(tip, Math.max(80, contentWidth() - 190)), textX, textY, theme.mutedText());
+
+        int doneW = Math.min(94, Math.max(58, contentWidth() / 7));
+        int doneH = Math.min(24, h - 12);
+        int doneX = windowX + windowW - layout().outerMargin() - doneW;
+        int doneY = y + (h - doneH) / 2;
+        UiRender.borderedRect(context, doneX, doneY, doneW, doneH, UiRender.V2_SELECTED, UiRender.V2_ACCENT);
+        UiRender.centeredText(context, textRenderer, "Done", doneX + doneW / 2, doneY + 8, theme.text());
+    }
 
     private void drawContentHeader(DrawContext context, Theme theme) {
     int x = contentLeft();
@@ -4250,10 +4280,68 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
 
         for (AtmosphereWidget widget : widgets) {
             if (widget.isHoveredPublic(mouseX, mouseY) && widget.getTooltip() != null && !widget.getTooltip().isEmpty()) {
-                context.drawTooltip(textRenderer, List.of(Text.literal(widget.getTooltip())), mouseX, mouseY);
+                drawV2Tooltip(context, widget.getTooltip(), mouseX, mouseY);
                 return;
             }
         }
+    }
+
+    private void drawV2Tooltip(DrawContext context, String tooltip, int mouseX, int mouseY) {
+        List<String> lines = wrapTooltip(tooltip, 220);
+        if (lines.isEmpty()) {
+            return;
+        }
+
+        int maxW = 0;
+        for (String line : lines) {
+            maxW = Math.max(maxW, textRenderer.getWidth(line));
+        }
+
+        int boxW = maxW + 14;
+        int boxH = lines.size() * 11 + 10;
+        int x = mouseX + 14;
+        int y = mouseY + 16;
+
+        if (x + boxW > width - 6) {
+            x = mouseX - boxW - 14;
+        }
+        if (y + boxH > height - 6) {
+            y = mouseY - boxH - 12;
+        }
+
+        x = Math.max(6, Math.min(x, width - boxW - 6));
+        y = Math.max(6, Math.min(y, height - boxH - 6));
+
+        UiRender.borderedRect(context, x, y, boxW, boxH, UiRender.V2_BACKGROUND_DEEP, UiRender.V2_BORDER_SOFT);
+        UiRender.v2Rule(context, x + 6, y + 4, boxW - 12, 54);
+        for (int i = 0; i < lines.size(); i++) {
+            UiRender.text(context, textRenderer, lines.get(i), x + 7, y + 9 + i * 11, UiRender.V2_TEXT);
+        }
+    }
+
+    private List<String> wrapTooltip(String tooltip, int maxWidth) {
+        List<String> lines = new ArrayList<>();
+        String remaining = tooltip == null ? "" : tooltip.trim();
+        while (!remaining.isBlank() && lines.size() < 4) {
+            if (textRenderer.getWidth(remaining) <= maxWidth) {
+                lines.add(remaining);
+                break;
+            }
+
+            int end = remaining.length();
+            while (end > 4 && textRenderer.getWidth(remaining.substring(0, end) + "...") > maxWidth) {
+                end--;
+            }
+            int breakAt = remaining.lastIndexOf(' ', end);
+            if (breakAt > 10) {
+                lines.add(remaining.substring(0, breakAt));
+                remaining = remaining.substring(breakAt + 1).trim();
+            } else {
+                lines.add(remaining.substring(0, Math.max(1, end)) + "...");
+                break;
+            }
+        }
+        return lines;
     }
 
     @Override
@@ -4267,6 +4355,14 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
 
         if (UiRender.hovered(click.x(), click.y(), closeX, closeY, closeSize, closeSize)) {
+            if (confirmThemeStudioCloseIfDirty()) {
+                return true;
+            }
+            MinecraftClient.getInstance().setScreen(null);
+            return true;
+        }
+
+        if (isOverFooterDone(click.x(), click.y())) {
             if (confirmThemeStudioCloseIfDirty()) {
                 return true;
             }
@@ -4307,6 +4403,16 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
 
         return super.mouseClicked(click, doubled);
+    }
+
+    private boolean isOverFooterDone(double mouseX, double mouseY) {
+        int y = windowY + windowH - footerBarHeight();
+        int h = footerBarHeight();
+        int doneW = Math.min(94, Math.max(58, contentWidth() / 7));
+        int doneH = Math.min(24, h - 12);
+        int doneX = windowX + windowW - layout().outerMargin() - doneW;
+        int doneY = y + (h - doneH) / 2;
+        return UiRender.hovered(mouseX, mouseY, doneX, doneY, doneW, doneH);
     }
 
     @Override

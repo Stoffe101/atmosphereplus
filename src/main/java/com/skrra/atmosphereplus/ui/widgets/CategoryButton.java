@@ -46,7 +46,9 @@ public class CategoryButton extends AtmosphereWidget {
         UiRender.v2IconBox(context, tileX, tileY, tileSize, active || hover);
         IconRenderer.drawCentered(context, category.icon, tileX + tileSize / 2, tileY + tileSize / 2, 14);
 
-        UiRender.text(context, textRenderer, trim(textRenderer, category.title, buttonW - 40), buttonX + 32, y + 6, textColor);
+        if (buttonW >= 92) {
+            UiRender.text(context, textRenderer, trim(textRenderer, category.title, buttonW - 40), buttonX + 32, y + 6, textColor);
+        }
     }
 
     private String trim(TextRenderer renderer, String text, int maxWidth) {

@@ -63,65 +63,65 @@ public final class LayoutProfile {
 
     public int outerMargin() {
         return switch (mode) {
-            case TINY -> 6;
-            case COMPACT -> 8;
-            default -> 12;
+            case TINY -> 4;
+            case COMPACT -> V2DesignTokens.WINDOW_MARGIN;
+            default -> 10;
         };
     }
 
     public int maxWindowWidth() {
         return switch (mode) {
             case TINY -> Math.max(1, scaledWidth - outerMargin() * 2);
-            case COMPACT -> Math.min(900, scaledWidth - outerMargin() * 2);
-            case NORMAL -> Math.min(960, scaledWidth - outerMargin() * 2);
-            case WIDE -> Math.min(1040, scaledWidth - outerMargin() * 2);
-            case ULTRAWIDE -> Math.min(1180, scaledWidth - outerMargin() * 2);
+            case COMPACT -> Math.min(920, scaledWidth - outerMargin() * 2);
+            case NORMAL -> Math.min(1120, scaledWidth - outerMargin() * 2);
+            case WIDE -> Math.min(1400, scaledWidth - outerMargin() * 2);
+            case ULTRAWIDE -> Math.min(1680, scaledWidth - outerMargin() * 2);
         };
     }
 
     public int maxWindowHeight() {
         return switch (mode) {
             case TINY -> Math.max(1, scaledHeight - outerMargin() * 2);
-            case COMPACT -> Math.min(520, scaledHeight - outerMargin() * 2);
-            case NORMAL -> Math.min(560, scaledHeight - outerMargin() * 2);
-            default -> Math.min(600, scaledHeight - outerMargin() * 2);
+            case COMPACT -> Math.min(560, scaledHeight - outerMargin() * 2);
+            case NORMAL -> Math.min(620, scaledHeight - outerMargin() * 2);
+            default -> Math.min(720, scaledHeight - outerMargin() * 2);
         };
     }
 
     public int topBarHeight() {
-        return mode == Mode.TINY ? 44 : 48;
+        return mode == Mode.TINY ? V2DesignTokens.TOP_BAR_HEIGHT_COMPACT : V2DesignTokens.TOP_BAR_HEIGHT;
     }
 
     public int sidebarWidth() {
         return switch (mode) {
-            case TINY -> 104;
-            case COMPACT -> 142;
-            case NORMAL -> 164;
-            default -> 174;
+            case TINY -> V2DesignTokens.SIDEBAR_WIDTH_ULTRA_COMPACT;
+            case COMPACT -> V2DesignTokens.SIDEBAR_WIDTH_COMPACT;
+            case NORMAL -> 160;
+            default -> V2DesignTokens.SIDEBAR_WIDTH;
         };
     }
 
     public int contentGap() {
         return switch (mode) {
-            case TINY -> 8;
-            case COMPACT -> 12;
-            default -> 18;
+            case TINY -> 6;
+            case COMPACT -> 8;
+            default -> V2DesignTokens.COLUMN_GAP;
         };
     }
 
     public int contentPadding() {
         return switch (mode) {
-            case TINY -> 6;
+            case TINY -> V2DesignTokens.CARD_PADDING_COMPACT;
             case COMPACT -> 10;
-            default -> 14;
+            default -> V2DesignTokens.PAGE_MARGIN;
         };
     }
 
     public int sidebarHeaderHeight() {
         return switch (mode) {
-            case TINY -> 52;
-            case COMPACT -> 58;
-            default -> 72;
+            case TINY -> 44;
+            case COMPACT -> 56;
+            default -> 68;
         };
     }
 
@@ -132,8 +132,8 @@ public final class LayoutProfile {
 
         int ideal = switch (mode) {
             case TINY -> 21;
-            case COMPACT -> 22;
-            default -> 25;
+            case COMPACT -> V2DesignTokens.NAV_ROW_HEIGHT_COMPACT;
+            default -> V2DesignTokens.NAV_ROW_HEIGHT;
         };
 
         int fitted = availableHeight / categoryCount;
@@ -143,8 +143,8 @@ public final class LayoutProfile {
     public int contentTopOffset() {
         return switch (mode) {
             case TINY -> 112;
-            case COMPACT -> 120;
-            default -> 126;
+            case COMPACT -> 112;
+            default -> 116;
         };
     }
 

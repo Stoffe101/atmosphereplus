@@ -5,14 +5,16 @@
 ### Changed
 
 - Introduced the Atmosphere+ UI v2 visual redesign with a darker neon dashboard style inspired by the Theme Studio concept.
+- Added a shared UI v2 token and responsive layout architecture for window chrome, sidebar sizing, content grids, preview placement, spacing, and compact density.
 - Refreshed shared UI surfaces for panels, cards, buttons, sliders, toggles, section dividers, selected states, and icon boxes.
-- Redesigned the main screen shell with a stronger sidebar, right-aligned search bar, compact version placement, and cleaner content panels.
-- Updated Theme Studio with a top action strip, compact dashboard cards, refreshed live preview panel styling, and safer responsive behavior.
-- Reduced excessive scrolling at high GUI scale by keeping Theme Studio preview compact on constrained layouts while preserving the side preview on wider layouts.
+- Rebuilt the main screen shell with a full-height sidebar, right-aligned search bar, footer action strip, compact version placement, and cleaner content panels.
+- Rebuilt Theme Studio around the dashboard concept with page tabs, an action strip, selected theme card, two-column editor cards, and a constraint-based preview column.
+- Improved 1080p GUI scale 3 behavior with compact sidebar branding, compact action cards, compact preview placement, and less old-style full-width stacking.
+- Replaced wide vanilla tooltips with compact wrapped UI v2 tooltips that stay within the screen bounds.
 
 ### Notes
 
-- This is a visual/UI redesign pass only. Presets, fog behavior, Biome Atmospheres automation, renderer behavior, and release automation are unchanged.
+- This is a visual/UI layout redesign pass only. Presets, fog behavior, Biome Atmospheres automation, renderer behavior, and release automation are unchanged.
 
 ## 0.4.0-beta.3
 

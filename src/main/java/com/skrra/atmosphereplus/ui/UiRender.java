@@ -5,32 +5,32 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.text.Text;
 
 public final class UiRender {
-    public static final int V2_BACKGROUND = 0xF20A0F1F;
-    public static final int V2_BACKGROUND_DEEP = 0xF8050914;
-    public static final int V2_PANEL = 0xCC11192E;
+    public static final int V2_BACKGROUND = V2DesignTokens.WINDOW_BACKGROUND;
+    public static final int V2_BACKGROUND_DEEP = V2DesignTokens.WINDOW_BACKGROUND_DEEP;
+    public static final int V2_PANEL = V2DesignTokens.PANEL_BACKGROUND;
     public static final int V2_PANEL_ALT = 0xD0182542;
-    public static final int V2_CARD = 0xC7142038;
-    public static final int V2_CARD_HOVER = 0xE01C2B4C;
-    public static final int V2_SELECTED = 0xD52A3F8F;
-    public static final int V2_BORDER = 0xAA33466F;
-    public static final int V2_BORDER_SOFT = 0x774E67A2;
-    public static final int V2_ACCENT = 0xFF6D88FF;
-    public static final int V2_ACCENT_PURPLE = 0xFFE76DFF;
-    public static final int V2_ACCENT_SOFT = 0x773A52C9;
-    public static final int V2_TEXT = 0xFFEFF4FF;
-    public static final int V2_MUTED = 0xFF9CA9C8;
-    public static final int V2_DANGER = 0xFFFF6B8A;
-    public static final int V2_WARNING = 0xFFFFD166;
-    public static final int V2_SUCCESS = 0xFF6BFFB8;
+    public static final int V2_CARD = V2DesignTokens.CARD_BACKGROUND;
+    public static final int V2_CARD_HOVER = V2DesignTokens.CARD_HOVER_BACKGROUND;
+    public static final int V2_SELECTED = V2DesignTokens.SELECTED_BACKGROUND;
+    public static final int V2_BORDER = V2DesignTokens.BORDER;
+    public static final int V2_BORDER_SOFT = V2DesignTokens.BORDER_SOFT;
+    public static final int V2_ACCENT = V2DesignTokens.ACCENT_BLUE;
+    public static final int V2_ACCENT_PURPLE = V2DesignTokens.ACCENT_PURPLE;
+    public static final int V2_ACCENT_SOFT = V2DesignTokens.ACCENT_SOFT;
+    public static final int V2_TEXT = V2DesignTokens.TEXT_PRIMARY;
+    public static final int V2_MUTED = V2DesignTokens.TEXT_MUTED;
+    public static final int V2_DANGER = V2DesignTokens.DANGER;
+    public static final int V2_WARNING = V2DesignTokens.WARNING;
+    public static final int V2_SUCCESS = V2DesignTokens.SUCCESS;
 
-    public static final int V2_GAP = 10;
-    public static final int V2_SMALL_GAP = 8;
-    public static final int V2_PAD = 12;
-    public static final int V2_ROW_HEIGHT = 38;
-    public static final int V2_BUTTON_HEIGHT = 34;
-    public static final int V2_SLIDER_HEIGHT = 44;
+    public static final int V2_GAP = V2DesignTokens.SECTION_GAP;
+    public static final int V2_SMALL_GAP = V2DesignTokens.ROW_GAP;
+    public static final int V2_PAD = V2DesignTokens.CARD_PADDING;
+    public static final int V2_ROW_HEIGHT = V2DesignTokens.ACTION_CARD_HEIGHT;
+    public static final int V2_BUTTON_HEIGHT = V2DesignTokens.BUTTON_HEIGHT;
+    public static final int V2_SLIDER_HEIGHT = V2DesignTokens.SLIDER_HEIGHT;
     public static final int V2_TAB_HEIGHT = 28;
-    public static final int V2_ICON_BOX = 22;
+    public static final int V2_ICON_BOX = V2DesignTokens.ICON_BOX_SIZE;
 
     private UiRender() {
     }

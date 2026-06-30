@@ -31,9 +31,11 @@ Shader packs may change how strong the final tint, brightness, contrast, saturat
 
 ## UI feels crowded at high GUI scale
 
-Atmosphere+ UI v2 uses compact dashboard layouts at high GUI scale. If a page still feels cramped, use the page scrollbar first; Theme Studio keeps the preview compact on constrained layouts so Create, Duplicate, Save, Reset, and library tools stay reachable.
+Atmosphere+ UI v2 uses compact dashboard layouts at high GUI scale. If a page still feels cramped, use the page scrollbar first; Theme Studio keeps actions, editor cards, and the compact preview reachable before lower library tools.
 
 For the most room, Minecraft GUI scale 2 gives the UI more breathing space than GUI scale 3 at 1920x1080.
+
+Tooltips are wrapped into compact boxes and should stay inside the screen. If a tooltip blocks something important, move the cursor away from the control briefly.
 
 ## Cloud distance is missing
 

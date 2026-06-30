@@ -60,11 +60,13 @@ Shader packs may override renderer hooks. See `KNOWN_WORKING_SHADER_LIMITED.md`.
 
 ### UI v2
 
-- Premium dark dashboard-style interface with a stronger sidebar and clearer search area
+- Premium dark dashboard-style interface with a stronger full-height sidebar, clearer search area, and footer strip
+- Shared UI v2 design tokens and constraint-based layout helpers for spacing, density, grids, and preview placement
 - Shared card, button, slider, toggle, section, and preview panel styling across the main UI
 - Refreshed icon boxes and selected states for better scanability
-- Theme Studio uses a compact action strip, editor cards, and live preview behavior tuned for both ultrawide displays and 1080p high GUI scale
+- Theme Studio uses concept-inspired page tabs, a compact action strip, two-column editor cards, selected theme card, and live preview behavior tuned for both ultrawide displays and 1080p high GUI scale
 - High GUI scale layouts prioritize reachable controls and compact previews instead of excessive scrolling
+- Tooltips wrap into compact UI v2 popups instead of stretching across large parts of the menu
 
 ### Preset Packs
 
