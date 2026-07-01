@@ -222,7 +222,7 @@ private int sidebarListTop() {
 
 private int sidebarFooterHeight() {
     // Reserved block at the bottom for the version text, kept clear of the nav-list viewport.
-    return 26;
+    return 30;
 }
 
 private int sidebarListBottom() {
@@ -230,7 +230,9 @@ private int sidebarListBottom() {
 }
 
 private int sidebarVersionY() {
-    return sidebarListBottom() + (sidebarFooterHeight() - 8) / 2 + 1;
+    // Sit near the top of the reserved footer block so the text keeps a comfortable gap above
+    // the panel's bottom border at both GUI scale 2 and 3.
+    return sidebarListBottom() + 9;
 }
 
 private int sidebarStep() {
