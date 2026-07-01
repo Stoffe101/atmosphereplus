@@ -181,9 +181,6 @@ Then:
 .\gradlew runClient
 ```
 
-## Screenshots
-
-Recommended screenshots for GitHub and Modrinth are documented in `docs/screenshots/README.md`. Capture real in-game screenshots; do not use mockups.
 
 ## Releases
 
