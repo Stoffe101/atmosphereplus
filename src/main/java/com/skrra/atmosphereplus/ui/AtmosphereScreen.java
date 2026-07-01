@@ -196,19 +196,52 @@ private int sidebarRight() {
     return sidebarLeft() + sidebarWidth();
 }
 
+// Sidebar is laid out as explicit stacked regions (top to bottom): title block, navigation
+// label, divider, nav-list viewport, version/footer block. Each has reserved vertical space so
+// nothing has to rely on hand-tuned overlapping offsets.
+private boolean sidebarCompactHeader() {
+    return layout().mode == LayoutProfile.Mode.TINY || layout().mode == LayoutProfile.Mode.COMPACT;
+}
+
+private int sidebarTitleBottom() {
+    // Reserve room for the branding block (logo + "Atmosphere+" + "Settings").
+    return sidebarPanelTop() + (sidebarCompactHeader() ? 34 : 42);
+}
+
+private int sidebarNavLabelY() {
+    return sidebarTitleBottom() + 5;
+}
+
+private int sidebarDividerY() {
+    return sidebarNavLabelY() + 13;
+}
+
 private int sidebarListTop() {
-    return sidebarPanelTop() + layout().sidebarHeaderHeight();
+    return sidebarDividerY() + (sidebarCompactHeader() ? 8 : 11);
+}
+
+private int sidebarFooterHeight() {
+    // Reserved block at the bottom for the version text, kept clear of the nav-list viewport.
+    return 26;
+}
+
+private int sidebarListBottom() {
+    return sidebarPanelBottom() - sidebarFooterHeight();
+}
+
+private int sidebarVersionY() {
+    return sidebarListBottom() + (sidebarFooterHeight() - 8) / 2 + 1;
 }
 
 private int sidebarStep() {
     int count = Math.max(1, visibleCategories().size());
-    int available = Math.max(24, sidebarPanelBottom() - sidebarListTop() - 4);
+    int available = sidebarViewportHeight();
     return layout().sidebarStep(count, available);
 }
 
 
 private int sidebarViewportHeight() {
-    return Math.max(24, sidebarPanelBottom() - sidebarListTop() - 4);
+    return Math.max(24, sidebarListBottom() - sidebarListTop());
 }
 
 private int sidebarContentHeight() {
@@ -3925,22 +3958,23 @@ private String trimHeaderText(String text, int maxWidth) {
 
     UiRender.v2Panel(context, x, y, w, h);
 
-    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 12, y + 46, theme.mutedText());
-    UiRender.text(context, textRenderer, "Atmosphere+ " + AtmospherePlusClient.VERSION, x + 12, y + h - 22, theme.mutedText());
-    UiRender.v2Rule(context, x + 14, y + 63, w - 28, 72);
+    UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 12, sidebarNavLabelY(), theme.mutedText());
+    UiRender.text(context, textRenderer, "Atmosphere+ " + AtmospherePlusClient.VERSION, x + 12, sidebarVersionY(), theme.mutedText());
+    UiRender.v2Rule(context, x + 14, sidebarDividerY(), w - 28, 72);
 
     if (isSearching()) {
-        UiRender.centeredText(context, textRenderer, "Direct results", x + w / 2, y + 54, theme.accent());
-        UiRender.centeredText(context, textRenderer, "Categories hidden", x + w / 2, y + 74, theme.mutedText());
-        UiRender.centeredText(context, textRenderer, "Clear search", x + w / 2, y + 94, theme.mutedText());
+        int infoY = sidebarListTop() + 4;
+        UiRender.centeredText(context, textRenderer, "Direct results", x + w / 2, infoY, theme.accent());
+        UiRender.centeredText(context, textRenderer, "Categories hidden", x + w / 2, infoY + 20, theme.mutedText());
+        UiRender.centeredText(context, textRenderer, "Clear search", x + w / 2, infoY + 40, theme.mutedText());
 
-        UiRender.borderedRect(context, x + 16, y + 122, w - 32, 24, UiRender.V2_ACCENT_SOFT(), UiRender.V2_BORDER());
-        UiRender.centeredText(context, textRenderer, searchResultCount + " result" + (searchResultCount == 1 ? "" : "s"), x + w / 2, y + 130, theme.text());
+        UiRender.borderedRect(context, x + 16, infoY + 66, w - 32, 24, UiRender.V2_ACCENT_SOFT(), UiRender.V2_BORDER());
+        UiRender.centeredText(context, textRenderer, searchResultCount + " result" + (searchResultCount == 1 ? "" : "s"), x + w / 2, infoY + 74, theme.text());
         return;
     }
 
         if (visibleCategories().isEmpty()) {
-            UiRender.centeredText(context, textRenderer, "No category matches", x + w / 2, y + 64, theme.mutedText());
+            UiRender.centeredText(context, textRenderer, "No category matches", x + w / 2, sidebarListTop() + 4, theme.mutedText());
         }
 }
 
