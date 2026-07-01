@@ -109,7 +109,7 @@ public final class BiomeAtmosphereManager {
                 config.lastAppliedPreset = presetId;
                 pendingCategoryTicks = 0;
                 automationState = "Active";
-                notifyAutomation(config, "biome:" + categoryId + ":" + presetId, "Biome Atmospheres: " + category.label() + " -> " + presetName(presetId));
+                notifyAutomation(config, "biome:" + categoryId + ":" + presetId, "Biome Effects: " + category.label() + " -> " + presetName(presetId));
                 ConfigManager.save();
             }
         } finally {

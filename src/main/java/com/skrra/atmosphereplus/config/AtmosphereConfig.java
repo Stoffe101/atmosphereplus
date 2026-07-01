@@ -60,6 +60,14 @@ public class AtmosphereConfig {
     public int lastQuickProfile = 0;
     public String lastQuickPreset = "";
 
+    // Grouped sidebar navigation (0.6.0-beta.1). One flag per collapsible group; the pinned
+    // Home/Quick items have no group and no state. false = expanded, so a missing field in an
+    // older config (or a brand-new config) defaults to all groups expanded, matching the
+    // required first-launch behavior.
+    public boolean sidebarGroupVisualsCollapsed = false;
+    public boolean sidebarGroupThemesPresetsCollapsed = false;
+    public boolean sidebarGroupDataToolsCollapsed = false;
+
     public boolean favoritePresetGoldenHour = true;
     public boolean favoritePresetMidnight = true;
     public boolean favoritePresetCozyRain = false;

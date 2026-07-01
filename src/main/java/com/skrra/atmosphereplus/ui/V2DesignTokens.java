@@ -39,6 +39,8 @@ public final class V2DesignTokens {
     public static final int FOOTER_BAR_HEIGHT = 42;
     public static final int NAV_ROW_HEIGHT = 25;
     public static final int NAV_ROW_HEIGHT_COMPACT = 21;
+    public static final int NAV_GROUP_HEADER_HEIGHT = 16;
+    public static final int NAV_CHILD_INDENT = 10;
     public static final int ACTION_CARD_HEIGHT = 38;
     public static final int ACTION_CARD_HEIGHT_COMPACT = 32;
     public static final int SETTING_CARD_HEIGHT = 124;

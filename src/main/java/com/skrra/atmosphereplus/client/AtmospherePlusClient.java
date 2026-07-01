@@ -13,7 +13,7 @@ import net.fabricmc.api.ClientModInitializer;
 public class AtmospherePlusClient implements ClientModInitializer {
     public static final String MOD_ID = "atmosphereplus";
     public static final String MOD_NAME = "Atmosphere+";
-    public static final String VERSION = "0.5.0-beta.1";
+    public static final String VERSION = "0.6.0-beta.1";
 
     @Override
     public void onInitializeClient() {

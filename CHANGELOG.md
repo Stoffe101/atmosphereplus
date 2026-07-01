@@ -1,5 +1,23 @@
 # Atmosphere+ Changelog
 
+## 0.6.0-beta.1
+
+### Added
+
+- Added grouped, collapsible sidebar navigation with Home and Quick pinned above the groups.
+- Added collapsible Visuals, Themes & Presets, and Data & Tools sidebar groups.
+- Added persisted per-group sidebar collapse state.
+
+### Changed
+
+- The active page's sidebar group now auto-expands so the selected page remains visible.
+- New and migrated configs default sidebar groups to expanded through the v16 config migration.
+- Renamed the in-game biome automation feature to Biome Effects.
+
+### Fixed
+
+- Fixed active-group header clicks so the saved collapse state updates without hiding the active page or showing a misleading collapsed chevron.
+
 ## 0.5.0-beta.1
 
 ### Changed

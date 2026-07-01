@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 
 public final class ConfigSafety {
-    public static final int LATEST_CONFIG_VERSION = 15;
+    public static final int LATEST_CONFIG_VERSION = 16;
 
     private ConfigSafety() {
     }
@@ -33,6 +33,15 @@ public final class ConfigSafety {
             // alpha 18 release cleanup: keep stale experimental values safe and non-invasive.
             config.cloudDistanceOverride = false;
             config.cloudDistance = 12;
+
+            // v16 (0.6.0-beta.1): grouped sidebar navigation. Existing users start with all
+            // groups expanded, matching first-launch behavior. Version-gated so a later config
+            // bump never resets a user's saved collapse preferences.
+            if (config.configVersion < 16) {
+                config.sidebarGroupVisualsCollapsed = false;
+                config.sidebarGroupThemesPresetsCollapsed = false;
+                config.sidebarGroupDataToolsCollapsed = false;
+            }
 
             config.configVersion = LATEST_CONFIG_VERSION;
             changed = true;

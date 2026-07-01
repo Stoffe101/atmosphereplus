@@ -76,7 +76,7 @@ public final class BiomeAtmospheresPage {
     private static int addControls(List<AtmosphereWidget> widgets, Actions actions, BiomeAtmosphereConfig config, boolean cavePresetPickerOpen, int x, int y, int width) {
         int gap = 10;
 
-        widgets.add(new SectionLabelWidget(x, y, width, "Biome Atmospheres", "Client-side preset automation"));
+        widgets.add(new SectionLabelWidget(x, y, width, "Biome Effects", "Client-side preset automation"));
         y += 26;
 
         widgets.add(new InfoCardWidget(
@@ -97,11 +97,11 @@ public final class BiomeAtmospheresPage {
         int toggleRowH = 46;
         int t = 0;
 
-        widgets.add(new ToggleWidget(x + (t % toggleCols) * (toggleW + gap), y + (t / toggleCols) * toggleRowH, toggleW, "Enable Biome Atmospheres", "Opt in to client-side biome preset automation.", () -> config.enabled, actions::setEnabled));
+        widgets.add(new ToggleWidget(x + (t % toggleCols) * (toggleW + gap), y + (t / toggleCols) * toggleRowH, toggleW, "Enable Biome Effects", "Opt in to client-side biome preset automation.", () -> config.enabled, actions::setEnabled));
         t++;
         widgets.add(new ToggleWidget(x + (t % toggleCols) * (toggleW + gap), y + (t / toggleCols) * toggleRowH, toggleW, "Manual changes pause automation", "Pause automation when you manually change atmosphere settings.", () -> config.manualChangesPause, actions::setManualPause));
         t++;
-        widgets.add(new ToggleWidget(x + (t % toggleCols) * (toggleW + gap), y + (t / toggleCols) * toggleRowH, toggleW, "Show Automation Toasts", "Show brief Biome Atmospheres status notifications.", () -> config.showAutomationToasts, actions::setShowAutomationToasts));
+        widgets.add(new ToggleWidget(x + (t % toggleCols) * (toggleW + gap), y + (t / toggleCols) * toggleRowH, toggleW, "Show Automation Toasts", "Show brief Biome Effects status notifications.", () -> config.showAutomationToasts, actions::setShowAutomationToasts));
         t++;
 
         y += ((t + toggleCols - 1) / toggleCols) * toggleRowH + gap;
@@ -280,7 +280,7 @@ public final class BiomeAtmospheresPage {
                     width,
                     60,
                     "No presets available",
-                    "Create or restore presets before enabling Biome Atmospheres.",
+                    "Create or restore presets before enabling Biome Effects.",
                     IconType.PRESETS
             ));
             y += 72;

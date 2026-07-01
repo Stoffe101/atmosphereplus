@@ -102,6 +102,15 @@ public class AtmosphereScreen extends Screen {
     private int sidebarScrollOffset = 0;
     private int sidebarMaxScroll = 0;
 
+    // Group-header rows for the sidebar, computed during rebuildWidgets alongside the item
+    // widgets. baseY is relative to the list top before scrolling; the same -sidebarScrollOffset
+    // that is baked into the item widgets is applied when the headers are drawn. `expanded` is
+    // the effective (displayed) state, so the chevron always matches which items are visible.
+    private record SidebarHeaderRow(SidebarGroup group, int baseY, boolean expanded) {
+    }
+
+    private final List<SidebarHeaderRow> sidebarHeaderRows = new ArrayList<>();
+
     private int searchResultCount = 0;
 
     private int lastScreenWidth = -1;
@@ -235,10 +244,64 @@ private int sidebarVersionY() {
     return sidebarListBottom() + 9;
 }
 
-private int sidebarStep() {
-    int count = Math.max(1, visibleCategories().size());
-    int available = sidebarViewportHeight();
-    return layout().sidebarStep(count, available);
+private int sidebarGroupHeaderHeight() {
+    return sidebarCompactHeader() ? 14 : V2DesignTokens.NAV_GROUP_HEADER_HEIGHT;
+}
+
+private int sidebarChildIndent() {
+    return V2DesignTokens.NAV_CHILD_INDENT;
+}
+
+// A group is shown expanded when it is not collapsible, when it is not collapsed, or when it
+// contains the currently selected page (the active page's group always auto-expands so it can
+// never be hidden, even if the user previously collapsed it).
+private boolean isGroupExpanded(SidebarGroup group) {
+    if (!group.collapsible) {
+        return true;
+    }
+    return !group.isCollapsed() || selected.group == group;
+}
+
+private int sidebarItemCount() {
+    if (isSearching()) {
+        return 0;
+    }
+    int count = 0;
+    for (UiCategory category : visibleCategories()) {
+        if (isGroupExpanded(category.group)) {
+            count++;
+        }
+    }
+    return count;
+}
+
+// Number of collapsible-group headers among the currently visible categories. Pinned items
+// (Home/Quick) contribute no header. Computed from the same iteration the layout uses, so the
+// height math and the rendered rows can never disagree.
+private int sidebarHeaderCount() {
+    if (isSearching()) {
+        return 0;
+    }
+    int count = 0;
+    SidebarGroup last = null;
+    for (UiCategory category : visibleCategories()) {
+        SidebarGroup group = category.group;
+        if (group.collapsible && group != last) {
+            count++;
+        }
+        last = group;
+    }
+    return count;
+}
+
+// Per-item row height. Items share the space left over after the group headers, shrinking from
+// the ideal nav row height down to the profile floor so the list still fits without scrolling
+// at the target resolutions.
+private int sidebarItemStep() {
+    int itemCount = Math.max(1, sidebarItemCount());
+    int headerTotal = sidebarHeaderCount() * sidebarGroupHeaderHeight();
+    int available = Math.max(24, sidebarViewportHeight() - headerTotal - 6);
+    return layout().sidebarStep(itemCount, available);
 }
 
 
@@ -251,7 +314,7 @@ private int sidebarContentHeight() {
         return 0;
     }
 
-    return Math.max(0, visibleCategories().size() * sidebarStep());
+    return Math.max(0, sidebarItemCount() * sidebarItemStep() + sidebarHeaderCount() * sidebarGroupHeaderHeight());
 }
 
 private void clampSidebarScroll() {
@@ -327,21 +390,44 @@ private int footerBarHeight() {
     closeY = windowY + 12;
 
     int sidebarX = sidebarLeft();
-    int sidebarY = sidebarListTop();
+    int sidebarListTop = sidebarListTop();
     int sidebarW = sidebarWidth();
-    int sidebarStep = sidebarStep();
     clampSidebarScroll();
 
+    sidebarHeaderRows.clear();
     if (!isSearching()) {
-        int i = 0;
+        int itemStep = sidebarItemStep();
+        int headerH = sidebarGroupHeaderHeight();
+        int indent = sidebarChildIndent();
+        int rowBase = 0;
+        SidebarGroup lastGroup = null;
+
         for (UiCategory category : visibleCategories()) {
-            widgets.add(new CategoryButton(sidebarX, sidebarY + i * sidebarStep - sidebarScrollOffset, sidebarW, category, () -> selected, c -> {
+            SidebarGroup group = category.group;
+
+            // A collapsible group starts a header row before its first item; pinned Home/Quick
+            // items get neither a header nor an indent.
+            if (group.collapsible && group != lastGroup) {
+                sidebarHeaderRows.add(new SidebarHeaderRow(group, rowBase, isGroupExpanded(group)));
+                rowBase += headerH;
+            }
+            lastGroup = group;
+
+            // Collapsed group: the header is still shown so it can be re-expanded, but its child
+            // items are neither rendered nor created as widgets, so they are not clickable.
+            if (!isGroupExpanded(group)) {
+                continue;
+            }
+
+            int itemIndent = group.collapsible ? indent : 0;
+            int itemY = sidebarListTop + rowBase - sidebarScrollOffset;
+            widgets.add(new CategoryButton(sidebarX + itemIndent, itemY, sidebarW - itemIndent, category, () -> selected, c -> {
                 selectCategory(c);
                 searchFocused = false;
                 scrollOffset = 0;
                 rebuildWidgets();
             }));
-            i++;
+            rowBase += itemStep;
         }
     }
 
@@ -1538,7 +1624,7 @@ private BiomeAtmospheresPage.Actions biomeAtmosphereActions() {
                 config.paused = false;
             }
             ConfigManager.save();
-            NotificationUtil.show(value ? "Biome Atmospheres enabled" : "Biome Atmospheres disabled");
+            NotificationUtil.show(value ? "Biome Effects enabled" : "Biome Effects disabled");
             rebuildWidgets();
         }
 
@@ -1546,7 +1632,7 @@ private BiomeAtmospheresPage.Actions biomeAtmosphereActions() {
         public void setPaused(boolean value) {
             ConfigManager.get().biomeAtmospheres.paused = value;
             ConfigManager.save();
-            NotificationUtil.show(value ? "Biome Atmospheres paused" : "Biome Atmospheres resumed");
+            NotificationUtil.show(value ? "Biome Effects paused" : "Biome Effects resumed");
             rebuildWidgets();
         }
 
@@ -3555,12 +3641,12 @@ private int addSearchPresetLibraryEntries(int y, int x, int width) {
 private int addSearchBiomeAtmosphereEntries(int y, int x, int width) {
     BiomeAtmosphereConfig config = ConfigManager.get().biomeAtmospheres;
 
-    y = addSearchAction(y, x, width, "Biome Atmospheres", "biome atmospheres automation presets category", "Biome Atmospheres", "Open biome-based preset automation.", IconType.SKY, () -> {
+    y = addSearchAction(y, x, width, "Biome Effects", "biome effects biome atmospheres automation presets category", "Biome Effects", "Open biome-based preset automation.", IconType.SKY, () -> {
         selectCategory(UiCategory.BIOME_ATMOSPHERES);
         scrollOffset = 0;
     });
 
-    y = addSearchAction(y, x, width, "Enable Biome Atmospheres", "enable biome atmospheres automation on toggle", config.enabled ? "Disable Biome Atmospheres" : "Enable Biome Atmospheres", "Toggle biome-based preset automation.", IconType.SKY, () -> {
+    y = addSearchAction(y, x, width, "Enable Biome Effects", "enable biome effects biome atmospheres automation on toggle", config.enabled ? "Disable Biome Effects" : "Enable Biome Effects", "Toggle biome-based preset automation.", IconType.SKY, () -> {
         config.enabled = !config.enabled;
         if (config.enabled) {
             config.paused = false;
@@ -3578,7 +3664,7 @@ private int addSearchBiomeAtmosphereEntries(int y, int x, int width) {
         ConfigManager.save();
     });
 
-    y = addSearchAction(y, x, width, "Show Automation Toasts", "show automation toasts notifications biome atmosphere feedback", config.showAutomationToasts ? "Automation Toasts: On" : "Automation Toasts: Off", "Toggle Biome Atmospheres automation notifications.", IconType.PRESETS, () -> {
+    y = addSearchAction(y, x, width, "Show Automation Toasts", "show automation toasts notifications biome effects biome atmosphere feedback", config.showAutomationToasts ? "Automation Toasts: On" : "Automation Toasts: Off", "Toggle Biome Effects automation notifications.", IconType.PRESETS, () -> {
         config.showAutomationToasts = !config.showAutomationToasts;
         ConfigManager.save();
     });
@@ -3830,6 +3916,7 @@ private String trimHeaderText(String text, int maxWidth) {
     drawFooterBar(context, theme);
 
     context.enableScissor(sidebarLeft(), sidebarListTop() - 2, sidebarRight(), sidebarListTop() + sidebarViewportHeight());
+    renderSidebarGroupHeaders(context, theme);
     renderSidebarWidgets(context, uiMouseX, uiMouseY, delta);
     context.disableScissor();
     renderSidebarScrollIndicator(context, theme);
@@ -3865,6 +3952,50 @@ private String trimHeaderText(String text, int maxWidth) {
             if (widget instanceof CategoryButton) {
                 widget.render(context, textRenderer, mouseX, mouseY, delta);
             }
+        }
+    }
+
+    // Group headers scroll and clip together with the nav items, so they are drawn inside the
+    // same sidebar scissor as the item widgets. The chevron reflects the effective displayed
+    // state (down = expanded, right = collapsed).
+    private void renderSidebarGroupHeaders(DrawContext context, Theme theme) {
+        if (isSearching()) {
+            return;
+        }
+
+        int x = sidebarLeft();
+        int w = sidebarWidth();
+        for (SidebarHeaderRow header : sidebarHeaderRows) {
+            int y = sidebarListTop() + header.baseY() - sidebarScrollOffset;
+            drawSidebarGroupHeader(context, header.group(), x, y, w, header.expanded());
+        }
+    }
+
+    private void drawSidebarGroupHeader(DrawContext context, SidebarGroup group, int x, int y, int w, boolean expanded) {
+        int headerH = sidebarGroupHeaderHeight();
+        int accent = UiRender.V2_ACCENT();
+        int chevronX = x + 8;
+        int chevronY = y + headerH / 2 - 2;
+        drawSidebarChevron(context, chevronX, chevronY, expanded, accent);
+
+        int labelX = chevronX + 9;
+        int textY = y + (headerH - 8) / 2;
+        int labelW = Math.max(0, x + w - labelX - 8);
+        if (labelW > 6 && group.title != null) {
+            UiRender.text(context, textRenderer, trimHeaderText(group.title, labelW), labelX, textY, accent);
+        }
+    }
+
+    // Small filled triangle: pointing down when expanded, right when collapsed.
+    private void drawSidebarChevron(DrawContext context, int x, int y, boolean expanded, int color) {
+        if (expanded) {
+            context.fill(x, y, x + 5, y + 1, color);
+            context.fill(x + 1, y + 1, x + 4, y + 2, color);
+            context.fill(x + 2, y + 2, x + 3, y + 3, color);
+        } else {
+            context.fill(x + 1, y - 1, x + 2, y + 4, color);
+            context.fill(x + 2, y, x + 3, y + 3, color);
+            context.fill(x + 3, y + 1, x + 4, y + 2, color);
         }
     }
 
@@ -4548,8 +4679,19 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
             themeStudioState.setThemeSearchFocused(false);
         }
 
+        // Group headers are drawn (not widgets), so handle their clicks explicitly — guarded to
+        // the visible sidebar list viewport so a scrolled-off header can never be toggled.
+        if (handleSidebarHeaderClick(click.x(), click.y())) {
+            return true;
+        }
+
         for (AtmosphereWidget widget : widgets) {
             if (isContentScrollGuarded(widget) && click.y() < scrollViewportTop) {
+                continue;
+            }
+            // Nav items only respond inside the visible sidebar list viewport, so an item that
+            // has scrolled up behind the title/divider area can never be clicked.
+            if (widget instanceof CategoryButton && !isMouseOverSidebar(click.x(), click.y())) {
                 continue;
             }
             if (widget.mouseClicked(click.x(), click.y(), click.button())) {
@@ -4558,6 +4700,27 @@ private void renderSidebarScrollIndicator(DrawContext context, Theme theme) {
         }
 
         return super.mouseClicked(click, doubled);
+    }
+
+    private boolean handleSidebarHeaderClick(double mouseX, double mouseY) {
+        if (isSearching() || !isMouseOverSidebar(mouseX, mouseY)) {
+            return false;
+        }
+
+        int x = sidebarLeft();
+        int w = sidebarWidth();
+        int headerH = sidebarGroupHeaderHeight();
+        for (SidebarHeaderRow header : sidebarHeaderRows) {
+            int y = sidebarListTop() + header.baseY() - sidebarScrollOffset;
+            if (UiRender.hovered(mouseX, mouseY, x, y, w, headerH)) {
+                SidebarGroup group = header.group();
+                group.setCollapsed(!group.isCollapsed());
+                ConfigManager.save();
+                rebuildWidgets();
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isOverFooterDone(double mouseX, double mouseY) {
