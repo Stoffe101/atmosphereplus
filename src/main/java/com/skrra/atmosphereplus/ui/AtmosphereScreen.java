@@ -3961,7 +3961,9 @@ private String trimHeaderText(String text, int maxWidth) {
     UiRender.v2Panel(context, x, y, w, h);
 
     UiRender.text(context, textRenderer, isSearching() ? "Search" : "Navigation", x + 12, sidebarNavLabelY(), theme.mutedText());
-    UiRender.text(context, textRenderer, "Atmosphere+ " + AtmospherePlusClient.VERSION, x + 12, sidebarVersionY(), theme.mutedText());
+        int versionY = sidebarVersionY() - 8;
+        UiRender.text(context, textRenderer, "Atmosphere+", x + 12, versionY, theme.mutedText());
+        UiRender.text(context, textRenderer, AtmospherePlusClient.VERSION, x + 12, versionY + 12, theme.mutedText());
     UiRender.v2Rule(context, x + 14, sidebarDividerY(), w - 28, 72);
 
     if (isSearching()) {
