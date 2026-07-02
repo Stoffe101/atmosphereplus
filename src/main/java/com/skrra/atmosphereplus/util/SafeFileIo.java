@@ -1,11 +1,16 @@
 package com.skrra.atmosphereplus.util;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Durable text file writes: content is written to a temporary file in the target's
@@ -14,6 +19,9 @@ import java.nio.file.StandardCopyOption;
  * serialization failure cannot touch the live file either.
  */
 public final class SafeFileIo {
+    private static final Logger LOGGER = LoggerFactory.getLogger("atmosphereplus");
+    private static final DateTimeFormatter QUARANTINE_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+
     private SafeFileIo() {
     }
 
@@ -40,5 +48,42 @@ public final class SafeFileIo {
             }
             throw exception;
         }
+    }
+
+    /**
+     * Copies a file that failed to load to a timestamped quarantine name next to the
+     * original, so fallback behavior (defaults, empty sets, later saves) can never be
+     * the only remaining copy of the user's data. The original file is left in place.
+     *
+     * @return the quarantine path, or {@code null} if the file is missing or the copy failed
+     */
+    public static Path quarantineCorruptFile(Path target) {
+        try {
+            if (!Files.exists(target)) {
+                return null;
+            }
+
+            Path backup = quarantinePath(target);
+            Files.copy(target, backup);
+            LOGGER.warn("Preserved unreadable file {} as {}", target, backup);
+            return backup;
+        } catch (IOException exception) {
+            LOGGER.warn("Could not create quarantine backup of {}", target, exception);
+            return null;
+        }
+    }
+
+    private static Path quarantinePath(Path target) {
+        String name = target.getFileName().toString();
+        String base = name.toLowerCase().endsWith(".json") ? name.substring(0, name.length() - ".json".length()) : name;
+        String stamp = LocalDateTime.now().format(QUARANTINE_TIMESTAMP);
+
+        Path parent = target.toAbsolutePath().getParent();
+        Path candidate = parent.resolve(base + ".corrupt-" + stamp + ".json");
+        int suffix = 2;
+        while (Files.exists(candidate)) {
+            candidate = parent.resolve(base + ".corrupt-" + stamp + "-" + suffix++ + ".json");
+        }
+        return candidate;
     }
 }

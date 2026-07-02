@@ -40,6 +40,7 @@ public final class ConfigManager {
             }
         } catch (Exception exception) {
             LOGGER.warn("Could not read config from {}; resetting to defaults", CONFIG_PATH, exception);
+            SafeFileIo.quarantineCorruptFile(CONFIG_PATH);
             config = new AtmosphereConfig();
             save();
         }

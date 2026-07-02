@@ -51,6 +51,7 @@ public final class CustomThemeManager {
             }
         } catch (Exception exception) {
             LOGGER.warn("Could not read custom themes from {}", path(), exception);
+            SafeFileIo.quarantineCorruptFile(path());
             CUSTOM_THEMES.clear();
         }
     }

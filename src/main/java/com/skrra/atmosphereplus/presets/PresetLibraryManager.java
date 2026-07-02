@@ -463,6 +463,7 @@ public final class PresetLibraryManager {
             CUSTOM_PRESETS.putAll(staged);
         } catch (Exception exception) {
             LOGGER.warn("Could not read custom presets from {}", CUSTOM_PRESETS_PATH, exception);
+            SafeFileIo.quarantineCorruptFile(CUSTOM_PRESETS_PATH);
         }
     }
 
