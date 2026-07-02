@@ -20,7 +20,7 @@ import java.time.format.DateTimeFormatter;
  */
 public final class SafeFileIo {
     private static final Logger LOGGER = LoggerFactory.getLogger("atmosphereplus");
-    private static final DateTimeFormatter QUARANTINE_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+    private static final DateTimeFormatter TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 
     private SafeFileIo() {
     }
@@ -76,13 +76,20 @@ public final class SafeFileIo {
     private static Path quarantinePath(Path target) {
         String name = target.getFileName().toString();
         String base = name.toLowerCase().endsWith(".json") ? name.substring(0, name.length() - ".json".length()) : name;
-        String stamp = LocalDateTime.now().format(QUARANTINE_TIMESTAMP);
+        return timestampedPath(target.toAbsolutePath().getParent(), base + ".corrupt-", ".json");
+    }
 
-        Path parent = target.toAbsolutePath().getParent();
-        Path candidate = parent.resolve(base + ".corrupt-" + stamp + ".json");
+    /**
+     * Resolves a file name of the form {@code <prefix><yyyyMMdd-HHmmss><extension>} in the
+     * given directory, appending {@code -2}, {@code -3}, ... if the name is already taken,
+     * so callers never overwrite an existing backup.
+     */
+    public static Path timestampedPath(Path directory, String prefix, String extension) {
+        String stamp = LocalDateTime.now().format(TIMESTAMP);
+        Path candidate = directory.resolve(prefix + stamp + extension);
         int suffix = 2;
         while (Files.exists(candidate)) {
-            candidate = parent.resolve(base + ".corrupt-" + stamp + "-" + suffix++ + ".json");
+            candidate = directory.resolve(prefix + stamp + "-" + suffix++ + extension);
         }
         return candidate;
     }

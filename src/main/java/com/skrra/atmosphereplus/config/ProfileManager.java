@@ -16,12 +16,15 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Comparator;
 
 public final class ProfileManager {
     public static final int PROFILE_COUNT = 5;
     private static final Logger LOGGER = LoggerFactory.getLogger("atmosphereplus");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final String BACKUP_FILE_NAME = "atmosphereplus-profiles-backup.json";
+    private static final String LEGACY_BACKUP_FILE_NAME = "atmosphereplus-profiles-backup.json";
+    private static final String BACKUP_PREFIX = "atmosphereplus-profiles-backup-";
+    private static final String PRE_IMPORT_BACKUP_PREFIX = "atmosphereplus-profiles-before-import-";
 
     private ProfileManager() {
     }
@@ -116,7 +119,7 @@ public final class ProfileManager {
     public static void exportProfiles() {
         ensureProfiles();
 
-        Path path = backupPath();
+        Path path = SafeFileIo.timestampedPath(configDir(), BACKUP_PREFIX, ".json");
         try {
             SafeFileIo.writeString(path, GSON.toJson(ConfigManager.get().profiles));
             NotificationUtil.show("Exported profiles backup");
@@ -127,9 +130,9 @@ public final class ProfileManager {
     }
 
     public static void importProfiles() {
-        Path path = backupPath();
+        Path path = latestBackupPath();
 
-        if (!Files.exists(path)) {
+        if (path == null) {
             NotificationUtil.show("No profile backup found");
             return;
         }
@@ -149,6 +152,8 @@ public final class ProfileManager {
                 }
             }
 
+            backupCurrentProfilesBeforeImport();
+
             ConfigManager.get().profiles = merged;
             ConfigManager.get().activePreset = "";
             ConfigManager.save();
@@ -162,15 +167,48 @@ public final class ProfileManager {
     }
 
     public static boolean hasBackup() {
-        return Files.exists(backupPath());
+        return latestBackupPath() != null;
     }
 
     public static boolean isActive(int index) {
         return ("profile_" + index).equals(ConfigManager.get().activePreset);
     }
 
-    private static Path backupPath() {
-        return FabricLoader.getInstance().getConfigDir().resolve(BACKUP_FILE_NAME);
+    private static Path configDir() {
+        return FabricLoader.getInstance().getConfigDir();
+    }
+
+    private static Path latestBackupPath() {
+        Path newest = null;
+        try (var stream = Files.list(configDir())) {
+            newest = stream
+                    .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name = path.getFileName().toString();
+                        return name.startsWith(BACKUP_PREFIX) && name.endsWith(".json");
+                    })
+                    .max(Comparator.comparing(path -> path.getFileName().toString()))
+                    .orElse(null);
+        } catch (IOException exception) {
+            LOGGER.warn("Could not list profile backups in {}", configDir(), exception);
+        }
+
+        if (newest != null) {
+            return newest;
+        }
+
+        Path legacy = configDir().resolve(LEGACY_BACKUP_FILE_NAME);
+        return Files.exists(legacy) ? legacy : null;
+    }
+
+    private static void backupCurrentProfilesBeforeImport() {
+        Path path = SafeFileIo.timestampedPath(configDir(), PRE_IMPORT_BACKUP_PREFIX, ".json");
+        try {
+            SafeFileIo.writeString(path, GSON.toJson(ConfigManager.get().profiles));
+            LOGGER.info("Backed up current profiles to {} before import", path);
+        } catch (IOException exception) {
+            LOGGER.warn("Could not back up current profiles before import", exception);
+        }
     }
 
     private static void ensureProfiles() {

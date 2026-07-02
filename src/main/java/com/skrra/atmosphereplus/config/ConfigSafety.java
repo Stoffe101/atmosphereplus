@@ -5,12 +5,16 @@ import com.skrra.atmosphereplus.automation.BiomeCategory;
 import com.skrra.atmosphereplus.automation.CaveHandlingMode;
 import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import com.skrra.atmosphereplus.util.NotificationUtil;
+import com.skrra.atmosphereplus.util.SafeFileIo;
 import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.ArrayList;
@@ -18,6 +22,9 @@ import java.util.LinkedHashSet;
 
 public final class ConfigSafety {
     public static final int LATEST_CONFIG_VERSION = 16;
+    private static final Logger LOGGER = LoggerFactory.getLogger("atmosphereplus");
+    private static final String MIGRATION_BACKUP_PREFIX = "atmosphereplus-before-migration-";
+    private static final int MIGRATION_BACKUPS_TO_KEEP = 3;
 
     private ConfigSafety() {
     }
@@ -348,17 +355,45 @@ public final class ConfigSafety {
     }
 
     private static void backupConfigBeforeMigration() {
-        Path configPath = FabricLoader.getInstance().getConfigDir().resolve("atmosphereplus.json");
-        Path backupPath = FabricLoader.getInstance().getConfigDir().resolve("atmosphereplus-before-alpha11-backup.json");
+        Path configDir = FabricLoader.getInstance().getConfigDir();
+        Path configPath = configDir.resolve("atmosphereplus.json");
 
         if (!Files.exists(configPath)) {
             return;
         }
 
+        Path backupPath = SafeFileIo.timestampedPath(configDir, MIGRATION_BACKUP_PREFIX, ".json");
         try {
-            Files.copy(configPath, backupPath, StandardCopyOption.REPLACE_EXISTING);
-        } catch (IOException ignored) {
+            Files.copy(configPath, backupPath);
+            LOGGER.info("Backed up config to {} before migration", backupPath);
+            pruneMigrationBackups(configDir);
+        } catch (IOException exception) {
             // The config repair should still continue even if backup creation fails.
+            LOGGER.warn("Could not back up config to {} before migration", backupPath, exception);
+        }
+    }
+
+    private static void pruneMigrationBackups(Path configDir) {
+        List<Path> backups = new ArrayList<>();
+        try (var stream = Files.list(configDir)) {
+            stream.filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String name = path.getFileName().toString();
+                        return name.startsWith(MIGRATION_BACKUP_PREFIX) && name.endsWith(".json");
+                    })
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .forEach(backups::add);
+        } catch (IOException exception) {
+            LOGGER.warn("Could not list migration backups in {}", configDir, exception);
+            return;
+        }
+
+        for (int i = 0; i < backups.size() - MIGRATION_BACKUPS_TO_KEEP; i++) {
+            try {
+                Files.deleteIfExists(backups.get(i));
+            } catch (IOException exception) {
+                LOGGER.warn("Could not delete old migration backup {}", backups.get(i), exception);
+            }
         }
     }
 
