@@ -7,16 +7,19 @@ import com.skrra.atmosphereplus.transitions.TransitionManager;
 import com.skrra.atmosphereplus.transitions.TransitionRequest;
 import com.skrra.atmosphereplus.transitions.TransitionSpeed;
 import com.skrra.atmosphereplus.util.NotificationUtil;
+import com.skrra.atmosphereplus.util.SafeFileIo;
 import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public final class ProfileManager {
     public static final int PROFILE_COUNT = 5;
+    private static final Logger LOGGER = LoggerFactory.getLogger("atmosphereplus");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String BACKUP_FILE_NAME = "atmosphereplus-profiles-backup.json";
 
@@ -113,16 +116,12 @@ public final class ProfileManager {
     public static void exportProfiles() {
         ensureProfiles();
 
+        Path path = backupPath();
         try {
-            Path path = backupPath();
-            Files.createDirectories(path.getParent());
-
-            try (Writer writer = Files.newBufferedWriter(path)) {
-                GSON.toJson(ConfigManager.get().profiles, writer);
-            }
-
+            SafeFileIo.writeString(path, GSON.toJson(ConfigManager.get().profiles));
             NotificationUtil.show("Exported profiles backup");
         } catch (IOException exception) {
+            LOGGER.error("Failed to export profiles to {}", path, exception);
             NotificationUtil.show("Failed to export profiles");
         }
     }
@@ -157,6 +156,7 @@ public final class ProfileManager {
             ConfigSafety.repairAndMigrate();
             NotificationUtil.show("Imported profiles backup");
         } catch (Exception exception) {
+            LOGGER.warn("Could not read profiles backup from {}", path, exception);
             NotificationUtil.show("Failed to import profiles");
         }
     }

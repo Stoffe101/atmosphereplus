@@ -3,7 +3,10 @@ package com.skrra.atmosphereplus.themes;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.skrra.atmosphereplus.config.ConfigManager;
+import com.skrra.atmosphereplus.util.SafeFileIo;
 import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -14,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public final class CustomThemeManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger("atmosphereplus");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final String FILE_NAME = "atmosphereplus-themes.json";
     private static final String EXPORT_FILE_NAME = "atmosphereplus-theme-export.json";
@@ -46,19 +50,19 @@ public final class CustomThemeManager {
                 }
             }
         } catch (Exception exception) {
+            LOGGER.warn("Could not read custom themes from {}", path(), exception);
             CUSTOM_THEMES.clear();
         }
     }
 
     public static void save() {
+        Storage storage = new Storage();
+        storage.themes = CUSTOM_THEMES.values().toArray(new CustomThemeData[0]);
+
         try {
-            Files.createDirectories(path().getParent());
-            try (Writer writer = Files.newBufferedWriter(path())) {
-                Storage storage = new Storage();
-                storage.themes = CUSTOM_THEMES.values().toArray(new CustomThemeData[0]);
-                GSON.toJson(storage, writer);
-            }
-        } catch (IOException ignored) {
+            SafeFileIo.writeString(path(), GSON.toJson(storage));
+        } catch (IOException exception) {
+            LOGGER.error("Failed to save custom themes to {}", path(), exception);
         }
     }
 

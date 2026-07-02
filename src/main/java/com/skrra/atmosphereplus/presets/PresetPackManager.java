@@ -4,7 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.skrra.atmosphereplus.client.AtmospherePlusClient;
 import com.skrra.atmosphereplus.config.AtmosphereProfile;
+import com.skrra.atmosphereplus.util.SafeFileIo;
 import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.awt.Desktop;
 import java.io.IOException;
@@ -17,6 +20,7 @@ import java.util.Locale;
 
 public final class PresetPackManager {
     public static final int FORMAT_VERSION = 1;
+    private static final Logger LOGGER = LoggerFactory.getLogger("atmosphereplus");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path PACK_FOLDER = FabricLoader.getInstance()
             .getConfigDir()
@@ -77,9 +81,10 @@ public final class PresetPackManager {
         String filename = uniqueFilename(slug(pack.packName));
         Path path = PACK_FOLDER.resolve(filename);
         try {
-            Files.writeString(path, GSON.toJson(pack));
+            SafeFileIo.writeString(path, GSON.toJson(pack));
             return new ExportResult(true, filename, path, entries.size(), "");
         } catch (IOException ex) {
+            LOGGER.error("Failed to export preset pack to {}", path, ex);
             return new ExportResult(false, filename, path, 0, "Could not write preset pack.");
         }
     }

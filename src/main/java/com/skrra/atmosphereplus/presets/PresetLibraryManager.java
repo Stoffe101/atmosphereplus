@@ -8,7 +8,10 @@ import com.skrra.atmosphereplus.config.AtmosphereProfile;
 import com.skrra.atmosphereplus.config.ConfigManager;
 import com.skrra.atmosphereplus.transitions.TransitionManager;
 import com.skrra.atmosphereplus.ui.IconType;
+import com.skrra.atmosphereplus.util.SafeFileIo;
 import net.fabricmc.loader.api.FabricLoader;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,6 +28,7 @@ import java.util.Set;
 import java.util.function.Consumer;
 
 public final class PresetLibraryManager {
+    private static final Logger LOGGER = LoggerFactory.getLogger("atmosphereplus");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CUSTOM_PRESETS_PATH = FabricLoader.getInstance()
             .getConfigDir()
@@ -457,17 +461,19 @@ public final class PresetLibraryManager {
 
             CUSTOM_PRESETS.clear();
             CUSTOM_PRESETS.putAll(staged);
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            LOGGER.warn("Could not read custom presets from {}", CUSTOM_PRESETS_PATH, exception);
         }
     }
 
     public static void saveCustomPresets() {
+        CustomPresetFile file = new CustomPresetFile();
+        file.presets = new ArrayList<>(CUSTOM_PRESETS.values());
+
         try {
-            Files.createDirectories(CUSTOM_PRESETS_PATH.getParent());
-            CustomPresetFile file = new CustomPresetFile();
-            file.presets = new ArrayList<>(CUSTOM_PRESETS.values());
-            Files.writeString(CUSTOM_PRESETS_PATH, GSON.toJson(file));
-        } catch (IOException ignored) {
+            SafeFileIo.writeString(CUSTOM_PRESETS_PATH, GSON.toJson(file));
+        } catch (IOException exception) {
+            LOGGER.error("Failed to save custom presets to {}", CUSTOM_PRESETS_PATH, exception);
         }
     }
 
